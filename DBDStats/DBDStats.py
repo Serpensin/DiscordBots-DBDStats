@@ -50,8 +50,6 @@ db_password = 'NXJkJF@rZyr9^ypCDJD5cZaG%S&K^Hu$bVjU75XgFgYpbvu*stMUWFAirh%B#EqsB
 
 
 #Init
-print('------')
-print('Initialization...')
 if not os.path.exists('Logs'):
     os.mkdir('Logs')
     log_folder = 'Logs'
@@ -65,7 +63,9 @@ else:
     else:
         log_folder = 'Logs'
 logger = logging.getLogger('discord')
+manlogger = logging.getLogger('Program')
 logger.setLevel(logging.INFO)
+manlogger.setLevel(logging.INFO)
 logging.getLogger('discord.http').setLevel(logging.INFO)
 handler = logging.handlers.RotatingFileHandler(
     filename = log_folder+'\\DBDStats.log',
@@ -77,6 +77,9 @@ dt_fmt = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+manlogger.addHandler(handler)
+manlogger.info('------')
+manlogger.info('Initialization...')
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
@@ -96,10 +99,15 @@ try:
                     cursor.execute(table_description)
                 except sql.Error as err:
                     if err.errno != 1050:
+                        manlogger.critical(err)
                         print(err)
+                        exit()
         except sql.Error as err:
+            manlogger.critical(err)
             print(err)
+            exit()
 except sql.Error as err:
+    manlogger.critical(err)
     print(err)
     exit()
 
@@ -135,17 +143,16 @@ bot = commands.AutoShardedBot(command_prefix = (get_prefix),
 #Events
 @bot.event
 async def on_ready():
-    print('------')
-    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    print('------')
+    logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
     global owner, print_channel
     owner = await bot.fetch_user(ownerID)
     print_channel = await bot.fetch_channel(channel_for_print)
     await bot.add_cog(Bot(bot))
     await bot.add_cog(DBD(bot))
     await bot.add_cog(zBotOwner(bot))
-    print('Initialization completed...')
-    print('------')
+    manlogger.info('Initialization completed...')
+    manlogger.info('------')
+    print('READY')
 
     
     
