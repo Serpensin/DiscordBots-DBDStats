@@ -33,8 +33,8 @@ if not os.path.exists('DBDStats//Buffer'):
     os.mkdir('DBDStats//Buffer')
 if not os.path.exists('DBDStats//Buffer//Stats'):
     os.mkdir('DBDStats//Buffer//Stats')
-log_folder = 'DBDStats//Logs'
-buffer_folder = 'DBDStats//Buffer'
+log_folder = 'DBDStats//Logs//'
+buffer_folder = 'DBDStats//Buffer//'
 stats_folder = 'DBDStats//Buffer//Stats//'
 logger = logging.getLogger('discord')
 manlogger = logging.getLogger('Program')
@@ -42,7 +42,7 @@ logger.setLevel(logging.INFO)
 manlogger.setLevel(logging.INFO)
 logging.getLogger('discord.http').setLevel(logging.INFO)
 handler = logging.handlers.RotatingFileHandler(
-    filename = log_folder+'//DBDStats.log',
+    filename = log_folder+'DBDStats.log',
     encoding = 'utf-8',
     maxBytes = 8 * 1024 * 1024, 
     backupCount = 5,            
@@ -154,7 +154,18 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
 
 
 #Functions
+def steam_link_to_id(vanity):
+    vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
+    vanity = vanity.replace('https://steamcommunity.com/id/', '')
+    vanity = vanity.replace('/', '')
+    resp = r.get(f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steamAPIkey}&vanityurl={vanity}')
+    if resp.json()['response']['success'] == 1:
+        return resp.json()['response']['steamid']
+    else:
+        return vanity
+
 def CheckForDBD(id, steamAPIkey):
+    id = steam_link_to_id(id)
     if len(id) != 17:
         return(1)
     try:
@@ -162,7 +173,7 @@ def CheckForDBD(id, steamAPIkey):
     except:
         return(1)
     try:
-        resp = r.get('http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key='+steamAPIkey+'&steamid='+id+'&format=json')
+        resp = r.get(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={steamAPIkey}&steamid={id}&format=json')
         data = resp.json()
         if resp.status_code == 400:
             return(2)
@@ -170,7 +181,7 @@ def CheckForDBD(id, steamAPIkey):
             return(3)
         for event in data['response']['games']:
             if event['appid'] == 381210:
-                return(0)
+                return(0, id)
             else:
                 continue
         return(4)
@@ -192,12 +203,23 @@ async def check_429(path):
         manlogger.warning(str(resp.status_code)+' while accessing '+path)
         await print_channel.send(str(resp.status_code)+' while accessing '+path)
         return(1)
+    print(f'429 {resp}')
     return(resp.json())
 
 def check_if_removed(id):
-    resp = r.get(api_base+'playerstats?steamid='+id)
+    resp = r.get(f'{api_base}playerstats?steamid={id}')
     if resp.status_code == 404:
-        manlogger.warning('SteamID '+id+' got removed from the leaderboard or no stats available yet.')
+        print('404')
+        url = f'{alt_playerstats}{id}'
+        print(url)
+        #url = 'https://develop.bloodygang.com/test.html'
+        page = r.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        print(soup)
+        for i in soup.find_all('div', id='error'):
+            print(i)
+            return i.text
+        manlogger.warning(f'SteamID {id} got removed from the leaderboard.')
         return(1)
     return(0)
 
@@ -221,11 +243,11 @@ def translate(interaction, text):
     return(text)
 
 async def perk_load():
-    if os.path.exists(buffer_folder+'//perk_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'//perk_info.json')) /3600 < 4):
-        with open(buffer_folder+'//perk_info.json', 'r', encoding='utf8') as f:
+    if os.path.exists(buffer_folder+'perk_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'perk_info.json')) /3600 < 4):
+        with open(buffer_folder+'perk_info.json', 'r', encoding='utf8') as f:
             data = json.load(f)  
-            if not os.path.exists(buffer_folder+'//perks.txt') or ((time.time() - os.path.getmtime(buffer_folder+'//perks.txt')) /3600 > 4):
-                with open(buffer_folder+'//perks.txt', 'w', encoding='utf8') as f2:
+            if not os.path.exists(buffer_folder+'perks.txt') or ((time.time() - os.path.getmtime(buffer_folder+'perks.txt')) /3600 > 4):
+                with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
                     for key in data.keys():
                         f2.write('Name: '+data[key]['name']+'\n')
             return data
@@ -233,12 +255,12 @@ async def perk_load():
         data = await check_429(api_base+'perks')
         if data == 1:
             return(1)
-        with open(buffer_folder+'//perk_info.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'perk_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
-        with open(buffer_folder+'//perk_info.json', 'r', encoding='utf8') as f:
+        with open(buffer_folder+'perk_info.json', 'r', encoding='utf8') as f:
             data = json.load(f)
-            if os.path.exists(buffer_folder+'//perks.txt') and ((time.time() - os.path.getmtime(buffer_folder+'//perks.txt')) /3600 > 4):
-                with open(buffer_folder+'//perks.txt', 'w', encoding='utf8') as f2:
+            if os.path.exists(buffer_folder+'perks.txt') and ((time.time() - os.path.getmtime(buffer_folder+'perks.txt')) /3600 > 4):
+                with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
                     for key in data.keys():
                         f2.write('Name: '+data[key]['name']+'\n')
             return data
@@ -271,15 +293,15 @@ async def self(interaction: discord.Interaction):
             if int(self.answer.value) == 0:
                 await interaction.response.send_message(content = translate(interaction, 'You can not use 0 as a number!'), ephemeral = True)
                 return
-            with open(log_folder+'//DBDStats.log', 'r', encoding='utf8') as f:
-                with open(buffer_folder+'//log-lines.txt', 'w', encoding='utf8') as f2:
+            with open(log_folder+'DBDStats.log', 'r', encoding='utf8') as f:
+                with open(buffer_folder+'log-lines.txt', 'w', encoding='utf8') as f2:
                     count = 0
                     for line in (f.readlines()[-int(self.answer.value):]):
                         f2.write(line)
                         count += 1
-            await interaction.response.send_message(content = translate(interaction, 'Here are the last '+str(count)+' lines of the current logfile:'), file = discord.File(r''+buffer_folder+'//log-lines.txt') , ephemeral = True)
-            if os.path.exists(buffer_folder+'//log-lines.txt'):
-                os.remove(buffer_folder+'//log-lines.txt')
+            await interaction.response.send_message(content = translate(interaction, 'Here are the last '+str(count)+' lines of the current logfile:'), file = discord.File(r''+buffer_folder+'log-lines.txt') , ephemeral = True)
+            if os.path.exists(buffer_folder+'log-lines.txt'):
+                os.remove(buffer_folder+'log-lines.txt')
              
     class LogButton(discord.ui.View):
         def __init__(self):
@@ -294,14 +316,14 @@ async def self(interaction: discord.Interaction):
         async def current(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
             try:
-                await interaction.response.send_message(file=discord.File(r''+log_folder+'//DBDStats.log'), ephemeral=True)
+                await interaction.response.send_message(file=discord.File(r''+log_folder+'DBDStats.log'), ephemeral=True)
             except discord.HTTPException as err:
                 if err.status == 413:
-                    with ZipFile(buffer_folder+'//DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
-                        f.write(log_folder+'//DBDStats.log')
+                    with ZipFile(buffer_folder+'DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
+                        f.write(log_folder+'DBDStats.log')
                     await interaction.response.edit_original_response(embed=discord.Embed(title="Log", description="I'm uploading the compressed log...", color=0x0000ff))
                     try:
-                        await interaction.response.send_message(file=discord.File(r''+buffer_folder+'//DBDStats.zip'))
+                        await interaction.response.send_message(file=discord.File(r''+buffer_folder+'DBDStats.zip'))
                     except discord.HTTPException as err:
                         if err.status == 413:
                             await interaction.response.send_message(translate(interaction, "The log is too big to be send directly.\nYou have to look at the log in your server(VPS)."), color=0xff0000)
@@ -309,23 +331,23 @@ async def self(interaction: discord.Interaction):
         @discord.ui.button(label = translate(interaction, 'Whole Folder'), style = discord.ButtonStyle.grey)
         async def whole(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
-            if os.path.exists(buffer_folder+'//DBDStats.zip'):
-                os.remove(buffer_folder+'//DBDStats.zip')
-            with ZipFile(buffer_folder+'//DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
-                if os.path.exists(log_folder+'//DBDStats.log'):
-                    f.write(log_folder+'//DBDStats.log')
-                if os.path.exists(log_folder+'//DBDStats.log.1'):
-                    f.write(log_folder+'//DBDStats.log.1')
-                if os.path.exists(log_folder+'//DBDStats.log.2'):    
-                    f.write(log_folder+'//DBDStats.log.2')
-                if os.path.exists(log_folder+'//DBDStats.log.3'):    
-                    f.write(log_folder+'//DBDStats.log.3')
-                if os.path.exists(log_folder+'//DBDStats.log.4'):    
-                    f.write(log_folder+'//DBDStats.log.4')
-                if os.path.exists(log_folder+'//DBDStats.log.5'):    
-                    f.write(log_folder+'//DBDStats.log.5')
-            await interaction.response.send_message(file=discord.File(r''+buffer_folder+'//DBDStats.zip'), ephemeral=True)
-            os.remove(buffer_folder+'//DBDStats.zip')
+            if os.path.exists(buffer_folder+'DBDStats.zip'):
+                os.remove(buffer_folder+'DBDStats.zip')
+            with ZipFile(buffer_folder+'DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
+                if os.path.exists(log_folder+'DBDStats.log'):
+                    f.write(log_folder+'DBDStats.log')
+                if os.path.exists(log_folder+'DBDStats.log.1'):
+                    f.write(log_folder+'DBDStats.log.1')
+                if os.path.exists(log_folder+'DBDStats.log.2'):    
+                    f.write(log_folder+'DBDStats.log.2')
+                if os.path.exists(log_folder+'DBDStats.log.3'):    
+                    f.write(log_folder+'DBDStats.log.3')
+                if os.path.exists(log_folder+'DBDStats.log.4'):    
+                    f.write(log_folder+'DBDStats.log.4')
+                if os.path.exists(log_folder+'DBDStats.log.5'):    
+                    f.write(log_folder+'DBDStats.log.5')
+            await interaction.response.send_message(file=discord.File(r''+buffer_folder+'DBDStats.zip'), ephemeral=True)
+            os.remove(buffer_folder+'DBDStats.zip')
     if interaction.user.id != int(ownerID):
         await interaction.response.send_message(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
         return
@@ -412,8 +434,11 @@ async def self(interaction: discord.Interaction):
         await interaction.edit_original_response(content='Synced.')
     else:
         await interaction.response.send_message('You are not allowed to use this command.', ephemeral = True)        
-    
 
+
+
+        
+        
 ##Bot Commands----------------------------------------
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.', guild = discord.Object(id = 1030227106279477268))
@@ -448,54 +473,69 @@ async def self(interaction: discord.Interaction, option: str):
     if option == '1':
         language = discord.Embed(title="Setup - Language", description=translate(interaction, "Most outputs will be translated using Google Translator. However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 107 Languages/Roles, you have to setup the roles you need on your own.")+"\n\nAfrikaans, Albanian, Amharic, Arabic, Armenian, Azerbaijani, Basque, Belarusian, Bengali, Bosnian, Bulgarian, Catalan, Cebuano, Chichewa, Chinese (Simplified), Chinese (Traditional), Corsican, Croatian, Czech, Danish, Dutch, Esperanto, Estonian, Filipino, Finnish, French, Frisian, Galician, Georgian, German, Greek, Gujarati, Haitian Creole, Hausa, Hawaiian, Hebrew, Hebrew, Hindi, Hmong, Hungarian, Icelandic, Igbo, Indonesian, Irish, Italian, Japanese, Javanese, Kannada, Kazakh, Khmer, Korean, Kurdish (Kurmanji), Kyrgyz, Lao, Latin, Latvian, Lithuanian, Luxembourgish, Macedonian, Malagasy, Malay, Malayalam, Maltese, Maori, Marathi, Mongolian, Myanmar (Burmese), Nepali, Norwegian, Odia, Pashto, Persian, Polish, Portuguese, Punjabi, Romanian, Russian, Samoan, Scots Gaelic, Serbian, Sesotho, Shona, Sindhi, Sinhala, Slovak, Slovenian, Somali, Spanish, Sundanese, Swahili, Swedish, Tajik, Tamil, Telugu, Thai, Turkish, Ukrainian, Urdu, Uyghur, Uzbek, Vietnamese, Welsh, Xhosa, Yiddish, Yoruba, Zulu", color=0x004cff)
         await interaction.response.send_message(embeds=[language])
-    
+
         
 
 ##DBD Commands----------------------------------------
 #Stats
 @tree.command(name = 'stats', description = 'Get stats for DBD.', guild = discord.Object(id = 1030227106279477268))
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-@discord.app_commands.describe(steamid64='SteamID64 of the player you want to get stats for.')
-async def self(interaction: discord.Interaction, steamid64: str):
+#@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+@discord.app_commands.describe(steamid='SteamID64 or vanity(url) of the player you want to get stats for.')
+async def self(interaction: discord.Interaction, steamid: str):
     if interaction.guild is None:
         await interaction.response.send_message('This command can only be used inside a server.')
         return
-    check = CheckForDBD(steamid64, steamAPIkey)
-    if check == 1:
-        await interaction.response.send_message(translate(interaction, f'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)   
-    elif check == 2:
-        await interaction.response.send_message(translate(interaction, f'This SteamID64 is NOT in use.'), ephemeral=True)
-    elif check == 3:
+    check = CheckForDBD(steamid, steamAPIkey)
+    print(check)
+    try:
+        int(check[0])
+    except:
+        embed = discord.Embed(title=translate(interaction, 'Try again'), description=translate(interaction, check[1]), color=0x004cff)
+        await interaction.response.send_message(embed=embed)
+        return
+    if check[0] == 1:
+        await interaction.response.send_message(translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)   
+    elif check[0] == 2:
+        await interaction.response.send_message(translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
+    elif check[0] == 3:
         await interaction.response.send_message(translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).", ephemeral=True)
-    elif check == 4:
+    elif check[0] == 4:
         await interaction.response.send_message(translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
-    elif check == 5:
+    elif check[0] == 5:
         embed1=discord.Embed(title="Fatal Error", description=translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await create_support_invite(interaction))+translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
         embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
         await interaction.response.send_message(embed=embed1, ephemeral=True)
-    elif check == 0:
+    elif check[0] == 0:
         await interaction.response.defer(thinking=True)
         for filename in os.scandir(stats_folder):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
                 os.remove(filename)
         #Get Stats from https://dbd.tricky.lol/
-        if check_if_removed(steamid64) == 1:
-            embed1 = discord.Embed(title="Statistics", url=alt_playerstats+steamid64, description=translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.\n\nThis message also appears if the stats for this profile hasn't been captured yet. In that case you can try again in a few minutes.").replace('.','. '), color=0xb19325)
+        removed = check_if_removed(check[1])
+        if removed == 1:
+            embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.").replace('.','. '), color=0xb19325)
             await interaction.followup.send(embed=embed1)
             return
-        if os.path.exists(stats_folder+'//player_stats_'+str(steamid64)+'.json') and ((time.time() - os.path.getmtime(buffer_folder+'//player_stats_'+str(steamid64)+'.json')) / 3600) <= 4:
-            player_file = open(stats_folder+'//player_stats_'+str(steamid64)+'.json', 'r', encoding='utf8')
+        elif removed != 0:
+            print(removed)
+            await interaction.followup.send(content = removed)
+            return
+        if os.path.exists(f'{stats_folder}player_stats_{check[1]}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{check[1]}.json')) / 3600) <= 4:
+            player_file = open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8')
             player_stats = json.loads(player_file.read())
         else:
-            if await check_429(api_base+'playerstats?steamid='+steamid64) != 1:
-                with open(stats_folder+'//player_stats_'+str(steamid64)+'.json', 'w', encoding='utf8') as f:
-                    json.dump(r.get(api_base+'playerstats?steamid='+steamid64).json(), f, indent=2)
+            data = await check_429(f'{api_base}playerstats?steamid={check[1]}')
+            print(f'WICHTIG {data}')
+            if data != 1:
+                print('DUMP STATS')
+                with open(f'{stats_folder}player_stats_{check[1]}.json', 'w', encoding='utf8') as f:
+                    json.dump(r.get(f'{api_base}playerstats?steamid={check[1]}').json(), f, indent=2)
             else:
                 await interaction.followup.send(translate(interaction, "The stats got loaded in the last 3h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
                 return
-            player_file = open(stats_folder+'//player_stats_'+str(steamid64)+'.json', 'r', encoding='utf8')
+            player_file = open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8')
             player_stats = json.loads(player_file.read())
-        steam_data = await check_429('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key='+steamAPIkey+'&steamids='+steamid64)
+        steam_data = await check_429(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={steamAPIkey}&steamids={check[1]}')
         if steam_data == 1 or player_stats == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 3h window.)").replace('.','. '), ephemeral=True)
             return
@@ -780,33 +820,33 @@ async def self(interaction: discord.Interaction, character: str=''):
     await interaction.response.defer(thinking = True)
     if interaction.guild is None:
         await interaction.followup.send("This command can only be used in a server.")
-    if os.path.exists(buffer_folder+'//character_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'//character_info.json')) / 3600) <= 4:
-        character_info = open(buffer_folder+'//character_info.json', 'r', encoding='utf8')
+    if os.path.exists(buffer_folder+'character_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'character_info.json')) / 3600) <= 4:
+        character_info = open(buffer_folder+'character_info.json', 'r', encoding='utf8')
     else:
         data = await check_429(api_base+'characters')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
             return
-        with open(buffer_folder+'//character_info.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'character_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
-        character_info = open(buffer_folder+'//character_info.json', 'r', encoding='utf8')   
-    if os.path.exists(buffer_folder+'//dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'//dlc.json')) / 3600) <= 4:
-        dlc_info = open(buffer_folder+'//dlc.json', 'r', encoding='utf8')
+        character_info = open(buffer_folder+'character_info.json', 'r', encoding='utf8')   
+    if os.path.exists(buffer_folder+'dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'dlc.json')) / 3600) <= 4:
+        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
     else:
         data = await check_429(api_base+'dlc')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
             return
-        with open(buffer_folder+'//dlc.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
-        dlc_info = open(buffer_folder+'//dlc.json', 'r', encoding='utf8')
+        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
     data = json.loads(character_info.read())
     dlc_data = json.loads(dlc_info.read())
-    if character == '' and os.path.exists(buffer_folder+'//characters_survivor.txt') and os.path.exists(buffer_folder+'//characters_killer.txt') and ((time.time() - os.path.getmtime(buffer_folder+'//characters_survivor.txt')) / 3600) <= 4:
-        await interaction.followup.send(files=[discord.File(buffer_folder+'//characters_survivor.txt'), discord.File(buffer_folder+'//characters_killer.txt')])
+    if character == '' and os.path.exists(buffer_folder+'characters_survivor.txt') and os.path.exists(buffer_folder+'characters_killer.txt') and ((time.time() - os.path.getmtime(buffer_folder+'characters_survivor.txt')) / 3600) <= 4:
+        await interaction.followup.send(files=[discord.File(buffer_folder+'characters_survivor.txt'), discord.File(buffer_folder+'characters_killer.txt')])
     elif character == '':
-        survivor = open(buffer_folder+'//characters_survivor.txt', 'w', encoding='utf8')
-        killer = open(buffer_folder+'//characters_killer.txt', 'w', encoding='utf8')
+        survivor = open(buffer_folder+'characters_survivor.txt', 'w', encoding='utf8')
+        killer = open(buffer_folder+'characters_killer.txt', 'w', encoding='utf8')
         for key in data.keys():
             if data[key]['role'] == 'survivor':
                 survivor.write('ID: '+data[key]['id']+' \u0009 Name: '+data[key]['name']+'\n')
@@ -817,7 +857,7 @@ async def self(interaction: discord.Interaction, character: str=''):
                 await interaction.followup.send("Unknown role: "+data[key]['role'])
         survivor.close()
         killer.close()
-        await interaction.followup.send(content=translate(interaction, "Here are the characters:"), files=[discord.File(buffer_folder+'//characters_survivor.txt'), discord.File(buffer_folder+'//characters_killer.txt')])
+        await interaction.followup.send(content=translate(interaction, "Here are the characters:"), files=[discord.File(buffer_folder+'characters_survivor.txt'), discord.File(buffer_folder+'characters_killer.txt')])
     else:
         for key in data.keys():
             if str(data[key]['id']).lower() == character.lower().replace('the ', '') or str(data[key]['name']).lower().replace('the ', '') == character.lower():
@@ -836,9 +876,9 @@ async def self(interaction: discord.Interaction, character: str=''):
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name="Bio", value=translate(interaction, str(data[key]['bio']).replace('<br><br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
                 if len(data[key]['story']) > 4096:
-                    story = buffer_folder+'//character_story.txt'
+                    story = buffer_folder+'character_story.txt'
                     if os.path.exists(story):
-                        story = buffer_folder+'//character_story'+str(randrange(1, 999))+'.txt'
+                        story = buffer_folder+'character_story'+str(randrange(1, 999))+'.txt'
                     with open(story, 'w', encoding='utf8') as f:
                         f.write(translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '))
                     await interaction.followup.send('Story', file=discord.File(r''+story))
@@ -865,16 +905,16 @@ async def self(interaction: discord.Interaction, character: str=''):
 @discord.app_commands.describe(name='Enter the exact name of the DLC to get the description. Leave empty to get a list of all DLCs.')
 async def self(interaction: discord.Interaction, name: str=''):
     await interaction.response.defer(thinking=True)
-    if os.path.exists(buffer_folder+'//dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'//dlc.json')) / 3600) <= 4:
-        dlc_info = open(buffer_folder+'//dlc.json', 'r', encoding='utf8')
+    if os.path.exists(buffer_folder+'dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'dlc.json')) / 3600) <= 4:
+        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
     else:
         data = await check_429(api_base+'dlc')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '), ephemeral=True)
             return
-        with open(buffer_folder+'//dlc.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
-            dlc_info = open(buffer_folder+'//dlc.json', 'r', encoding='utf8')
+            dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
     data = json.loads(dlc_info.read())
     if name == '':
         embed = discord.Embed(title="DLC Info (1/2)",  description=translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.").replace('.','. '), color=0xb19325)
@@ -907,26 +947,26 @@ async def self(interaction: discord.Interaction, name: str=''):
     if interaction.guild is None:
         await interaction.followup.send("This command can only be used in a server.", ephemeral=True)
         return
-    if os.path.exists(buffer_folder+'//maps_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'//maps_info.json')) / 3600) >= 4 or not os.path.exists(buffer_folder+'//maps_info.json'):
+    if os.path.exists(buffer_folder+'maps_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'maps_info.json')) / 3600) >= 4 or not os.path.exists(buffer_folder+'maps_info.json'):
         data = await check_429(api_base+'maps')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
-        with open(buffer_folder+'//maps_info.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'maps_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
-    if name == '' and os.path.exists(buffer_folder+'//maps.txt') and ((time.time() - os.path.getmtime(buffer_folder+'//maps.txt')) / 3600) <= 4:
-            await interaction.followup.send(file=discord.File(r''+buffer_folder+'//maps.txt'))
+    if name == '' and os.path.exists(buffer_folder+'maps.txt') and ((time.time() - os.path.getmtime(buffer_folder+'maps.txt')) / 3600) <= 4:
+            await interaction.followup.send(file=discord.File(r''+buffer_folder+'maps.txt'))
             return
     elif name == '':
-        map_info = open(buffer_folder+'//maps_info.json', 'r', encoding='utf8')
+        map_info = open(buffer_folder+'maps_info.json', 'r', encoding='utf8')
         map_data = json.loads(map_info.read())
-        with open(buffer_folder+'//maps.txt', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'maps.txt', 'w', encoding='utf8') as f:
             for key in map_data.keys():
                 if key == 'Swp_Mound':
                     continue
                 f.write('Name: '+map_data[key]['name']+'\n')
-        await interaction.followup.send(file=discord.File(r''+buffer_folder+'//maps.txt'))
+        await interaction.followup.send(file=discord.File(r''+buffer_folder+'maps.txt'))
     else:
-        map_info = open(buffer_folder+'//maps_info.json', 'r', encoding='utf8')
+        map_info = open(buffer_folder+'maps_info.json', 'r', encoding='utf8')
         map_data = json.loads(map_info.read())
         for key in map_data.keys():
             if map_data[key]['name'] == 'Swp_Mound':
@@ -972,14 +1012,14 @@ async def self(interaction: discord.Interaction):
                     data['Peak Players All Time'] = stat
                 count += 1
             data['update_hour'] = datetime.now().hour
-        with open(buffer_folder+'//playercount.json', 'w', encoding='utf8') as f:
+        with open(buffer_folder+'playercount.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
         return data
     await interaction.response.defer(thinking = True)
-    if os.path.exists(buffer_folder+'//playercount.json'):
-        with open(buffer_folder+'//playercount.json', 'r', encoding='utf8') as f:
+    if os.path.exists(buffer_folder+'playercount.json'):
+        with open(buffer_folder+'playercount.json', 'r', encoding='utf8') as f:
             data = json.load(f)
-        if data['update_hour'] == datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'//playercount.json')) / 3600) <= 23:
+        if data['update_hour'] == datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
             await selfembed(data)
             return
     await selfembed(await selfget())
@@ -1030,7 +1070,7 @@ async def self(interaction: discord.Interaction, perk: str=''):
         return
     else:
         if perk == '':
-            await interaction.followup.send(file=discord.File(r''+buffer_folder+'//perks.txt'))
+            await interaction.followup.send(file=discord.File(r''+buffer_folder+'perks.txt'))
         for key in data.keys():
             if data[key]['name'].lower() == perk.lower():
                 embed = discord.Embed(title="Perk description for '"+data[key]['name']+"'", description=str(data[key]['description']).replace('<br><br>', ' ').replace('.','. ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*'), color=0xb19325)
@@ -1077,22 +1117,56 @@ async def self(interaction: discord.Interaction):
         embed = discord.Embed(title="Killswitch", description=translate(interaction, 'Currently there is no Kill Switch active.').replace('.','. '), color=0xb19325)
         embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
         await interaction.followup.send(embed=embed)
-            
-            
-    
-        
+#Legit Legacy check
+@tree.command(name='legacy_check', description='Test if a player can have legit legacy.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+@discord.app_commands.describe(steamid='SteamID64 or vanity(url) of the player you want to check.')
+async def self(interaction: discord.Interaction, steamid: str):
+    await interaction.response.defer()
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+        return
+    check = CheckForDBD(steamid, steamAPIkey)
+    if check[0] == 1:
+        await interaction.followup.send(translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))   
+    elif check[0] == 2:
+        await interaction.followup.send(translate(interaction, 'This SteamID64 is NOT in use.'))
+    elif check[0] == 3:
+        await interaction.followup.send(translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
+    elif check[0] == 4:
+        await interaction.followup.send(translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
+    elif check[0] == 5:
+        embed1=discord.Embed(title="Fatal Error", description=translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await create_support_invite(interaction))+translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+        embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+        await interaction.response.send_message(embed=embed1)
+    elif check[0] == 0:
+        resp = r.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={check[1]}&appid=381210')
+        data = resp.json()
+        if data['playerstats']['success'] == False:
+            await interaction.followup.send(translate(interaction, 'This profile is private.'))
+            return
+        for entry in data['playerstats']['achievements']:
+            if entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) < 1480017600:
+                await interaction.followup.send(translate(interaction, 'This player has probably legit legacy.').replace('.','. '))
+                return
+            elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) > 1480017600:
+                await interaction.followup.send(translate(interaction, 'If this player has legacy, they are pobably hacked.').replace('.','. '))
+                return
+            elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 0:
+                await interaction.followup.send(translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
+                return
 
         
-
+    
     
     
             
-
+                
     
         
             
 
-
+            
 
 
 
