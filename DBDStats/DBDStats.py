@@ -1,13 +1,11 @@
 ﻿#Import
 import discord
-#from discord.ext import commands
 import requests as r
 import time
 import logging
 import logging.handlers
 import os
 from zipfile import ZIP_LZMA, ZipFile
-#from sys import exit
 import json
 from random import randrange
 from datetime import timedelta, datetime
@@ -18,8 +16,9 @@ from bs4 import BeautifulSoup
 #Set vars
 api_base = 'https://dbd.tricky.lol/api/'                                
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
-map_portraits = 'https://cdn.bloodygang.com/botfiles/mapportraits/'
-char_portraits = 'https://cdn.bloodygang.com/botfiles/charportraits/'   
+png_base = 'https://cdn.bloodygang.com/botfiles/'
+map_portraits = png_base+'mapportraits/'
+char_portraits = png_base+'charportraits/'   
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
 languages = ['Afrikaans', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Azerbaijani', 'Basque', 'Belarusian', 'Bengali', 'Bosnian', 'Bulgarian', 'Catalan', 'Cebuano', 'Chichewa', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Corsican', 'Croatian', 'Czech', 'Danish', 'Dutch', 'English', 'Esperanto', 'Estonian', 'Filipino', 'Finnish', 'French', 'Frisian', 'Galician', 'Georgian', 'German', 'Greek', 'Gujarati', 'Haitian Creole', 'Hausa', 'Hawaiian', 'Hebrew', 'Hebrew', 'Hindi', 'Hmong', 'Hungarian', 'Icelandic', 'Igbo', 'Indonesian', 'Irish', 'Italian', 'Japanese', 'Javanese', 'Kannada', 'Kazakh', 'Khmer', 'Korean', 'Kurdish (Kurmanji)', 'Kyrgyz', 'Lao', 'Latin', 'Latvian', 'Lithuanian', 'Luxembourgish', 'Macedonian', 'Malagasy', 'Malay', 'Malayalam', 'Maltese', 'Maori', 'Marathi', 'Mongolian', 'Myanmar (Burmese)', 'Nepali', 'Norwegian', 'Odia', 'Pashto', 'Persian', 'Polish', 'Portuguese', 'Punjabi', 'Romanian', 'Russian', 'Samoan', 'Scots Gaelic', 'Serbian', 'Sesotho', 'Shona', 'Sindhi', 'Sinhala', 'Slovak', 'Slovenian', 'Somali', 'Spanish', 'Sundanese', 'Swahili', 'Swedish', 'Tajik', 'Tamil', 'Telugu', 'Thai', 'Turkish', 'Ukrainian', 'Urdu', 'Uyghur', 'Uzbek', 'Vietnamese', 'Welsh', 'Xhosa', 'Yiddish', 'Yoruba', 'Zulu']
@@ -97,7 +96,6 @@ def get_status():
     elif status == 'invisible':
         return discord.Status.invisible
 
-
 class aclient(discord.AutoShardedClient):
     def __init__(self):
         super().__init__(owner_id = ownerID,
@@ -105,12 +103,14 @@ class aclient(discord.AutoShardedClient):
                               activity = get_activity(),
                               status = get_status()
                         )
-        self.synced = False
+        self.synced = True
     async def on_ready(self):
-        if not self.synced:
-            await tree.sync(guild = discord.Object(id = 1030227106279477268))
-            self.synced = True
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
+        if not self.synced:
+            manlogger.info('Syncing...')
+            await tree.sync(guild = discord.Object(id = 1030227106279477268))
+            manlogger.info('Synced.')
+            self.synced = True
         global owner, print_channel
         owner = await bot.fetch_user(ownerID)
         print_channel = await bot.fetch_channel(channel_for_print)
@@ -220,6 +220,30 @@ def translate(interaction, text):
                 return(text)
     return(text)
 
+async def perk_load():
+    if os.path.exists(buffer_folder+'//perk_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'//perk_info.json')) /3600 < 4):
+        with open(buffer_folder+'//perk_info.json', 'r', encoding='utf8') as f:
+            data = json.load(f)  
+            if not os.path.exists(buffer_folder+'//perks.txt') or ((time.time() - os.path.getmtime(buffer_folder+'//perks.txt')) /3600 > 4):
+                with open(buffer_folder+'//perks.txt', 'w', encoding='utf8') as f2:
+                    for key in data.keys():
+                        f2.write('Name: '+data[key]['name']+'\n')
+            return data
+    else:
+        data = await check_429(api_base+'perks')
+        if data == 1:
+            return(1)
+        with open(buffer_folder+'//perk_info.json', 'w', encoding='utf8') as f:
+            json.dump(data, f, indent=2)
+        with open(buffer_folder+'//perk_info.json', 'r', encoding='utf8') as f:
+            data = json.load(f)
+            if os.path.exists(buffer_folder+'//perks.txt') and ((time.time() - os.path.getmtime(buffer_folder+'//perks.txt')) /3600 > 4):
+                with open(buffer_folder+'//perks.txt', 'w', encoding='utf8') as f2:
+                    for key in data.keys():
+                        f2.write('Name: '+data[key]['name']+'\n')
+            return data
+   
+   
 
     
 ##Owner Commands----------------------------------------
@@ -235,9 +259,37 @@ async def self(interaction: discord.Interaction):
 #Get Logs
 @tree.command(name = 'get_logs', description = 'Get the current, or all logfiles.', guild = discord.Object(id = 1030227106279477268))
 async def self(interaction: discord.Interaction):
+    class LastXLines(discord.ui.Modal, title = 'Line Input'):
+        self.timeout = 15
+        answer = discord.ui.TextInput(label = translate(interaction, 'How many lines?'), style = discord.TextStyle.short, required = True, min_length = 1, max_length = 3)
+        async def on_submit(self, interaction: discord.Interaction):
+            try:
+                int(self.answer.value)
+            except:
+                await interaction.response.send_message(content = translate(interaction, 'You can only use numbers!'), ephemeral = True)
+                return
+            if int(self.answer.value) == 0:
+                await interaction.response.send_message(content = translate(interaction, 'You can not use 0 as a number!'), ephemeral = True)
+                return
+            with open(log_folder+'//DBDStats.log', 'r', encoding='utf8') as f:
+                with open(buffer_folder+'//log-lines.txt', 'w', encoding='utf8') as f2:
+                    count = 0
+                    for line in (f.readlines()[-int(self.answer.value):]):
+                        f2.write(line)
+                        count += 1
+            await interaction.response.send_message(content = translate(interaction, 'Here are the last '+str(count)+' lines of the current logfile:'), file = discord.File(r''+buffer_folder+'//log-lines.txt') , ephemeral = True)
+            if os.path.exists(buffer_folder+'//log-lines.txt'):
+                os.remove(buffer_folder+'//log-lines.txt')
+             
     class LogButton(discord.ui.View):
         def __init__(self):
             super().__init__()
+            
+        @discord.ui.button(label = translate(interaction, 'Last X lines'), style = discord.ButtonStyle.blurple)
+        async def xlines(self, interaction: discord.Interaction, button: discord.ui.Button):
+            LogButton.stop(self)
+            await interaction.response.send_modal(LastXLines())
+     
         @discord.ui.button(label = translate(interaction, 'Current Log'), style = discord.ButtonStyle.grey)
         async def current(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
@@ -253,6 +305,7 @@ async def self(interaction: discord.Interaction):
                     except discord.HTTPException as err:
                         if err.status == 413:
                             await interaction.response.send_message(translate(interaction, "The log is too big to be send directly.\nYou have to look at the log in your server(VPS)."), color=0xff0000)
+        
         @discord.ui.button(label = translate(interaction, 'Whole Folder'), style = discord.ButtonStyle.grey)
         async def whole(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
@@ -349,8 +402,18 @@ async def self(interaction: discord.Interaction, status: str):
         await interaction.followup.send(translate(interaction, 'Status changed!'), ephemeral = True)
     else:
         await interaction.followup.send(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
-        
+#Sync Commands to BotDevelopment
+@tree.command(name = 'sync', description = 'Sync commands to guild.', guild = discord.Object(id = 1030227106279477268))
+async def self(interaction: discord.Interaction):
+    if interaction.user.id == int(ownerID):
+        await interaction.response.defer(ephemeral = True)
+        await interaction.followup.send('Syncing...')
+        await tree.sync(guild = discord.Object(id = 1030227106279477268))
+        await interaction.edit_original_response(content='Synced.')
+    else:
+        await interaction.response.send_message('You are not allowed to use this command.', ephemeral = True)        
     
+
 ##Bot Commands----------------------------------------
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.', guild = discord.Object(id = 1030227106279477268))
@@ -720,7 +783,7 @@ async def self(interaction: discord.Interaction, character: str=''):
     if os.path.exists(buffer_folder+'//character_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'//character_info.json')) / 3600) <= 4:
         character_info = open(buffer_folder+'//character_info.json', 'r', encoding='utf8')
     else:
-        data = await check_429(api_base+'characters?includeperks=1')
+        data = await check_429(api_base+'characters')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
             return
@@ -916,28 +979,118 @@ async def self(interaction: discord.Interaction):
     if os.path.exists(buffer_folder+'//playercount.json'):
         with open(buffer_folder+'//playercount.json', 'r', encoding='utf8') as f:
             data = json.load(f)
-        if data['update_hour'] == datetime.now().hour:
+        if data['update_hour'] == datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'//playercount.json')) / 3600) <= 23:
             await selfembed(data)
             return
     await selfembed(await selfget())
-
-
+#Perks
+@tree.command(name='perk', description='Get a list of all perks.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+@discord.app_commands.describe(perk='The perk you want to get information about. Leave epty to get a list of all perks.')
+async def self(interaction: discord.Interaction, perk: str=''):
+    await interaction.response.defer()
+    def length1(data):
+        length = len(data[key]['tunables'][0])
+        if length == 1:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+        elif length == 2:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
+        elif length == 3:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][2])
+    def length2(data):
+        length = len(data[key]['tunables'][1])
+        if length == 1:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+        elif length == 2:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
+        elif length == 3:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][2])
+    def length3(data):
+        length = len(data[key]['tunables'][2])
+        if length == 1:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+        elif length == 2:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
+        elif length == 3:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][2])
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+    data = await perk_load()
+    if data == 1:
+        await interaction.followup.send("Error while loading the perk data.")
+        return
+    else:
+        if perk == '':
+            await interaction.followup.send(file=discord.File(r''+buffer_folder+'//perks.txt'))
+        for key in data.keys():
+            if data[key]['name'].lower() == perk.lower():
+                embed = discord.Embed(title="Perk description for '"+data[key]['name']+"'", description=str(data[key]['description']).replace('<br><br>', ' ').replace('.','. ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*'), color=0xb19325)
+                embed.set_thumbnail(url=png_base+data[key]['image'])
+                embed.add_field(name='\u200b', value='\u200b', inline = False)
+                length_total = len(data[key]['tunables'])
+                if length_total == 1:
+                    length1(data)
+                elif length_total == 2:
+                    length1(data)
+                    embed.add_field(name='\u200b', value='\u200b', inline = False)
+                    length2(data)
+                elif length_total == 3:
+                    length1(data)
+                    embed.add_field(name='\u200b', value='\u200b', inline = False)
+                    length2(data)
+                    embed.add_field(name='\u200b', value='\u200b', inline = False)
+                    length3(data)
+                        
+                await interaction.followup.send(embed=embed)
+                return
+#Killswitch
+@tree.command(name='killswitch', description='Get the current status of the Kill Switches.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+async def self(interaction: discord.Interaction):
+    await interaction.response.defer()
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+        return
+    resp = r.get('https://cdn.bloodygang.com/botfiles/killswitch.json')
+    data = resp.json()
+    count = len(data.keys())
+    for i in data.keys():
+        if data[i]['Text'] == '':
+            count -= 1  
+        else:
+            embed = discord.Embed(title="Killswitch", description=translate(interaction, data[i]['Text']).replace('.','. '), color=0xb19325)
+            embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
+            embed.add_field(name="Links", value=f"[Forum]({data[i]['Forum']})", inline=True)
+            embed.add_field(name="\u200b", value=f"[Twitter]({data[i]['Twitter']})", inline=True)
+            embed.set_footer(text=translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it.").replace('.','. '))
+            await interaction.followup.send(embed=embed)
+    if count == 0:
+        embed = discord.Embed(title="Killswitch", description=translate(interaction, 'Currently there is no Kill Switch active.').replace('.','. '), color=0xb19325)
+        embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
+        await interaction.followup.send(embed=embed)
+            
+            
     
         
 
-
-    
-        
-
         
 
     
     
-
+            
 
     
-
-
+        
+            
 
 
 

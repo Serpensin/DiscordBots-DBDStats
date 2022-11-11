@@ -13,6 +13,7 @@
     <RootNamespace>DBDStats</RootNamespace>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,9 +24,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="beautifulsoup-test.py" />
+    <Compile Include="testing.py" />
     <Compile Include="DBDStats.py" />
-    <Compile Include="settings.py" />
     <Compile Include="Tables.py" />
   </ItemGroup>
   <ItemGroup>
