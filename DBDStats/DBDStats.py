@@ -5,7 +5,7 @@ import time
 import logging
 import logging.handlers
 import os
-from zipfile import ZIP_LZMA, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 import json
 from random import randrange
 from datetime import timedelta, datetime
@@ -54,20 +54,35 @@ logger.addHandler(handler)
 manlogger.addHandler(handler)
 manlogger.info('------')
 manlogger.info('Engine powering up...')
-with open('settings.json') as f:
-    data = json.load(f)
-    steamAPIkey = data['steamAPIkey']
-    TOKEN = data['TOKEN']
-    ownerID = data['owner_id']
-    channel_for_print = data['channel_for_print']
-    support_id = data['support_id']
+try:
+    with open('/proc/self/cgroup', 'r') as f:
+        for line in f:
+            if 'docker' in line:
+                TOKEN = os.getenv('TOKEN')
+                steamAPIkey = os.getenv('steamAPIkey')
+                ownerID = int(os.getenv('owner_id'))
+                channel_for_print = int(os.getenv('channel_for_print'))
+                support_id = int(os.getenv('support_id'))
+                break
+    pass
+except:
+    if os.path.exists('environment.json'):
+        with open('environment.json') as f:
+            data = json.load(f)
+            steamAPIkey = data['steamAPIkey']
+            TOKEN = data['TOKEN']
+            ownerID = data['owner_id']
+            channel_for_print = data['channel_for_print']
+            support_id = data['support_id']
+    else:
+        manlogger.critical('No environment file/vars found!')
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 translator = Translator()
 
 def get_activity():
-    with open('settings.json') as f:
+    with open('activity.json') as f:
         data = json.load(f)
         activity_type = data['activity_type']
         activity_title = data['activity_title']
@@ -84,7 +99,7 @@ def get_activity():
         return discord.Activity(type=discord.ActivityType.competing, name=activity_title)
 
 def get_status():
-    with open('settings.json') as f:
+    with open('activity.json') as f:
         data = json.load(f)
         status = data['status']
     if status == 'online':
@@ -283,7 +298,7 @@ async def self(interaction: discord.Interaction):
 async def self(interaction: discord.Interaction):
     class LastXLines(discord.ui.Modal, title = 'Line Input'):
         self.timeout = 15
-        answer = discord.ui.TextInput(label = translate(interaction, 'How many lines?'), style = discord.TextStyle.short, required = True, min_length = 1, max_length = 3)
+        answer = discord.ui.TextInput(label = translate(interaction, 'How many lines?'), style = discord.TextStyle.short, required = True, min_length = 1, max_length = 4)
         async def on_submit(self, interaction: discord.Interaction):
             try:
                 int(self.answer.value)
@@ -310,44 +325,44 @@ async def self(interaction: discord.Interaction):
         @discord.ui.button(label = translate(interaction, 'Last X lines'), style = discord.ButtonStyle.blurple)
         async def xlines(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
+            #await interaction.response.defer()
             await interaction.response.send_modal(LastXLines())
      
         @discord.ui.button(label = translate(interaction, 'Current Log'), style = discord.ButtonStyle.grey)
         async def current(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
+            await interaction.response.defer()
             try:
-                await interaction.response.send_message(file=discord.File(r''+log_folder+'DBDStats.log'), ephemeral=True)
+                await interaction.followup.send(file=discord.File(r''+log_folder+'DBDStats.log'), ephemeral=True)
             except discord.HTTPException as err:
                 if err.status == 413:
-                    with ZipFile(buffer_folder+'DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
+                    with ZipFile(buffer_folder+'Logs.zip', mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as f:
                         f.write(log_folder+'DBDStats.log')
-                    await interaction.response.edit_original_response(embed=discord.Embed(title="Log", description="I'm uploading the compressed log...", color=0x0000ff))
                     try:
-                        await interaction.response.send_message(file=discord.File(r''+buffer_folder+'DBDStats.zip'))
+                        await interaction.response.send_message(file=discord.File(r''+buffer_folder+'Logs.zip'))
                     except discord.HTTPException as err:
                         if err.status == 413:
-                            await interaction.response.send_message(translate(interaction, "The log is too big to be send directly.\nYou have to look at the log in your server(VPS)."), color=0xff0000)
-        
+                            await interaction.followup.send(translate(interaction, "The log is too big to be send directly.\nYou have to look at the log in your server(VPS)."))
+                os.remove(buffer_folder+'Logs.zip')
+                            
         @discord.ui.button(label = translate(interaction, 'Whole Folder'), style = discord.ButtonStyle.grey)
         async def whole(self, interaction: discord.Interaction, button: discord.ui.Button):
             LogButton.stop(self)
-            if os.path.exists(buffer_folder+'DBDStats.zip'):
-                os.remove(buffer_folder+'DBDStats.zip')
-            with ZipFile(buffer_folder+'DBDStats.zip', mode='w', compression=ZIP_LZMA, allowZip64=True) as f:
-                if os.path.exists(log_folder+'DBDStats.log'):
-                    f.write(log_folder+'DBDStats.log')
-                if os.path.exists(log_folder+'DBDStats.log.1'):
-                    f.write(log_folder+'DBDStats.log.1')
-                if os.path.exists(log_folder+'DBDStats.log.2'):    
-                    f.write(log_folder+'DBDStats.log.2')
-                if os.path.exists(log_folder+'DBDStats.log.3'):    
-                    f.write(log_folder+'DBDStats.log.3')
-                if os.path.exists(log_folder+'DBDStats.log.4'):    
-                    f.write(log_folder+'DBDStats.log.4')
-                if os.path.exists(log_folder+'DBDStats.log.5'):    
-                    f.write(log_folder+'DBDStats.log.5')
-            await interaction.response.send_message(file=discord.File(r''+buffer_folder+'DBDStats.zip'), ephemeral=True)
-            os.remove(buffer_folder+'DBDStats.zip')
+            await interaction.response.defer()
+            if os.path.exists(buffer_folder+'Logs.zip'):
+                os.remove(buffer_folder+'Logs.zip')
+            with ZipFile(buffer_folder+'Logs.zip', mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as f:
+                for file in os.listdir(log_folder):
+                    if file.endswith(".zip"):
+                        continue
+                    f.write(log_folder+file)
+            try:
+                await interaction.followup.send(file=discord.File(r''+buffer_folder+'Logs.zip'), ephemeral=True)
+            except discord.HTTPException as err:
+                if err.status == 413:
+                    await interaction.followup.send(translate(interaction, "The folder is too big to be send directly.\nPlease get the current file, or the last X lines."))
+            
+            os.remove(buffer_folder+'Logs.zip')
     if interaction.user.id != int(ownerID):
         await interaction.response.send_message(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
         return
@@ -379,7 +394,7 @@ async def self(interaction: discord.Interaction):
 async def self(interaction: discord.Interaction, type: str, title: str, url: str = ''):
     if interaction.user.id == int(ownerID):
         await interaction.response.defer(ephemeral = True)
-        with open('settings.json') as f:
+        with open('activity.json') as f:
             data = json.load(f)
         if type == 'Playing':
             data['activity_type'] = 'Playing'
@@ -397,7 +412,7 @@ async def self(interaction: discord.Interaction, type: str, title: str, url: str
         elif type == 'Competing':
             data['activity_type'] = 'Competing'
             data['activity_title'] = title
-        with open('settings.json', 'w', encoding='utf8') as f:
+        with open('activity.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = get_activity(), status = get_status())
         await interaction.followup.send(translate(interaction, 'Activity changed!'), ephemeral = True)
@@ -415,10 +430,10 @@ async def self(interaction: discord.Interaction, type: str, title: str, url: str
 async def self(interaction: discord.Interaction, status: str):
     if interaction.user.id == int(ownerID):
         await interaction.response.defer(ephemeral = True)
-        with open('settings.json') as f:
+        with open('activity.json') as f:
             data = json.load(f)
         data['status'] = status
-        with open('settings.json', 'w', encoding='utf8') as f:
+        with open('activity.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = get_activity(), status = get_status())
         await interaction.followup.send(translate(interaction, 'Status changed!'), ephemeral = True)

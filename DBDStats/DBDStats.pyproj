@@ -24,13 +24,14 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Dockerfile" />
     <Compile Include="testing.py" />
     <Compile Include="DBDStats.py" />
-    <Compile Include="Tables.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="activity.json" />
     <Content Include="requirements.txt" />
-    <Content Include="settings.json" />
+    <Content Include="environment.json" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">

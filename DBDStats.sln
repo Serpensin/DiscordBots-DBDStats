@@ -5,6 +5,12 @@ VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "DBDStats", "DBDStats\DBDStats.pyproj", "{FD012128-56D9-4EEF-8021-B39662BEDB33}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Projektmappenelemente", "{D24DD320-B2C6-4FF8-A71F-0FF194FD7C8E}"
+	ProjectSection(SolutionItems) = preProject
+		DBDStats\.dockerignore = DBDStats\.dockerignore
+		DBDStats\docker_build.bat = DBDStats\docker_build.bat
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
