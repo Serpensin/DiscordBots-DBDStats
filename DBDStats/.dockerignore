@@ -11,3 +11,4 @@ Dockerfile
 testing.py
 .dockerignore
 environment.json
+docker-compose.yml

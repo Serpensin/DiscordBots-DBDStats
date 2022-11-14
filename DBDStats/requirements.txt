@@ -2,4 +2,3 @@ requests
 discord.py>=2.0.1
 googletrans==4.0.0rc1
 beautifulsoup4
-PyNaCl #for voice support(not used - only needed to get rid of the warning in log)

@@ -54,6 +54,7 @@ logger.addHandler(handler)
 manlogger.addHandler(handler)
 manlogger.info('------')
 manlogger.info('Engine powering up...')
+#Test if running in docker
 try:
     with open('/proc/self/cgroup', 'r') as f:
         for line in f:
@@ -61,8 +62,10 @@ try:
                 TOKEN = os.getenv('TOKEN')
                 steamAPIkey = os.getenv('steamAPIkey')
                 ownerID = int(os.getenv('owner_id'))
-                channel_for_print = int(os.getenv('channel_for_print'))
-                support_id = int(os.getenv('support_id'))
+                channel_for_print = int(os.getenv('sys_channel'))
+                support_id = int(os.getenv('support_server'))
+                manlogger.info('Running in docker')
+                print('Running in docker')
                 break
     pass
 except:
@@ -72,8 +75,8 @@ except:
             steamAPIkey = data['steamAPIkey']
             TOKEN = data['TOKEN']
             ownerID = data['owner_id']
-            channel_for_print = data['channel_for_print']
-            support_id = data['support_id']
+            channel_for_print = data['sys_channel']
+            support_id = data['support_server']
     else:
         manlogger.critical('No environment file/vars found!')
 intents = discord.Intents.default()
@@ -182,26 +185,26 @@ def steam_link_to_id(vanity):
 def CheckForDBD(id, steamAPIkey):
     id = steam_link_to_id(id)
     if len(id) != 17:
-        return(1)
+        return(1, 1)
     try:
         int(id)
     except:
-        return(1)
+        return(1, 1)
     try:
         resp = r.get(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={steamAPIkey}&steamid={id}&format=json')
         data = resp.json()
         if resp.status_code == 400:
-            return(2)
+            return(2, 2)
         if data['response'] == {}:
-            return(3)
+            return(3, 3)
         for event in data['response']['games']:
             if event['appid'] == 381210:
                 return(0, id)
             else:
                 continue
-        return(4)
+        return(4, 4)
     except:
-        return(5)
+        return(5, 5)
 
 def convert_time(timestamp):
     return(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp)))
@@ -280,8 +283,6 @@ async def perk_load():
                         f2.write('Name: '+data[key]['name']+'\n')
             return data
    
-   
-
     
 ##Owner Commands----------------------------------------
 #Shutdown
@@ -453,7 +454,7 @@ async def self(interaction: discord.Interaction):
 
 
         
-        
+
 ##Bot Commands----------------------------------------
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.', guild = discord.Object(id = 1030227106279477268))
@@ -536,8 +537,8 @@ async def self(interaction: discord.Interaction, steamid: str):
             await interaction.followup.send(content = removed)
             return
         if os.path.exists(f'{stats_folder}player_stats_{check[1]}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{check[1]}.json')) / 3600) <= 4:
-            player_file = open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8')
-            player_stats = json.loads(player_file.read())
+            with open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8') as f:
+                player_stats = json.load(f)
         else:
             data = await check_429(f'{api_base}playerstats?steamid={check[1]}')
             print(f'WICHTIG {data}')
@@ -548,8 +549,8 @@ async def self(interaction: discord.Interaction, steamid: str):
             else:
                 await interaction.followup.send(translate(interaction, "The stats got loaded in the last 3h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
                 return
-            player_file = open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8')
-            player_stats = json.loads(player_file.read())
+            with open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8') as f:
+                player_stats = json.load(f)
         steam_data = await check_429(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={steamAPIkey}&steamids={check[1]}')
         if steam_data == 1 or player_stats == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 3h window.)").replace('.','. '), ephemeral=True)
@@ -740,7 +741,6 @@ async def self(interaction: discord.Interaction, steamid: str):
         embed10.add_field(name="\u200b", value="\u200b", inline=True)
         embed10.add_field(name=translate(interaction, "Downed during nightfall"), value=convert_number(player_stats['survivorsdowned_nightfall']), inline=True)
         #Send Statistics
-        player_file.close()
         await interaction.edit_original_response(embeds=[embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10])
 #Buy
 @tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.', guild = discord.Object(id = 1030227106279477268))
@@ -783,7 +783,7 @@ async def self(interaction: discord.Interaction):
                 embed.add_field(name=translate(interaction, "Ending"), value=str(convert_time(event['end'])+' UTC'), inline=True)
                 await interaction.followup.send(embed=embed)
                 return
-            elif int(event['start']) <= int(time.time()) <= int(event['end']):
+            elif int(event['start']) >= int(time.time()) <= int(event['end']):
                 embed = discord.Embed(title="Event", description=translate(interaction, "There is a upcomming event in DeadByDaylight.")+" <a:SmugDance:1032349729167790090>", color=0x922f2f)
                 embed.add_field(name="Name", value=event['name'], inline=True)
                 embed.add_field(name="Bloodpoint Multiplier", value=event['multiplier'], inline=False)
@@ -851,6 +851,7 @@ async def self(interaction: discord.Interaction, character: str=''):
         data = await check_429(api_base+'dlc')
         if data == 1:
             await interaction.followup.send(translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
+            character_info.close()
             return
         with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
@@ -979,6 +980,7 @@ async def self(interaction: discord.Interaction, name: str=''):
                 if key == 'Swp_Mound':
                     continue
                 f.write('Name: '+map_data[key]['name']+'\n')
+                map_info.close()
         await interaction.followup.send(file=discord.File(r''+buffer_folder+'maps.txt'))
     else:
         map_info = open(buffer_folder+'maps_info.json', 'r', encoding='utf8')
@@ -990,7 +992,9 @@ async def self(interaction: discord.Interaction, name: str=''):
                 embed = discord.Embed(title="Map description for '"+map_data[key]['name']+"'", description=translate(interaction, str(map_data[key]['description']).replace('<br><br>', ' ')).replace('.','. '), color=0xb19325)
                 embed.set_thumbnail(url=map_portraits+key+'.png')
                 await interaction.followup.send(embed=embed)
+                map_info.close()
                 return
+        map_info.close()
         await interaction.followup.send(f"No map with name **{name}** found.")
 #Playercount
 @tree.command(name='playercount', description='Get the current playercount.', guild = discord.Object(id = 1030227106279477268))
@@ -1171,7 +1175,7 @@ async def self(interaction: discord.Interaction, steamid: str):
                 await interaction.followup.send(translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
                 return
 
-        
+
     
     
     

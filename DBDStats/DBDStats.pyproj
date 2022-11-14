@@ -30,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="activity.json" />
+    <Content Include="docker-compose.yml" />
     <Content Include="requirements.txt" />
     <Content Include="environment.json" />
   </ItemGroup>
