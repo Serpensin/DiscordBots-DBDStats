@@ -25,7 +25,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Dockerfile" />
-    <Compile Include="testing.py" />
     <Compile Include="DBDStats.py" />
   </ItemGroup>
   <ItemGroup>
