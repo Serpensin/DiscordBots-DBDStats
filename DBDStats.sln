@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Pr
 	ProjectSection(SolutionItems) = preProject
 		DBDStats\.dockerignore = DBDStats\.dockerignore
 		DBDStats\docker_build.bat = DBDStats\docker_build.bat
+		README.md = README.md
 	EndProjectSection
 EndProject
 Global
