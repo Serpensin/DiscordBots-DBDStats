@@ -28,8 +28,10 @@
     <Compile Include="DBDStats.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".dockerignore" />
     <Content Include="activity.json" />
     <Content Include="docker-compose.yml" />
+    <Content Include="docker_build.bat" />
     <Content Include="requirements.txt" />
     <Content Include="environment.json" />
   </ItemGroup>
