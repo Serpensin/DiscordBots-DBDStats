@@ -11,6 +11,7 @@ from random import randrange
 from datetime import timedelta, datetime
 from googletrans import Translator
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
 
 #Set vars
@@ -54,31 +55,12 @@ logger.addHandler(handler)
 manlogger.addHandler(handler)
 manlogger.info('------')
 manlogger.info('Engine powering up...')
-#Test if running in docker
-try:
-    with open('/proc/self/cgroup', 'r') as f:
-        for line in f:
-            if 'docker' in line:
-                TOKEN = os.getenv('TOKEN')
-                steamAPIkey = os.getenv('steamAPIkey')
-                ownerID = int(os.getenv('owner_id'))
-                channel_for_print = int(os.getenv('sys_channel'))
-                support_id = int(os.getenv('support_server'))
-                manlogger.info('Running in docker')
-                print('Running in docker')
-                break
-    pass
-except:
-    if os.path.exists('environment.json'):
-        with open('environment.json') as f:
-            data = json.load(f)
-            steamAPIkey = data['steamAPIkey']
-            TOKEN = data['TOKEN']
-            ownerID = data['owner_id']
-            channel_for_print = data['sys_channel']
-            support_id = data['support_server']
-    else:
-        manlogger.critical('No environment file/vars found!')
+load_dotenv()
+TOKEN = os.getenv('TOKEN')
+ownerID = os.getenv('OWNER_ID')
+steamAPIkey = os.getenv('steamAPIkey')
+channel_for_print = os.getenv('sys_channel')
+support_id = os.getenv('support_server')
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
@@ -277,12 +259,11 @@ async def perk_load():
             json.dump(data, f, indent=2)
         with open(buffer_folder+'perk_info.json', 'r', encoding='utf8') as f:
             data = json.load(f)
-            if os.path.exists(buffer_folder+'perks.txt') and ((time.time() - os.path.getmtime(buffer_folder+'perks.txt')) /3600 > 4):
-                with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
-                    for key in data.keys():
-                        f2.write('Name: '+data[key]['name']+'\n')
+            with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
+                for key in data.keys():
+                    f2.write('Name: '+data[key]['name']+'\n')
             return data
-   
+   a
     
 ##Owner Commands----------------------------------------
 #Shutdown
@@ -1137,7 +1118,7 @@ async def self(interaction: discord.Interaction):
         embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
         await interaction.followup.send(embed=embed)
 #Legit Legacy check
-@tree.command(name='legacy_check', description='Test if a player can have legit legacy.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name='legacy_check', description='Test if a player can have legit legacy.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.describe(steamid='SteamID64 or vanity(url) of the player you want to check.')
 async def self(interaction: discord.Interaction, steamid: str):
@@ -1174,7 +1155,17 @@ async def self(interaction: discord.Interaction, steamid: str):
             elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 0:
                 await interaction.followup.send(translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
                 return
-
+#Shrine Info
+#@tree.command(name = 'shrine', description = 'Get info about the currenrt shrine.', guild = discord.Object(id = 1030227106279477268))
+#@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+#async def self(interaction: discord.Interaction):
+#    await interaction.response.defer()
+#    if interaction.guild is None:
+#        interaction.followup.send("This command can only be used in a server.")
+#        return
+#    resp = r.get(api_base + 'shrine')
+#    data = resp.json()
+    
 
     
     

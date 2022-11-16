@@ -366,3 +366,4 @@ FodyWeavers.xsd
 /DBDStats/testing.py
 /DBDStats/docker_build.bat
 /DBDStats/docker_build.bat
+/DBDStats/.env

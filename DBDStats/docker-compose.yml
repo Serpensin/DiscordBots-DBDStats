@@ -1,12 +1,1 @@
-version: '1.0'
-services:
-    testing:
-        environment:
-            - TOKEN=YOUR_DISCORD_BOT_TOKEN
-            - steamAPIkey=YOUR_STEAM_API_KEY
-            - owner_id=DISCORDID_OF_BOTOWNER
-            - sys_channel=ID_OF_CHANNEL_USED_FOR_429_ERRORS
-            - support_server=ID_OF_YOUR_SUPPORTSERVER
-        restart: always
-        image: 'serpensin/testing:dev'
-        container_name: 'DBDStats'
+
