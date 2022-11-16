@@ -2,7 +2,9 @@ FROM python:3.9.15-slim-buster
 
 WORKDIR /app
 
-COPY . .
+COPY DBDStats.py .
+COPY requirements.txt .
+COPY activity.json .
 
 RUN pip install -r requirements.txt
 
