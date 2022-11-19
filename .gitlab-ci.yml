@@ -1,0 +1,11 @@
+docker-build:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker login -u $DOCKER_USER -p $DOCKER_PW
+    - docker buildx create --use
+    - cd ./DBDStats
+    - sleep 5
+    - docker buildx build --compress --no-cache --platform linux/386,linux/amd64 -t serpensin/dbdstats:latest --push .
