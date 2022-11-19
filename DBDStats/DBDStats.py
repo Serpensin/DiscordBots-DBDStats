@@ -1190,9 +1190,4 @@ async def self(interaction: discord.Interaction, steamid: str):
 
 
 
-
-
-
-
-
 bot.run(TOKEN, log_handler=None)

@@ -9,4 +9,3 @@ COPY activity.json .
 RUN pip install -r requirements.txt
 
 CMD ["python3", "DBDStats.py"]
-
