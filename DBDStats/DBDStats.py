@@ -250,6 +250,7 @@ async def perk_load():
                 with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
                     for key in data.keys():
                         f2.write('Name: '+data[key]['name']+'\n')
+            print(type(data))
             return data
     else:
         data = await check_429(api_base+'perks')
@@ -262,8 +263,9 @@ async def perk_load():
             with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
                 for key in data.keys():
                     f2.write('Name: '+data[key]['name']+'\n')
+            print(type(data))
             return data
-   a
+
     
 ##Owner Commands----------------------------------------
 #Shutdown
@@ -1156,16 +1158,29 @@ async def self(interaction: discord.Interaction, steamid: str):
                 await interaction.followup.send(translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
                 return
 #Shrine Info
-#@tree.command(name = 'shrine', description = 'Get info about the currenrt shrine.', guild = discord.Object(id = 1030227106279477268))
-#@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-#async def self(interaction: discord.Interaction):
-#    await interaction.response.defer()
-#    if interaction.guild is None:
-#        interaction.followup.send("This command can only be used in a server.")
-#        return
-#    resp = r.get(api_base + 'shrine')
-#    data = resp.json()
-    
+@tree.command(name = 'shrine', description = 'Get info about the current shrine.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+async def self(interaction: discord.Interaction):
+    await interaction.response.defer()
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+        return
+    resp = r.get(api_base + 'shrine')
+    perks = await perk_load()
+    if perks == 1:
+        await interaction.followup.send("Error while loading the perk data.")
+        return
+    data = resp.json()
+    embed = []
+    for shrine in data['perks']:
+        print(shrine['id'])
+        print(perks)
+        for perk in perks.keys():
+            if perk == shrine['id']:
+                embed.append(
+                    discord.Embed(title=perks[perk]['name'], description=perks[perk]['description'], color=0x00ff00)
+                )
+    await interaction.followup.send(embeds=embed)
 
     
     
