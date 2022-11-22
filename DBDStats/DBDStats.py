@@ -12,6 +12,8 @@ from datetime import timedelta, datetime
 from googletrans import Translator
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+import asyncio
+import platform
 
 
 #Set vars
@@ -65,6 +67,8 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 translator = Translator()
+if platform.system() == 'Windows':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 def get_activity():
     with open('activity.json') as f:
@@ -358,7 +362,7 @@ async def self(interaction: discord.Interaction):
     if interaction.user.id == int(ownerID):
         manlogger.info('Engine powering down...')
         await interaction.response.send_message(translate(interaction, 'Engine powering down...'), ephemeral = True)
-        await bot.change_presence(status=discord.Status.offline)
+        await bot.change_presence(status = discord.Status.offline)
         await bot.close()
     else:
         await interaction.response.send_message(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
