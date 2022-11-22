@@ -111,6 +111,7 @@ class aclient(discord.AutoShardedClient):
             await tree.sync(guild = discord.Object(id = 1030227106279477268))
             manlogger.info('Synced.')
             self.synced = True
+            
         global owner, print_channel
         owner = await bot.fetch_user(ownerID)
         print_channel = await bot.fetch_channel(channel_for_print)
@@ -149,7 +150,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
         await interaction.response.send_message(translate(interaction, 'This comand is on cooldown.\nTime left: `')+seconds_to_minutes(error.retry_after)+'`.', ephemeral = True)
         manlogger.warning(str(error)+' '+interaction.user.name+' | '+str(interaction.user.id))
     else:
-        await interaction.response.send_message(error, ephemeral = True)
+        await interaction.followup.send(error, ephemeral = True)
         manlogger.warning(str(error)+' '+interaction.user.name+' | '+str(interaction.user.id))
 
 
@@ -266,6 +267,90 @@ async def perk_load():
             print(type(data))
             return data
 
+async def send_perk_info(data, perk, interaction, shrine: bool = ''):
+    def length1(data):
+        length = len(data[key]['tunables'][0])
+        if length == 1:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+        elif length == 2:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
+        elif length == 3:
+            embed.add_field(name='0', value=data[key]['tunables'][0][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][0][2])
+    def length2(data):
+        length = len(data[key]['tunables'][1])
+        if length == 1:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+        elif length == 2:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
+        elif length == 3:
+            embed.add_field(name='1', value=data[key]['tunables'][1][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][1][2])
+    def length3(data):
+        length = len(data[key]['tunables'][2])
+        if length == 1:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+        elif length == 2:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
+        elif length == 3:
+            embed.add_field(name='2', value=data[key]['tunables'][2][0])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
+            embed.add_field(name='\u200b', value=data[key]['tunables'][2][2])
+    def check():
+        embed.set_thumbnail(url=png_base+data[key]['image'])
+        length_total = len(data[key]['tunables'])
+        embed.add_field(name='\u200b', value='\u200b', inline = False)
+        print(f'--------------{key}------------------------------{length_total}')
+        print(data[key])
+        if length_total == 1:
+            length1(data)
+        elif length_total == 2:
+            length1(data)
+            embed.add_field(name='\u200b', value='\u200b', inline = False)
+            length2(data)
+        elif length_total == 3:
+            length1(data)
+            embed.add_field(name='\u200b', value='\u200b', inline = False)
+            length2(data)
+            embed.add_field(name='\u200b', value='\u200b', inline = False)
+            length3(data) 
+            
+    
+        
+
+
+    if shrine:
+        print(data)
+        print(data[perk])
+        embed = discord.Embed(title="Perk description for '"+data[perk]['name']+"'", description=translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')).replace('.','. '), color=0xb19325)
+        key = perk
+        check()
+        return embed
+    else:        
+        for key in data.keys():
+            print(data)
+            print(perk)
+            embed = discord.Embed(title="Perk description for '"+data[key]['name']+"'", description=translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')).replace('.','. '), color=0xb19325)
+            if data[key]['name'].lower() == perk.lower():
+                check()
+                await interaction.followup.send(embed=embed)
+                return
+    
+
+    return 1
+    
+
+                
+
+                
+
+
+        
     
 ##Owner Commands----------------------------------------
 #Shutdown
@@ -274,6 +359,7 @@ async def self(interaction: discord.Interaction):
     if interaction.user.id == int(ownerID):
         manlogger.info('Engine powering down...')
         await interaction.response.send_message(translate(interaction, 'Engine powering down...'), ephemeral = True)
+        await bot.activity()
         await bot.close()
     else:
         await interaction.response.send_message(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
@@ -1031,39 +1117,6 @@ async def self(interaction: discord.Interaction):
 @discord.app_commands.describe(perk='The perk you want to get information about. Leave epty to get a list of all perks.')
 async def self(interaction: discord.Interaction, perk: str=''):
     await interaction.response.defer()
-    def length1(data):
-        length = len(data[key]['tunables'][0])
-        if length == 1:
-            embed.add_field(name='0', value=data[key]['tunables'][0][0])
-        elif length == 2:
-            embed.add_field(name='0', value=data[key]['tunables'][0][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
-        elif length == 3:
-            embed.add_field(name='0', value=data[key]['tunables'][0][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][0][1])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][0][2])
-    def length2(data):
-        length = len(data[key]['tunables'][1])
-        if length == 1:
-            embed.add_field(name='1', value=data[key]['tunables'][1][0])
-        elif length == 2:
-            embed.add_field(name='1', value=data[key]['tunables'][1][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
-        elif length == 3:
-            embed.add_field(name='1', value=data[key]['tunables'][1][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][1][1])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][1][2])
-    def length3(data):
-        length = len(data[key]['tunables'][2])
-        if length == 1:
-            embed.add_field(name='2', value=data[key]['tunables'][2][0])
-        elif length == 2:
-            embed.add_field(name='2', value=data[key]['tunables'][2][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
-        elif length == 3:
-            embed.add_field(name='2', value=data[key]['tunables'][2][0])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
-            embed.add_field(name='\u200b', value=data[key]['tunables'][2][2])
     if interaction.guild is None:
         interaction.followup.send("This command can only be used in a server.")
     data = await perk_load()
@@ -1073,27 +1126,11 @@ async def self(interaction: discord.Interaction, perk: str=''):
     else:
         if perk == '':
             await interaction.followup.send(file=discord.File(r''+buffer_folder+'perks.txt'))
-        for key in data.keys():
-            if data[key]['name'].lower() == perk.lower():
-                embed = discord.Embed(title="Perk description for '"+data[key]['name']+"'", description=str(data[key]['description']).replace('<br><br>', ' ').replace('.','. ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*'), color=0xb19325)
-                embed.set_thumbnail(url=png_base+data[key]['image'])
-                embed.add_field(name='\u200b', value='\u200b', inline = False)
-                length_total = len(data[key]['tunables'])
-                if length_total == 1:
-                    length1(data)
-                elif length_total == 2:
-                    length1(data)
-                    embed.add_field(name='\u200b', value='\u200b', inline = False)
-                    length2(data)
-                elif length_total == 3:
-                    length1(data)
-                    embed.add_field(name='\u200b', value='\u200b', inline = False)
-                    length2(data)
-                    embed.add_field(name='\u200b', value='\u200b', inline = False)
-                    length3(data)
-                        
-                await interaction.followup.send(embed=embed)
-                return
+        else:
+            test = await send_perk_info(data, perk, interaction)
+            if test == 1:
+                await interaction.followup.send(f"There is no perk named {perk}.")
+            return
 #Killswitch
 @tree.command(name='killswitch', description='Get the current status of the Kill Switches.', guild = discord.Object(id = 1030227106279477268))
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
@@ -1173,14 +1210,11 @@ async def self(interaction: discord.Interaction):
     data = resp.json()
     embed = []
     for shrine in data['perks']:
-        print(shrine['id'])
-        print(perks)
         for perk in perks.keys():
             if perk == shrine['id']:
-                embed.append(
-                    discord.Embed(title=perks[perk]['name'], description=perks[perk]['description'], color=0x00ff00)
-                )
-    await interaction.followup.send(embeds=embed)
+                embed.append(await send_perk_info(perks, perk, interaction, True))
+                
+    await interaction.followup.send(content = 'This is the current shrine.\nIt started at <t:'+str(data['start'])+'> and will last until <t:'+str(data['end'])+'>.', embeds=embed)
 
     
     
