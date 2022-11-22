@@ -100,8 +100,7 @@ class aclient(discord.AutoShardedClient):
     def __init__(self):
         super().__init__(owner_id = ownerID,
                               intents = intents,
-                              activity = get_activity(),
-                              status = get_status()
+                              status = discord.Status.invisible
                         )
         self.synced = True
     async def on_ready(self):
@@ -111,7 +110,7 @@ class aclient(discord.AutoShardedClient):
             await tree.sync(guild = discord.Object(id = 1030227106279477268))
             manlogger.info('Synced.')
             self.synced = True
-            
+            await bot.change_presence(activity = get_activity(), status = get_status())
         global owner, print_channel
         owner = await bot.fetch_user(ownerID)
         print_channel = await bot.fetch_channel(channel_for_print)
@@ -359,7 +358,7 @@ async def self(interaction: discord.Interaction):
     if interaction.user.id == int(ownerID):
         manlogger.info('Engine powering down...')
         await interaction.response.send_message(translate(interaction, 'Engine powering down...'), ephemeral = True)
-        await bot.activity()
+        await bot.change_presence(status=discord.Status.offline)
         await bot.close()
     else:
         await interaction.response.send_message(translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
