@@ -6,6 +6,11 @@ docker-build:
   script:
     - docker login -u $DOCKER_USER -p $DOCKER_PW
     - docker buildx create --use
-    - cd ./DBDStats
-    - sleep 5
-    - docker buildx build --compress --no-cache --platform linux/386,linux/amd64 -t serpensin/dbdstats:latest --push .
+    - sleep 2
+    - docker buildx build --compress --no-cache --platform linux/386,linux/amd64 -t serpensin/discord_webhook_creator:latest --push ./DBDStats
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: always
