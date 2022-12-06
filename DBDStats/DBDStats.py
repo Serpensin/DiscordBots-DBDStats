@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import asyncio
 import platform
+from prettytable import PrettyTable
 
 
 #Set vars
@@ -21,7 +22,7 @@ api_base = 'https://dbd.tricky.lol/api/'
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = bot_base+'mapportraits/'
-char_portraits = bot_base+'charportraits/'   
+#char_portraits = bot_base+'charportraits/'   
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
 languages = ['Afrikaans', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Azerbaijani', 'Basque', 'Belarusian', 'Bengali', 'Bosnian', 'Bulgarian', 'Catalan', 'Cebuano', 'Chichewa', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Corsican', 'Croatian', 'Czech', 'Danish', 'Dutch', 'English', 'Esperanto', 'Estonian', 'Filipino', 'Finnish', 'French', 'Frisian', 'Galician', 'Georgian', 'German', 'Greek', 'Gujarati', 'Haitian Creole', 'Hausa', 'Hawaiian', 'Hebrew', 'Hebrew', 'Hindi', 'Hmong', 'Hungarian', 'Icelandic', 'Igbo', 'Indonesian', 'Irish', 'Italian', 'Japanese', 'Javanese', 'Kannada', 'Kazakh', 'Khmer', 'Korean', 'Kurdish (Kurmanji)', 'Kyrgyz', 'Lao', 'Latin', 'Latvian', 'Lithuanian', 'Luxembourgish', 'Macedonian', 'Malagasy', 'Malay', 'Malayalam', 'Maltese', 'Maori', 'Marathi', 'Mongolian', 'Myanmar (Burmese)', 'Nepali', 'Norwegian', 'Odia', 'Pashto', 'Persian', 'Polish', 'Portuguese', 'Punjabi', 'Romanian', 'Russian', 'Samoan', 'Scots Gaelic', 'Serbian', 'Sesotho', 'Shona', 'Sindhi', 'Sinhala', 'Slovak', 'Slovenian', 'Somali', 'Spanish', 'Sundanese', 'Swahili', 'Swedish', 'Tajik', 'Tamil', 'Telugu', 'Thai', 'Turkish', 'Ukrainian', 'Urdu', 'Uyghur', 'Uzbek', 'Vietnamese', 'Welsh', 'Xhosa', 'Yiddish', 'Yoruba', 'Zulu']
@@ -61,12 +62,12 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 ownerID = os.getenv('OWNER_ID')
 steamAPIkey = os.getenv('steamAPIkey')
-channel_for_print = os.getenv('sys_channel')
 support_id = os.getenv('support_server')
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 translator = Translator()
+tb = PrettyTable()
 #Fix error on windows on shutdown.
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -121,9 +122,8 @@ class aclient(discord.AutoShardedClient):
             manlogger.info('Synced.')
             self.synced = True
             await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
-        global owner, print_channel
+        global owner
         owner = await bot.fetch_user(ownerID)
-        print_channel = await bot.fetch_channel(channel_for_print)
         manlogger.info('Initialization completed...')
         manlogger.info('------')
         print('READY')
@@ -213,8 +213,7 @@ class Functions():
     async def check_429(path):
         resp = r.get(path)
         if resp.status_code == 429:               
-            manlogger.warning(str(resp.status_code)+' while accessing '+path)
-            await print_channel.send(str(resp.status_code)+' while accessing '+path)
+            manlogger.error(str(resp.status_code)+' while accessing '+path)
             return(1)
         print(f'429 {resp}')
         return(resp.json())
@@ -256,15 +255,32 @@ class Functions():
         return(text)
     
     async def perk_load():
+        char = await Functions.character_load()
+        tb.clear()
+        tb.field_names = ['Name', 'Category', 'Origin']
         if os.path.exists(buffer_folder+'perk_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'perk_info.json')) /3600 < 4):
             with open(buffer_folder+'perk_info.json', 'r', encoding='utf8') as f:
                 data = json.load(f)  
-                if not os.path.exists(buffer_folder+'perks.txt') or ((time.time() - os.path.getmtime(buffer_folder+'perks.txt')) /3600 > 4):
-                    with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
-                        for key in data.keys():
-                            f2.write('Name: '+data[key]['name']+'\n')
-                print(type(data))
-                return data
+            if not os.path.exists(buffer_folder+'perks.txt') or ((time.time() - os.path.getmtime(buffer_folder+'perks.txt')) /3600 > 4):
+                with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f:
+                    for key in data.keys():
+                        for i in char.keys():
+                            print(i)
+                            print(data[key]['character'])
+                            if str(data[key]['character']) == str(i):
+                                print(data[key]['name'])
+                                print(str(data[key]['categories']))
+                                print(char[i]['name'])
+                                tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), char[i]['name']])
+                                break
+                            elif data[key]['character'] == None:
+                                tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), ''])
+                                break
+                    tb.sortby = 'Name'
+                    f.write(str(tb))
+                    print(tb)
+            print(type(data))
+            return data
         else:
             data = await Functions.check_429(api_base+'perks')
             if data == 1:
@@ -273,13 +289,22 @@ class Functions():
                 json.dump(data, f, indent=2)
             with open(buffer_folder+'perk_info.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
-                with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f2:
-                    for key in data.keys():
-                        f2.write('Name: '+data[key]['name']+'\n')
-                print(type(data))
-                return data
+            with open(buffer_folder+'perks.txt', 'w', encoding='utf8') as f:
+                for key in data.keys():
+                    for i in char.keys():
+                        if str(data[key]['character']) == str(i):
+                            tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), char[i]['name']])
+                            break
+                        elif data[key]['character'] == None:
+                            tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), ''])
+                            break
+                tb.sortby = 'Name'
+                f.write(str(tb))
+                print(tb)
+            print(type(data))
+            return data
     
-    async def send_perk_info(data, perk, interaction, shrine_data, shrine: bool = ''):
+    async def send_perk_info(data, perk, interaction, shrine: bool = ''):
         def length1(data):
             length = len(data[key]['tunables'][0])
             if length == 1:
@@ -361,6 +386,143 @@ class Functions():
             with open(buffer_folder+'shrine_info.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
                 return data
+            
+#    async def archive_load():
+#        if os.path.exists(buffer_folder+'archive_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'archive_info.json')) /3600 < 4):
+#            with open(buffer_folder+'archive_info.json', 'r', encoding='utf8') as f:
+#                data = json.load(f)  
+#                print(type(data))
+#                return data
+#        else:
+#            data = await Functions.check_429(api_base+'archives')
+#            if data == 1:
+#                return(1)
+#            with open(buffer_folder+'archive_info.json', 'w', encoding='utf8') as f:
+#                json.dump(data, f, indent=2)
+#            with open(buffer_folder+'archive_info.json', 'r', encoding='utf8') as f:
+#                data = json.load(f)
+#                print(type(data))
+#                return data    
+
+    async def offerings_load():
+        tb.field_names = ['ID', 'Name']
+        if os.path.exists(buffer_folder+'offering_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'offering_info.json')) /3600 < 4):
+            with open(buffer_folder+'offering_info.json', 'r', encoding='utf8') as f:
+                data = json.load(f)  
+            if not os.path.exists(buffer_folder+'offerings.txt') or ((time.time() - os.path.getmtime(buffer_folder+'offerings.txt')) /3600 > 4):
+                with open(buffer_folder+'offerings.txt', 'w', encoding='utf8') as f2:
+                    for key in data.keys():
+                        print(data[key])
+                        print(data[key]['name'])
+                        if data[key]['name'] == '' or data[key]['name'] == None:
+                            tb.add_row([key, ''])
+                        else:
+                            tb.add_row([key, data[key]['name']])
+                    tb.sortby = 'ID'
+                    print(tb)
+                    f2.write(str(tb))
+                    print(type(data))
+            tb.clear()
+            return data
+        else:
+            data = await Functions.check_429(api_base+'offerings')
+            if data == 1:
+                return(1)
+            print(data)
+            print('-----------------------------')
+            with open(buffer_folder+'offering_info.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+            with open(buffer_folder+'offering_info.json', 'r', encoding='utf8') as f:
+                data = json.load(f)
+            with open(buffer_folder+'offerings.txt', 'w', encoding='utf8') as f2:
+                for key in data.keys():
+                    print(data[key])
+                    print(data[key]['name'])
+                    if data[key]['name'] == '' or data[key]['name'] == None:
+                        tb.add_row([key, ''])
+                    else:
+                        tb.add_row([key, data[key]['name']])
+                tb.sortby = 'ID'
+                print(tb)
+                f2.write(str(tb))
+                print(type(data))
+                tb.clear()
+                return data
+            
+    async def character_load():
+        tb.field_names = ['ID', 'Name', 'Role']
+        if os.path.exists(buffer_folder+'character_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'character_info.json')) / 3600) <= 4:
+            with open(buffer_folder+'character_info.json', 'r', encoding='utf8') as f:
+                f = json.loads(f.read())
+            with open(buffer_folder+'characters.txt', 'w', encoding='utf8') as f2:
+                for key in f.keys():
+                    tb.add_row([key, str(f[key]['name']).replace('The ', ''), f[key]['role']])
+                tb.sortby = 'Name'
+                f2.write(str(tb))
+                tb.clear()
+                return f
+        else:
+            data = await Functions.check_429(api_base+'characters')
+            if data == 1:
+                return 1
+            with open(buffer_folder+'character_info.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+            with open(buffer_folder+'character_info.json', 'r', encoding='utf8') as f:
+                f = json.loads(f.read())
+            with open(buffer_folder+'characters.txt', 'w', encoding='utf8') as f2:
+                for key in f.keys():
+                    tb.add_row([key, str(f[key]['name']).replace('The ', ''), f[key]['role']])
+                tb.sortby = 'Name'
+                f2.write(str(tb))
+                tb.clear()
+                return f
+            
+    async def dlc_load():
+        if os.path.exists(buffer_folder+'dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'dlc.json')) / 3600) <= 4:
+            with open(buffer_folder+'dlc.json', 'r', encoding='utf8') as f:
+                return json.loads(f.read())
+        else:
+            data = await Functions.check_429(api_base+'dlc')
+            if data == 1:
+                return 1
+            with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+            with open(buffer_folder+'dlc.json', 'r', encoding='utf8') as f:
+                return json.loads(f.read())
+
+    async def items_load():
+        tb.field_names = ['ID', 'Name', 'Type', 'Rarity']
+        if os.path.exists(buffer_folder+'items.json') and ((time.time() - os.path.getmtime(buffer_folder+'items.json')) / 3600) <= 4:
+            with open(buffer_folder+'items.json', 'r', encoding='utf8') as f:
+                f = json.loads(f.read())
+            with open(buffer_folder+'items.txt', 'w', encoding='utf8') as f2:
+                for key in f.keys():
+                    if f[key]['item_type'] == None:
+                        f[key]['item_type'] = ''
+                    tb.add_row([key, str(f[key]['name']), str(f[key]['item_type']), str(f[key]['rarity'])])
+                tb.sortby = 'Type'
+                f2.write(str(tb))
+                tb.clear()
+                return f
+        else:
+            data = await Functions.check_429(api_base+'items?role=survivor')
+            if data == 1:
+                return 1
+            with open(buffer_folder+'items.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+            with open(buffer_folder+'items.json', 'r', encoding='utf8') as f:
+                f = json.loads(f.read())
+            with open(buffer_folder+'items.txt', 'w', encoding='utf8') as f2:
+                for key in f.keys():
+                    tb.add_row([key, str(f[key]['name']), str(f[key]['item_type']), str(f[key]['rarity'])])
+                tb.sortby = 'Type'
+                f2.write(str(tb))
+                tb.clear()
+                return f
+
+            
+
+
            
     
 ##Owner Commands (Can only be used by the BotOwner.)
@@ -441,8 +603,7 @@ async def self(interaction: discord.Interaction):
                 await interaction.followup.send(file=discord.File(r''+buffer_folder+'Logs.zip'), ephemeral=True)
             except discord.HTTPException as err:
                 if err.status == 413:
-                    await interaction.followup.send(Functions.translate(interaction, "The folder is too big to be send directly.\nPlease get the current file, or the last X lines."))
-            
+                    await interaction.followup.send(Functions.translate(interaction, "The folder is too big to be send directly.\nPlease get the current file, or the last X lines."))          
             os.remove(buffer_folder+'Logs.zip')
     if interaction.user.id != int(ownerID):
         await interaction.response.send_message(Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
@@ -552,8 +713,10 @@ async def self(interaction: discord.Interaction, nick: str):
 @tree.command(name = 'support', description = 'Get invite to our support server.', guild = discord.Object(id = 1030227106279477268))
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 async def self(interaction: discord.Interaction):
-    #await interaction.response.send_message(await create_support_invite(interaction))
-    await interaction.response.send_message(Functions.translate(interaction, 'This command is disabled during testing.'))
+    if interaction.guild.id != support_id:
+        await interaction.response.send_message(await Functions.create_support_invite(interaction))
+    else:
+        await interaction.response.send_message(Functions.translate(interaction, 'You are already in our support server!'))
 #Setup
 @tree.command(name = 'setup', description = 'Get help to setup the bot.', guild = discord.Object(id = 1030227106279477268))
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id))
@@ -623,7 +786,7 @@ async def self(interaction: discord.Interaction, steamid: str):
                 with open(f'{stats_folder}player_stats_{check[1]}.json', 'w', encoding='utf8') as f:
                     json.dump(r.get(f'{api_base}playerstats?steamid={check[1]}').json(), f, indent=2)
             else:
-                await interaction.followup.send(Functions.translate(interaction, "The stats got loaded in the last 3h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
+                await interaction.followup.send(Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
                 return
             with open(f'{stats_folder}player_stats_{check[1]}.json', 'r', encoding='utf8') as f:
                 player_stats = json.load(f)
@@ -911,50 +1074,24 @@ async def self(interaction: discord.Interaction, character: str=''):
     await interaction.response.defer(thinking = True)
     if interaction.guild is None:
         await interaction.followup.send("This command can only be used in a server.")
-    if os.path.exists(buffer_folder+'character_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'character_info.json')) / 3600) <= 4:
-        character_info = open(buffer_folder+'character_info.json', 'r', encoding='utf8')
-    else:
-        data = await Functions.check_429(api_base+'characters')
-        if data == 1:
-            await interaction.followup.send(Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
-            return
-        with open(buffer_folder+'character_info.json', 'w', encoding='utf8') as f:
-            json.dump(data, f, indent=2)
-        character_info = open(buffer_folder+'character_info.json', 'r', encoding='utf8')   
-    if os.path.exists(buffer_folder+'dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'dlc.json')) / 3600) <= 4:
-        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
-    else:
-        data = await Functions.check_429(api_base+'dlc')
-        if data == 1:
-            await interaction.followup.send(Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
-            character_info.close()
-            return
-        with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
-            json.dump(data, f, indent=2)
-        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
-    data = json.loads(character_info.read())
-    dlc_data = json.loads(dlc_info.read())
-    if character == '' and os.path.exists(buffer_folder+'characters_survivor.txt') and os.path.exists(buffer_folder+'characters_killer.txt') and ((time.time() - os.path.getmtime(buffer_folder+'characters_survivor.txt')) / 3600) <= 4:
-        await interaction.followup.send(files=[discord.File(buffer_folder+'characters_survivor.txt'), discord.File(buffer_folder+'characters_killer.txt')])
-    elif character == '':
-        survivor = open(buffer_folder+'characters_survivor.txt', 'w', encoding='utf8')
-        killer = open(buffer_folder+'characters_killer.txt', 'w', encoding='utf8')
-        for key in data.keys():
-            if data[key]['role'] == 'survivor':
-                survivor.write('ID: '+data[key]['id']+' \u0009 Name: '+data[key]['name']+'\n')
-            elif data[key]['role'] == 'killer':
-                killer.write('ID: '+data[key]['id']+' \u0009 Name: '+data[key]['name']+'\n')
-            else:
-                manlogger.info('Unknown role: '+data[key]['role'])
-                await interaction.followup.send("Unknown role: "+data[key]['role'])
-        survivor.close()
-        killer.close()
-        await interaction.followup.send(content=Functions.translate(interaction, "Here are the characters:"), files=[discord.File(buffer_folder+'characters_survivor.txt'), discord.File(buffer_folder+'characters_killer.txt')])
+        return
+    data = await Functions.character_load()
+    if data == 1:
+        await interaction.followup.send(Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
+        return
+    dlc_data = await Functions.dlc_load()
+    if dlc_data == 1:
+        await interaction.followup.send(Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
+        return
+    if character == '':
+        await interaction.followup.send(content=Functions.translate(interaction, "Here are the characters:"), file = discord.File(buffer_folder+'characters.txt'))
+        return
     else:
         for key in data.keys():
             if str(data[key]['id']).lower() == character.lower().replace('the ', '') or str(data[key]['name']).lower().replace('the ', '') == character.lower():
                 embed = discord.Embed(title=Functions.translate(interaction, "Character Info"), description=str(data[key]['name']), color=0xb19325)
-                embed.set_thumbnail(url=char_portraits+str(data[key]['id'])+'.png')
+                embed.set_thumbnail(url=bot_base+str(data[key]['image']))
+                print(bot_base+str(data[key]['image']))
                 embed.add_field(name=Functions.translate(interaction, "Role"), value=str(data[key]['role']).capitalize(), inline=True)
                 embed.add_field(name=Functions.translate(interaction, "Gender"), value=str(data[key]['gender']).capitalize(), inline=True)
                 for dlc_key in dlc_data.keys():
@@ -966,48 +1103,32 @@ async def self(interaction: discord.Interaction, character: str=''):
                     embed.add_field(name=Functions.translate(interaction, "Walkspeed"), value=str(int(data[key]['tunables']['maxwalkspeed']) / 100)+'m/s', inline=True)
                     embed.add_field(name=Functions.translate(interaction, "Terror Radius"), value=str(int(data[key]['tunables']['terrorradius']) / 100)+'m', inline=True)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Bio", value=Functions.translate(interaction, str(data[key]['bio']).replace('<br><br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
+                embed.add_field(name="Bio", value=Functions.translate(interaction, str(data[key]['bio']).replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
                 if len(data[key]['story']) > 4096:
                     story = buffer_folder+'character_story.txt'
                     if os.path.exists(story):
                         story = buffer_folder+'character_story'+str(randrange(1, 999))+'.txt'
                     with open(story, 'w', encoding='utf8') as f:
-                        f.write(Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '))
+                        f.write(Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '))
                     await interaction.followup.send('Story', file=discord.File(r''+story))
                     os.remove(story)
                 elif 1024 < len(data[key]['story']) < 4096:
                     embed2 = discord.Embed(title='Story', description=Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('&nbsp;', ' ')).replace('.', '. '), color=0xb19325)
-                    character_info.close()
-                    dlc_info.close()
                     await interaction.followup.send(embeds=[embed, embed2])
                     return
                 else:
-                    embed.add_field(name="Story", value=Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('&nbsp;', ' ')).replace('.', '. '), inline=False)
-                character_info.close()
-                dlc_info.close()
+                    embed.add_field(name="Story", value=Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ')).replace('.', '. '), inline=False)
                 await interaction.followup.send(embed=embed)
                 return
         embed = discord.Embed(title=Functions.translate(interaction, "Character Info"), description=Functions.translate(interaction, f"I couldn't find a character named {character}."), color=0xb19325)
         await interaction.followup.send(embed=embed)
-        character_info.close()
-        dlc_info.close()
 #Get DLCs
 @tree.command(name='dlc', description='Get information about the DLCs.', guild = discord.Object(id = 1030227106279477268))
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.describe(name='Enter the exact name of the DLC to get the description. Leave empty to get a list of all DLCs.')
 async def self(interaction: discord.Interaction, name: str=''):
     await interaction.response.defer(thinking=True)
-    if os.path.exists(buffer_folder+'dlc.json') and ((time.time() - os.path.getmtime(buffer_folder+'dlc.json')) / 3600) <= 4:
-        dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
-    else:
-        data = await Functions.check_429(api_base+'dlc')
-        if data == 1:
-            await interaction.followup.send(Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '), ephemeral=True)
-            return
-        with open(buffer_folder+'dlc.json', 'w', encoding='utf8') as f:
-            json.dump(data, f, indent=2)
-            dlc_info = open(buffer_folder+'dlc.json', 'r', encoding='utf8')
-    data = json.loads(dlc_info.read())
+    data = await Functions.dlc_load()
     if name == '':
         embed = discord.Embed(title="DLC Info (1/2)",  description=Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.").replace('.','. '), color=0xb19325)
         embed2 = discord.Embed(title="DLC Info (2/2)", description=Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.").replace('.','. '), color=0xb19325)
@@ -1023,12 +1144,11 @@ async def self(interaction: discord.Interaction, name: str=''):
             if i > 25:
                 embed2.add_field(name=str(data[key]['name']), value='['+Functions.convert_time_dateonly(data[key]['time'])+']('+steamStore+str(data[key]['steamid'])+')')
         await interaction.followup.send(embeds=[embed, embed2])
-        dlc_info.close()
     else:
         for key in data.keys():
             if data[key]['name'].lower() == name.lower():
                 embed = discord.Embed(title="DLC description for '"+data[key]['name']+"'", description=Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ')), color=0xb19325)
-                dlc_info.close()
+                embed.set_thumbnail(url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{data[key]['steamid']}/header.jpg")
                 await interaction.followup.send(embed=embed)
 #Maps
 @tree.command(name='map', description='Get information about the maps.', guild = discord.Object(id = 1030227106279477268))
@@ -1132,7 +1252,7 @@ async def self(interaction: discord.Interaction, perk: str=''):
         return
     else:
         if perk == '':
-            await interaction.followup.send(file=discord.File(r''+buffer_folder+'perks.txt'))
+            await interaction.followup.send(content = 'Here are the perks:' , file=discord.File(r''+buffer_folder+'perks.txt'))
         else:
             test = await Functions.send_perk_info(data, perk, interaction)
             if test == 1:
@@ -1146,22 +1266,22 @@ async def self(interaction: discord.Interaction):
     if interaction.guild is None:
         interaction.followup.send("This command can only be used in a server.")
         return
-    resp = r.get('https://cdn.bloodygang.com/botfiles/killswitch.json')
+    resp = r.get(f'{bot_base}killswitch.json')
     data = resp.json()
     count = len(data.keys())
     for i in data.keys():
         if data[i]['Text'] == '':
             count -= 1  
         else:
-            embed = discord.Embed(title="Killswitch", description=Functions.translate(interaction, data[i]['Text']).replace('.','. '), color=0xb19325)
-            embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
-            embed.add_field(name="Links", value=f"[Forum]({data[i]['Forum']})", inline=True)
+            embed = discord.Embed(title="Killswitch", description=Functions.translate(interaction, data[i]['Text']).replace('.','. '), type='rich' , color=0xb19325)
+            embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            embed.add_field(name="\u200b", value=f"[Forum]({data[i]['Forum']})", inline=True)
             embed.add_field(name="\u200b", value=f"[Twitter]({data[i]['Twitter']})", inline=True)
             embed.set_footer(text=Functions.translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it.").replace('.','. '))
             await interaction.followup.send(embed=embed)
     if count == 0:
         embed = discord.Embed(title="Killswitch", description=Functions.translate(interaction, 'Currently there is no Kill Switch active.').replace('.','. '), color=0xb19325)
-        embed.set_thumbnail(url='https://cdn.bloodygang.com/botfiles/killswitch.jpg')
+        embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
         await interaction.followup.send(embed=embed)
 #Legit Legacy check
 @tree.command(name='legacy_check', description='Test if a player can have legit legacy.')
@@ -1221,22 +1341,105 @@ async def self(interaction: discord.Interaction):
         print(shrine)
         for perk in perks.keys():
             if perk == shrine['id']:
-                shrine_embed = await Functions.send_perk_info(perks, perk, interaction, data, True)
+                shrine_embed = await Functions.send_perk_info(perks, perk, interaction, True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {Functions.convert_number(shrine['bloodpoints'])} | Shards: {Functions.convert_number(shrine['shards'])}")
                 embeds.append(shrine_embed)               
     await interaction.followup.send(content = 'This is the current shrine.\nIt started at <t:'+str(data['start'])+'> and will last until <t:'+str(data['end'])+'>.\nUpdates every 4h.', embeds=embeds)
+#Archive info
+#@tree.command(name = 'archive', description = 'Get info about the archive.', guild = discord.Object(id = 1030227106279477268))
+#@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+#@discord.app_commands.describe(archive = 'The archive you want info about.', level = 'The level of the archive you want info about.')
+#async def self(interaction: discord.Interaction, archive: discord.app_commands.Range[int, 1, None], level: discord.app_commands.Range[int, 1, 4]):
+#    await interaction.response.defer()
+#    if interaction.guild is None:
+#        interaction.followup.send("This command can only be used in a server.")
+#        return
+#    data = await Functions.archive_load()
+#    if data == 1:
+#        await interaction.followup.send(Functions.translate(interaction, "Error while loading the perk data."))
+#        return
+
+
+#Offerings info 
+@tree.command(name = 'offering', description = 'Get info about an offering.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+@discord.app_commands.describe(offering = 'The offering you want info about. Leave empty to get a list.')
+async def self(interaction: discord.Interaction, offering: str = None):
+    await interaction.response.defer()
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+        return
+    data = await Functions.offerings_load()
+    if data == 1:
+        await interaction.followup.send(Functions.translate(interaction, "Error while loading the perk data."))
+        return
+    if offering is None:
+        await interaction.followup.send(content = 'Here is a list of all offerings. You can use the command again with one of the offerings to get more info about it.', file = discord.File(buffer_folder+'offerings.txt'))
+        return
+    else:
+        for item in data.keys():
+            if str(data[item]['name']).lower() == offering.lower() or str(item).lower() == offering.lower():
+                embed = discord.Embed(title = data[item]['name'],
+                                      description = Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '),
+                                      color = 0x00ff00)
+                embed.set_thumbnail(url = bot_base+data[item]['image'])
+                embed.add_field(name = '\u200b', value = '\u200b', inline = False)
+                embed.add_field(name = 'Rarity', value = data[item]['rarity'])
+                embed.add_field(name = 'Type', value = data[item]['type'])
+                embed.add_field(name = 'Tags', value = str(data[item]['tags']).replace('[', '').replace(']', '').replace('\'', ''))
+                embed.add_field(name = 'Role', value = data[item]['role'])
+                embed.add_field(name = '\u200b', value = '\u200b')
+                embed.add_field(name = 'Retired', value = data[item]['retired'])
+                await interaction.followup.send(embed = embed)
+                return
+        await interaction.followup.send(Functions.translate(interaction, "This offering doesn't exist."))
+#Items info
+@tree.command(name = 'item', description = 'Get info about an item.', guild = discord.Object(id = 1030227106279477268))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
+@discord.app_commands.describe(item = 'The item you want info about. Leave empty to get a list.')
+async def self(interaction: discord.Interaction, item: str = None):
+    await interaction.response.defer()
+    if interaction.guild is None:
+        interaction.followup.send("This command can only be used in a server.")
+        return
+    data = await Functions.items_load()
+    if data == 1:
+        await interaction.followup.send(Functions.translate(interaction, "Error while loading the item data."))
+        return
+    if item is None:
+        await interaction.followup.send(content = 'Here is a list of all items. You can use the command again with one of the items to get more info about it.', file = discord.File(buffer_folder+'items.txt'))
+        return
+    else:
+        for i in data.keys():
+            if str(data[i]['name']).lower() == item.lower() or str(i).lower() == item.lower():
+                if data[i]['name'] is None:
+                    title = i
+                    print(title)
+                else:
+                    title = data[i]['name']
+                    print(title)
+                embed = discord.Embed(title = title,
+                                      description = Functions.translate(interaction, str(data[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '),
+                                      color = 0x00ff00)
+                embed.set_thumbnail(url = bot_base+data[i]['image'])
+                embed.add_field(name = '\u200b', value = '\u200b', inline = False)
+                embed.add_field(name = 'Rarity', value = str(data[i]['rarity']))
+                embed.add_field(name = 'Is in Bloodweb', value = str(data[i]['bloodweb']))
+                embed.add_field(name = 'Role', value = str(data[i]['role']))
+                if data[i]['event'] is not None:
+                    embed.add_field(name = 'Event', value = str(data[i]['event']))
+                await interaction.followup.send(embed = embed)
 
     
     
-
             
-
-    
         
+    
+   
             
-
+    
             
-
+    
 
     
     
