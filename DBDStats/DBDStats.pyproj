@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>fd012128-56d9-4eef-8021-b39662bedb33</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>DBDStats.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,7 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Dockerfile" />
-    <Compile Include="DBDStats.py" />
+    <Compile Include="main.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".dockerignore" />
