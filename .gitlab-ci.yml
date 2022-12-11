@@ -10,7 +10,7 @@ docker-build:
     - docker buildx build --compress --no-cache --platform linux/386,linux/amd64 -t serpensin/dbdstats:latest --push ./DBDStats
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"'
       when: never
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
