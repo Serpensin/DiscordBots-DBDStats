@@ -113,12 +113,12 @@ class aclient(discord.AutoShardedClient):
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = True
+        self.synced = False
     async def on_ready(self):
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
             manlogger.info('Syncing...')
-            await tree.sync(guild = discord.Object(id = 1030227106279477268))
+            await tree.sync()
             manlogger.info('Synced.')
             self.synced = True
             await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
@@ -151,9 +151,9 @@ class Events():
                 else:
                     for role in perms: 
                         await channel.send(f'<@&{role}>')
-                    await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup to get help with the initial setup.')
+                    await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the initial setup.')
                 return
-        await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup to get help with the initial setup.')
+        await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the initial setup.')
     
     @tree.error
     async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
@@ -1125,10 +1125,44 @@ class Info():
                 await selfembed(data)
                 return
         await selfembed(await selfget())
-
-
-            
-            
+        
+    async def legacycheck(interaction: discord.Interaction, steamid):
+        await interaction.response.defer()
+        if interaction.guild is None:
+            interaction.followup.send("This command can only be used in a server.")
+            return
+        check = Functions.CheckForDBD(steamid, steamAPIkey)
+        if check[0] == 1:
+            await interaction.followup.send(Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))   
+        elif check[0] == 2:
+            await interaction.followup.send(Functions.translate(interaction, 'This SteamID64 is NOT in use.'))
+        elif check[0] == 3:
+            await interaction.followup.send(Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
+        elif check[0] == 4:
+            await interaction.followup.send(Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
+        elif check[0] == 5:
+            embed1=discord.Embed(title="Fatal Error", description=Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+            embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+            await interaction.response.send_message(embed=embed1)
+        elif check[0] == 0:
+            resp = r.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={check[1]}&appid=381210')
+            data = resp.json()
+            if data['playerstats']['success'] == False:
+                await interaction.followup.send(Functions.translate(interaction, 'This profile is private.'))
+                return
+            for entry in data['playerstats']['achievements']:
+                if entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) < 1480017600:
+                    await interaction.followup.send(Functions.translate(interaction, 'This player has probably legit legacy.').replace('.','. '))
+                    return
+                elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) > 1480017600:
+                    await interaction.followup.send(Functions.translate(interaction, 'If this player has legacy, they are pobably hacked.').replace('.','. '))
+                    return
+                elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 0:
+                    await interaction.followup.send(Functions.translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
+                    return
+    
+                
+                
             
                     
 
@@ -1136,7 +1170,7 @@ class Info():
 
 ##Owner Commands (Can only be used by the BotOwner.)
 #Shutdown
-@tree.command(name = 'shutdown', description = 'Savely shut down the bot.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'shutdown', description = 'Savely shut down the bot.')
 async def self(interaction: discord.Interaction):
     if interaction.user.id == int(ownerID):
         manlogger.info('Engine powering down...')
@@ -1146,7 +1180,7 @@ async def self(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
 #Get Logs
-@tree.command(name = 'get_logs', description = 'Get the current, or all logfiles.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'get_logs', description = 'Get the current, or all logfiles.')
 async def self(interaction: discord.Interaction):
     class LastXLines(discord.ui.Modal, title = 'Line Input'):
         self.timeout = 15
@@ -1220,7 +1254,7 @@ async def self(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(Functions.translate(interaction, 'Send only the current Log, or the whole folder?'), view = LogButton(), ephemeral = True)
 #Clear Buffer        
-@tree.command(name = 'clear_buffer', description = 'Delete all files in buffer that are older than 4h.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'clear_buffer', description = 'Delete all files in buffer that are older than 4h.')
 async def self(interaction: discord.Interaction):
     i = 0
     for filename in os.scandir(buffer_folder):
@@ -1233,7 +1267,7 @@ async def self(interaction: discord.Interaction):
             i += 1
     await interaction.response.send_message(content=Functions.translate(interaction, f'I deleted {i} files.'), ephemeral=True)
 #Change Activity
-@tree.command(name = 'activity', description = 'Change my activity.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'activity', description = 'Change my activity.')
 @discord.app_commands.describe(type='The type of Activity you want to set.', title='What you want the bot to play, stream, etc...', url='Url of the stream. Only used if activity set to \'streaming\'.')
 @discord.app_commands.choices(type=[
     discord.app_commands.Choice(name='Playing', value='Playing'),
@@ -1270,7 +1304,7 @@ async def self(interaction: discord.Interaction, type: str, title: str, url: str
     else:
         await interaction.followup.send(Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
 #Change Status
-@tree.command(name = 'status', description = 'Change my status.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'status', description = 'Change my status.')
 @discord.app_commands.describe(status='The status you want to set.')
 @discord.app_commands.choices(status=[
     discord.app_commands.Choice(name='Online', value='online'),
@@ -1290,28 +1324,28 @@ async def self(interaction: discord.Interaction, status: str):
         await interaction.followup.send(Functions.translate(interaction, 'Status changed!'), ephemeral = True)
     else:
         await interaction.followup.send(Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
-#Sync Commands to BotDevelopment
-@tree.command(name = 'sync', description = 'Sync commands to guild.', guild = discord.Object(id = 1030227106279477268))
+#Sync Commands
+@tree.command(name = 'sync', description = 'Sync commands to guild.')
 async def self(interaction: discord.Interaction):
     if interaction.user.id == int(ownerID):
         await interaction.response.defer(ephemeral = True)
         await interaction.followup.send('Syncing...')
-        await tree.sync(guild = discord.Object(id = 1030227106279477268))
+        await tree.sync()
         await interaction.edit_original_response(content='Synced.')
     else:
         await interaction.response.send_message('You are not allowed to use this command.', ephemeral = True)        
       
-
+        
 ##Bot Commands (These commands are for the bot itself.)
 #Ping
-@tree.command(name = 'ping', description = 'Test, if the bot is responding.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 async def self(interaction: discord.Interaction):
     before = time.monotonic()
     await interaction.response.send_message('Pong!')
     ping = (time.monotonic() - before) * 1000
     await interaction.edit_original_response(content=f'Pong! `{int(ping)}ms`')
 #Change Nickname
-@tree.command(name = 'change_nickname', description = 'Change the nickname of the bot.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'change_nickname', description = 'Change the nickname of the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(manage_nicknames = True)
 @discord.app_commands.describe(nick='New nickname for me.')
@@ -1319,7 +1353,7 @@ async def self(interaction: discord.Interaction, nick: str):
     await interaction.guild.me.edit(nick=nick)
     await interaction.response.send_message(Functions.translate(interaction, f'My new nickname is now **{nick}**.'), ephemeral=True)
 #Support Invite
-@tree.command(name = 'support', description = 'Get invite to our support server.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 async def self(interaction: discord.Interaction):
     if interaction.guild.id != support_id:
@@ -1327,24 +1361,20 @@ async def self(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(Functions.translate(interaction, 'You are already in our support server!'))
 #Setup
-@tree.command(name = 'setup', description = 'Get help to setup the bot.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = 'setup_help', description = 'Get help with translation setup.')
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id))
-@discord.app_commands.describe(option='Please use the \'Help\' option first, because it explains the other options.')
-@discord.app_commands.choices(option=[
-    discord.app_commands.Choice(name='Help', value='1'),
-
-    ])
-async def self(interaction: discord.Interaction, option: str):
-    if option == '1':
-        language = discord.Embed(title="Setup - Language", description=Functions.translate(interaction, "Most outputs will be translated using Google Translator. However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 107 Languages/Roles, you have to setup the roles you need on your own.")+"\n\nAfrikaans, Albanian, Amharic, Arabic, Armenian, Azerbaijani, Basque, Belarusian, Bengali, Bosnian, Bulgarian, Catalan, Cebuano, Chichewa, Chinese (Simplified), Chinese (Traditional), Corsican, Croatian, Czech, Danish, Dutch, Esperanto, Estonian, Filipino, Finnish, French, Frisian, Galician, Georgian, German, Greek, Gujarati, Haitian Creole, Hausa, Hawaiian, Hebrew, Hebrew, Hindi, Hmong, Hungarian, Icelandic, Igbo, Indonesian, Irish, Italian, Japanese, Javanese, Kannada, Kazakh, Khmer, Korean, Kurdish (Kurmanji), Kyrgyz, Lao, Latin, Latvian, Lithuanian, Luxembourgish, Macedonian, Malagasy, Malay, Malayalam, Maltese, Maori, Marathi, Mongolian, Myanmar (Burmese), Nepali, Norwegian, Odia, Pashto, Persian, Polish, Portuguese, Punjabi, Romanian, Russian, Samoan, Scots Gaelic, Serbian, Sesotho, Shona, Sindhi, Sinhala, Slovak, Slovenian, Somali, Spanish, Sundanese, Swahili, Swedish, Tajik, Tamil, Telugu, Thai, Turkish, Ukrainian, Urdu, Uyghur, Uzbek, Vietnamese, Welsh, Xhosa, Yiddish, Yoruba, Zulu", color=0x004cff)
-        await interaction.response.send_message(embeds=[language])
+async def self(interaction: discord.Interaction):
+    language = discord.Embed(title="Setup - Language", description=Functions.translate(interaction, "Most outputs will be translated using Google Translator. However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 107 Languages/Roles, you have to setup the roles you need on your own.")+"\n\nAfrikaans, Albanian, Amharic, Arabic, Armenian, Azerbaijani, Basque, Belarusian, Bengali, Bosnian, Bulgarian, Catalan, Cebuano, Chichewa, Chinese (Simplified), Chinese (Traditional), Corsican, Croatian, Czech, Danish, Dutch, Esperanto, Estonian, Filipino, Finnish, French, Frisian, Galician, Georgian, German, Greek, Gujarati, Haitian Creole, Hausa, Hawaiian, Hebrew, Hebrew, Hindi, Hmong, Hungarian, Icelandic, Igbo, Indonesian, Irish, Italian, Japanese, Javanese, Kannada, Kazakh, Khmer, Korean, Kurdish (Kurmanji), Kyrgyz, Lao, Latin, Latvian, Lithuanian, Luxembourgish, Macedonian, Malagasy, Malay, Malayalam, Maltese, Maori, Marathi, Mongolian, Myanmar (Burmese), Nepali, Norwegian, Odia, Pashto, Persian, Polish, Portuguese, Punjabi, Romanian, Russian, Samoan, Scots Gaelic, Serbian, Sesotho, Shona, Sindhi, Sinhala, Slovak, Slovenian, Somali, Spanish, Sundanese, Swahili, Swedish, Tajik, Tamil, Telugu, Thai, Turkish, Ukrainian, Urdu, Uyghur, Uzbek, Vietnamese, Welsh, Xhosa, Yiddish, Yoruba, Zulu", color=0x004cff)
+    await interaction.response.send_message(embeds=[language])
        
 
+
+    
 ##DBD Commands (these commands are for DeadByDaylight.)
 
 
 #Buy
-@tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.', guild = discord.Object(id = 1030227106279477268))
+@tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.channel.id))        
 async def self(interaction: discord.Interaction):
     if interaction.guild is None:
@@ -1354,68 +1384,12 @@ async def self(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
 
 
-
-
-
-#Legit Legacy check
-@tree.command(name='legacy_check', description='Test if a player can have legit legacy.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-@discord.app_commands.describe(steamid='SteamID64 or vanity(url) of the player you want to check.')
-async def self(interaction: discord.Interaction, steamid: str):
-    await interaction.response.defer()
-    if interaction.guild is None:
-        interaction.followup.send("This command can only be used in a server.")
-        return
-    check = Functions.CheckForDBD(steamid, steamAPIkey)
-    if check[0] == 1:
-        await interaction.followup.send(Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))   
-    elif check[0] == 2:
-        await interaction.followup.send(Functions.translate(interaction, 'This SteamID64 is NOT in use.'))
-    elif check[0] == 3:
-        await interaction.followup.send(Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
-    elif check[0] == 4:
-        await interaction.followup.send(Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
-    elif check[0] == 5:
-        embed1=discord.Embed(title="Fatal Error", description=Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
-        embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-        await interaction.response.send_message(embed=embed1)
-    elif check[0] == 0:
-        resp = r.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={check[1]}&appid=381210')
-        data = resp.json()
-        if data['playerstats']['success'] == False:
-            await interaction.followup.send(Functions.translate(interaction, 'This profile is private.'))
-            return
-        for entry in data['playerstats']['achievements']:
-            if entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) < 1480017600:
-                await interaction.followup.send(Functions.translate(interaction, 'This player has probably legit legacy.').replace('.','. '))
-                return
-            elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) > 1480017600:
-                await interaction.followup.send(Functions.translate(interaction, 'If this player has legacy, they are pobably hacked.').replace('.','. '))
-                return
-            elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 0:
-                await interaction.followup.send(Functions.translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
-                return
-
-
-#Archive info
-#@tree.command(name = 'archive', description = 'Get info about the archive.', guild = discord.Object(id = 1030227106279477268))
-#@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-#@discord.app_commands.describe(archive = 'The archive you want info about.', level = 'The level of the archive you want info about.')
-#async def self(interaction: discord.Interaction, archive: discord.app_commands.Range[int, 1, None], level: discord.app_commands.Range[int, 1, 4]):
-#    await interaction.response.defer()
-#    if interaction.guild is None:
-#        interaction.followup.send("This command can only be used in a server.")
-#        return
-#    data = await Functions.archive_load()
-#    if data == 1:
-#        await interaction.followup.send(Functions.translate(interaction, "Error while loading the perk data."))
-#        return
  
                 
 
 #Info about Stuff
-@tree.command(name = 'info', description = 'Get info about DBD related stuff.', guild = discord.Object(id = 1030227106279477268))
-@discord.app_commands.checks.cooldown(1, 15, key=lambda i: (i.user.id))
+@tree.command(name = 'info', description = 'Get info about DBD related stuff.')
+@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Characters', value = 'char'),
@@ -1425,12 +1399,13 @@ async def self(interaction: discord.Interaction, steamid: str):
     discord.app_commands.Choice(name = 'Items', value = 'item'),
     discord.app_commands.Choice(name = 'Maps', value = 'map'),
     discord.app_commands.Choice(name = 'Offerings', value = 'offering'),
-    discord.app_commands.Choice(name = 'Perks', value = 'perk'),
+    #discord.app_commands.Choice(name = 'Perks', value = 'perk'),
     discord.app_commands.Choice(name = 'Killswitch', value = 'killswitch'),
     discord.app_commands.Choice(name = 'Shrine', value = 'shrine'),
     discord.app_commands.Choice(name = 'Versions', value = 'version'),
     discord.app_commands.Choice(name = 'Rankreset', value = 'reset'),
     discord.app_commands.Choice(name = 'Playercount', value = 'player'),
+    discord.app_commands.Choice(name = 'Legacy check', value = 'legacy'),
     ])
 async def self(interaction: discord.Interaction, category: str):
     if interaction.guild is None:
@@ -1504,7 +1479,14 @@ async def self(interaction: discord.Interaction, category: str):
         await Info.rankreset(interaction)
     elif category == 'player':
         await Info.playercount(interaction)
-        
+    elif category == 'legacy':
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 15 seconds.'):
+            self.timeout = 15
+            answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want to check.', style = discord.TextStyle.short, required = True)
+            async def on_submit(self, interaction: discord.Interaction):
+                print(self.answer.value)
+                await Info.legacycheck(interaction, steamid = self.answer.value.strip())
+        await interaction.response.send_modal(Input())         
     
    
             
