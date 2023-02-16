@@ -1,1 +1,23 @@
-
+services:
+  demo:
+    container_name: DBDStats
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    environment:
+      OWNER_ID_: DISCORD_ID_OF_OWNER
+      steamAPIkey: STEAM_APIKEY
+      support_server: ID_OF_SUPPORTSERVER
+      TOKEN: BOT_TOKEN
+    healthcheck:
+      interval: 1m30s
+      retries: 3
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost
+      timeout: 10s
+    image: serpensin/dbdstats
+version: '3'
