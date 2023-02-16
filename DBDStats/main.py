@@ -7,7 +7,7 @@ import logging.handlers
 import os
 from zipfile import ZIP_DEFLATED, ZipFile
 import json
-from random import randrange
+import random
 from datetime import timedelta, datetime
 from googletrans import Translator
 from bs4 import BeautifulSoup
@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 import asyncio
 import platform
 from prettytable import PrettyTable
+
+#.replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.','. ')
 
 
 #Set vars
@@ -113,7 +115,7 @@ class aclient(discord.AutoShardedClient):
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = False
+        self.synced = True
     async def on_ready(self):
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
@@ -151,9 +153,9 @@ class Events():
                 else:
                     for role in perms: 
                         await channel.send(f'<@&{role}>')
-                    await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the initial setup.')
+                    await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
                 return
-        await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the initial setup.')
+        await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
     
     @tree.error
     async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
@@ -304,7 +306,7 @@ class Functions():
             print(type(data))
             return data
     
-    async def send_perk_info(data, perk, interaction, shrine: bool = ''):
+    async def send_perk_info(data, perk, interaction, shrine: bool = False, random: bool = False):
         def length1(data):
             length = len(data[key]['tunables'][0])
             if length == 1:
@@ -338,12 +340,17 @@ class Functions():
                 embed.add_field(name='2', value=data[key]['tunables'][2][0])
                 embed.add_field(name='\u200b', value=data[key]['tunables'][2][1])
                 embed.add_field(name='\u200b', value=data[key]['tunables'][2][2])
-        def check():
+        async def check():
             embed.set_thumbnail(url=bot_base+data[key]['image'])
             length_total = len(data[key]['tunables'])
             embed.add_field(name='\u200b', value='\u200b', inline = False)
             print(f'--------------{key}------------------------------{length_total}')
             print(data[key])
+            character = await Functions.character_load()
+            for i in character.keys():
+                if str(i) == str(data[key]['character']):
+                    embed.set_author(name=character[i]['name'], icon_url=bot_base+character[i]['image'])
+                    break
             if length_total == 1:
                 length1(data)
             elif length_total == 2:
@@ -355,11 +362,11 @@ class Functions():
                 embed.add_field(name='\u200b', value='\u200b', inline = False)
                 length2(data)
                 embed.add_field(name='\u200b', value='\u200b', inline = False)
-                length3(data) 
+                length3(data)
         if shrine:
             embed = discord.Embed(title="Perk description for '"+data[perk]['name']+"'", description=Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')).replace('.','. '), color=0xb19325)
             key = perk
-            check()
+            await check()
             return embed
         else:        
             for key in data.keys():
@@ -367,7 +374,9 @@ class Functions():
                 print(perk)
                 embed = discord.Embed(title="Perk description for '"+data[key]['name']+"'", description=Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')).replace('.','. '), color=0xb19325)
                 if data[key]['name'].lower() == perk.lower():
-                    check()
+                    await check()
+                    if random:
+                        return embed
                     await interaction.followup.send(embed=embed)
                     return
         return 1
@@ -520,7 +529,96 @@ class Functions():
                 tb.clear()
                 return f
 
-            
+    async def addon_load():
+        char = await Functions.character_load()
+        tb.clear()
+        tb.field_names = ['Name', 'Role', 'Origin']
+        if os.path.exists(buffer_folder+'addon_info.json') and ((time.time() - os.path.getmtime(buffer_folder+'addon_info.json')) /3600 < 4):
+            with open(buffer_folder+'addon_info.json', 'r', encoding='utf8') as f:
+                data = json.load(f)  
+            if not os.path.exists(buffer_folder+'addons.txt') or ((time.time() - os.path.getmtime(buffer_folder+'addons.txt')) /3600 > 4):
+                with open(buffer_folder+'addons.txt', 'w', encoding='utf8') as f:
+                    for key in data.keys():
+                        for i in char.keys():
+                            if str(data[key]['parents']).replace('[', '').replace('\'', '').replace(']', '') == str(char[i]['item']).replace('[', '').replace('\'', '').replace(']', ''):
+                                print(char[i]['name'])
+                                tb.add_row([data[key]['name'], data[key]['role'], str(char[i]['name']).replace('The', '')])
+                                break
+                            elif not data[key]['parents']:
+                                print(data[key]['item_type'])
+                                tb.add_row([data[key]['name'], data[key]['role'], str(data[key]['item_type']).replace('None', '')])
+                                break
+                            #else:
+                            #    print('STRANGE')
+                    tb.sortby = 'Origin'
+                    f.write(str(tb))
+                    print(tb)
+            print(type(data))
+            return data
+        else:
+            data = await Functions.check_429(api_base+'addons')
+            if data == 1:
+                return(1)
+            with open(buffer_folder+'addon_info.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+            with open(buffer_folder+'addon_info.json', 'r', encoding='utf8') as f:
+                data = json.load(f)
+            with open(buffer_folder+'addons.txt', 'w', encoding='utf8') as f:
+                for key in data.keys():
+                    for i in char.keys():
+                        print(data[key]['parents'])
+                        if str(data[key]['parents'][0]) == i['item']:
+                                print(char[i]['name'])
+                                tb.add_row([data[key]['name'], data[key]['role'], char[i]['name']])
+                                break
+                        elif data[key]['parents'] is None:
+                            tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), ''])
+                            break
+                tb.sortby = 'Name'
+                f.write(str(tb))
+                print(tb)
+            print(type(data))
+            return data
+
+    async def send_addon_info(data, addon, interaction: discord.Interaction):
+        for i in data.keys():
+            if data[i]['name'] == addon:
+                embed = discord.Embed(title=data[i]['name'], description=str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('.', '. '), color=0x0400ff)
+                embed.set_thumbnail(url=bot_base+data[i]['image'])
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                embed.add_field(name='Rarity', value=data[i]['rarity'], inline=True)
+                embed.add_field(name='Role', value=data[i]['role'], inline=True)
+                print(data[i]['item_type'])
+                print(type(data[i]['item_type']))
+                if data[i]['item_type'] is None:
+                    char = await Functions.character_load()
+                    for key in char.keys():
+                        if str(data[i]['parents']).replace('[', '').replace('\'', '').replace(']', '') == str(char[key]['item']).replace('[', '').replace('\'', '').replace(']', ''):
+                            embed.add_field(name='Origin', value=char[key]['name'], inline=True)
+                            break
+                else:
+                    embed.add_field(name='Origin', value=data[i]['item_type'], inline=True)
+                await interaction.followup.send(embed=embed)
+                
+    async def offering_send(interaction, data, name):
+        for item in data.keys():
+            if str(data[item]['name']).lower() == name.lower() or str(item).lower() == name.lower():
+                embed = discord.Embed(title = data[item]['name'],
+                                      description = Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '),
+                                      color = 0x00ff00)
+                embed.set_thumbnail(url = bot_base+data[item]['image'])
+                embed.add_field(name = '\u200b', value = '\u200b', inline = False)
+                embed.add_field(name = 'Rarity', value = data[item]['rarity'])
+                embed.add_field(name = 'Type', value = data[item]['type'])
+                embed.add_field(name = 'Tags', value = str(data[item]['tags']).replace('[', '').replace(']', '').replace('\'', ''))
+                embed.add_field(name = 'Role', value = data[item]['role'])
+                embed.add_field(name = '\u200b', value = '\u200b')
+                embed.add_field(name = 'Retired', value = data[item]['retired'])
+                await interaction.followup.send(embed = embed)
+                return
+        await interaction.followup.send(Functions.translate(interaction, "This offering doesn't exist."))
+      
+        
 #Info
 class Info():
     async def rankreset(interaction: discord.Interaction):
@@ -971,22 +1069,9 @@ class Info():
             await interaction.followup.send(content = 'Here is a list of all offerings. You can use the command again with one of the offerings to get more info about it.', file = discord.File(buffer_folder+'offerings.txt'))
             return
         else:
-            for item in data.keys():
-                if str(data[item]['name']).lower() == name.lower() or str(item).lower() == name.lower():
-                    embed = discord.Embed(title = data[item]['name'],
-                                          description = Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.')).replace('.', '. '),
-                                          color = 0x00ff00)
-                    embed.set_thumbnail(url = bot_base+data[item]['image'])
-                    embed.add_field(name = '\u200b', value = '\u200b', inline = False)
-                    embed.add_field(name = 'Rarity', value = data[item]['rarity'])
-                    embed.add_field(name = 'Type', value = data[item]['type'])
-                    embed.add_field(name = 'Tags', value = str(data[item]['tags']).replace('[', '').replace(']', '').replace('\'', ''))
-                    embed.add_field(name = 'Role', value = data[item]['role'])
-                    embed.add_field(name = '\u200b', value = '\u200b')
-                    embed.add_field(name = 'Retired', value = data[item]['retired'])
-                    await interaction.followup.send(embed = embed)
-                    return
-            await interaction.followup.send(Functions.translate(interaction, "This offering doesn't exist."))
+            await Functions.offering_send(interaction, data, name)
+            return
+            
 
     async def perk(interaction: discord.Interaction, name: str):
         await interaction.response.defer()
@@ -1161,13 +1246,86 @@ class Info():
                     await interaction.followup.send(Functions.translate(interaction, "This player doesn't even have one character prestiged.").replace('.','. '))
                     return
     
+    async def addon(interaction: discord.Interaction, name: str):
+        await interaction.response.defer()
+        if interaction.guild is None:
+            interaction.followup.send("This command can only be used in a server.")
+        data = await Functions.addon_load()
+        if data == 1:
+            await interaction.followup.send("Error while loading the addon data.")
+            return
+        else:
+            if name == '':
+                await interaction.followup.send(content = 'Here are the addons:' , file=discord.File(r''+buffer_folder+'addons.txt'))
+            else:
+                test = await Functions.send_addon_info(data, name, interaction)
+                if test == 1:
+                    await interaction.followup.send(f"There is no addon named {name}.")
+                return
                 
-                
+ 
+#Random
+class Random():
+    async def perk(interaction: discord.Interaction, amount, role):
+        await interaction.response.defer()
+        if interaction.guild is None:
+            interaction.followup.send("This command can only be used in a server.")
+            return
+        perks = await Functions.perk_load()
+        if perks == 1:
+            await interaction.followup.send("Error while loading the perk data.")
+            return
+        else:
+            keys = list(perks.keys())
+            #selected_keys = set()
+            embeds = []
+            i = 0
+            while i < amount:
+                key = random.choice(keys)
+                entry = perks[key]
+                if entry['role'] == role:
+                    embed = await Functions.send_perk_info(perks, entry['name'], interaction, False, True)
+                    embeds.append(embed)
+                    i += 1
+                else:
+                    continue
+            await interaction.followup.send(embeds=embeds)
+            return
+        
+        
+    async def offering(interaction: discord.Interaction, role):
+        await interaction.response.defer()
+        if interaction.guild is None:
+            interaction.followup.send("This command can only be used in a server.")
+            return
+        offerings = await Functions.offerings_load()
+        if offerings == 1:
+            await interaction.followup.send("Error while loading the offering data.")
+            return
+        else:
+            keys = list(offerings.keys())
+            while True:
+                key = random.choice(keys)
+                entry = offerings[key]
+                print(entry['role'])
+                print(entry['name'])
+                print(entry['retired'])
+                print('----------')
+                if entry['retired'] == 1:
+                    continue
+                if entry['role'] == role or entry['role'] is None:
+                    await Functions.offering_send(interaction, offerings, entry['name'])
+                    return
+                else:
+                    continue
+            
+        
+        
             
                     
-
-
-
+            
+        
+            
 ##Owner Commands (Can only be used by the BotOwner.)
 #Shutdown
 @tree.command(name = 'shutdown', description = 'Savely shut down the bot.')
@@ -1270,11 +1428,11 @@ async def self(interaction: discord.Interaction):
 @tree.command(name = 'activity', description = 'Change my activity.')
 @discord.app_commands.describe(type='The type of Activity you want to set.', title='What you want the bot to play, stream, etc...', url='Url of the stream. Only used if activity set to \'streaming\'.')
 @discord.app_commands.choices(type=[
+    discord.app_commands.Choice(name='Competing', value='Competing'),
+    discord.app_commands.Choice(name='Listening', value='Listening'),
     discord.app_commands.Choice(name='Playing', value='Playing'),
     discord.app_commands.Choice(name='Streaming', value='Streaming'),
-    discord.app_commands.Choice(name='Listening', value='Listening'),
-    discord.app_commands.Choice(name='Watching', value='Watching'),
-    discord.app_commands.Choice(name='Competing', value='Competing')
+    discord.app_commands.Choice(name='Watching', value='Watching')
     ])
 async def self(interaction: discord.Interaction, type: str, title: str, url: str = ''):
     if interaction.user.id == int(ownerID):
@@ -1389,23 +1547,24 @@ async def self(interaction: discord.Interaction):
 
 #Info about Stuff
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
-@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.')
 @discord.app_commands.choices(category = [
+    discord.app_commands.Choice(name = 'Addons', value = 'addon'),
     discord.app_commands.Choice(name = 'Characters', value = 'char'),
-    discord.app_commands.Choice(name = 'Playerstats', value = 'stats'),
     discord.app_commands.Choice(name = 'DLCs', value = 'dlc'),
     discord.app_commands.Choice(name = 'Events', value = 'event'),
     discord.app_commands.Choice(name = 'Items', value = 'item'),
+    discord.app_commands.Choice(name = 'Killswitch', value = 'killswitch'),
+    discord.app_commands.Choice(name = 'Legacy check', value = 'legacy'),
     discord.app_commands.Choice(name = 'Maps', value = 'map'),
     discord.app_commands.Choice(name = 'Offerings', value = 'offering'),
-    #discord.app_commands.Choice(name = 'Perks', value = 'perk'),
-    discord.app_commands.Choice(name = 'Killswitch', value = 'killswitch'),
-    discord.app_commands.Choice(name = 'Shrine', value = 'shrine'),
-    discord.app_commands.Choice(name = 'Versions', value = 'version'),
-    discord.app_commands.Choice(name = 'Rankreset', value = 'reset'),
+    discord.app_commands.Choice(name = 'Perks', value = 'perk'),
     discord.app_commands.Choice(name = 'Playercount', value = 'player'),
-    discord.app_commands.Choice(name = 'Legacy check', value = 'legacy'),
+    discord.app_commands.Choice(name = 'Playerstats', value = 'stats'),
+    discord.app_commands.Choice(name = 'Rankreset', value = 'reset'),
+    discord.app_commands.Choice(name = 'Shrine', value = 'shrine'),
+    discord.app_commands.Choice(name = 'Versions', value = 'version')
     ])
 async def self(interaction: discord.Interaction, category: str):
     if interaction.guild is None:
@@ -1486,11 +1645,86 @@ async def self(interaction: discord.Interaction, category: str):
             async def on_submit(self, interaction: discord.Interaction):
                 print(self.answer.value)
                 await Info.legacycheck(interaction, steamid = self.answer.value.strip())
-        await interaction.response.send_modal(Input())         
-    
-   
+        await interaction.response.send_modal(Input())
+    elif category == 'addon':
+        class Input(discord.ui.Modal, title = 'Enter Addon. Timeout in 15 seconds.'):
+            self.timeout = 15
+            answer = discord.ui.TextInput(label = 'Addon you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
+            async def on_submit(self, interaction: discord.Interaction):
+                print(self.answer.value)
+                await Info.addon(interaction, name = self.answer.value.strip())
+        await interaction.response.send_modal(Input())
+     
+        
             
+@tree.command(name = 'random', description = 'Get a random perk, offering, map, item, char or full loadout.')
+#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+@discord.app_commands.describe(category = 'What do you want to randomize?')
+@discord.app_commands.choices(category = [
+    discord.app_commands.Choice(name = 'Char', value = 'char'),
+    discord.app_commands.Choice(name = 'Item', value = 'item'),
+    discord.app_commands.Choice(name = 'Loadout', value = 'loadout'),
+    discord.app_commands.Choice(name = 'Offering', value = 'offering'),
+    discord.app_commands.Choice(name = 'Perk', value = 'perk')
+    ])
+async def randomize(interaction: discord.Interaction, category: str):
+    if category == 'perk':
+        class Input(discord.ui.Modal, title='How many perks? Timeout in 30 seconds.'):
+            timeout = 30
+            answer = discord.ui.TextInput(label='Amount of perks.', style=discord.TextStyle.short, placeholder='1 - 4', min_length=1, max_length=1, required=True)
+            role = discord.ui.TextInput(label='Role', style=discord.TextStyle.short, placeholder='Survivor or Killer', min_length=6, max_length=8, required=True)
     
+            async def on_submit(self, interaction: discord.Interaction):
+                x = self.answer.value
+                y = self.role.value.lower()
+    
+                if not x.isdigit():
+                    await interaction.response.send_message(content='Invalid input: the amount of perks must be a number.', ephemeral=True)
+                    return
+                
+                x = int(x)
+                if x < 1 or x > 4:
+                    await interaction.response.send_message(content='Invalid input: the amount of perks must be between 1 and 4.', ephemeral=True)
+                    return
+    
+                if y != 'survivor' and y != 'killer':
+                    await interaction.response.send_message(content='Invalid input: the role must be either Survivor or Killer.', ephemeral=True)
+                    return
+                
+                print(x)
+                print(y)
+                await Random.perk(interaction, x, y)
+                
+        await interaction.response.send_modal(Input())
+        
+        
+        
+    elif category == 'offering':
+        class Input(discord.ui.Modal, title='Offering for whom? Timeout in 30 seconds.'):
+            timeout = 30
+            role = discord.ui.TextInput(label='Role', style=discord.TextStyle.short, placeholder='Survivor or Killer', min_length=6, max_length=8, required=True)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                y = self.role.value.lower()
+    
+                if y != 'survivor' and y != 'killer':
+                    await interaction.response.send_message(content='Invalid input: the role must be either Survivor or Killer.', ephemeral=True)
+                    return
+                
+                print(y)
+                await Random.offering(interaction, y)
+
+        await interaction.response.send_modal(Input())
+                
+        
+    elif category == 'item':
+        await Random.item(interaction)
+    elif category == 'char':
+        await Random.character(interaction)
+    elif category == 'loadout':
+        await Random.loadout(interaction)
+    else:
+        await interaction.response.send_message('Invalid category. Valid categories are: perk, offering, map, item, char and loadout.')
             
     
 
