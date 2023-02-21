@@ -18,7 +18,7 @@ def remove_prints_from_line(file_path, line_number):
                         
                         
 if __name__ == '__main__':
-    file_path = os.path('main.py')
+    file_path = os.abspath('main.py')
     line_number = 144
     remove_prints_from_line(file_path, line_number)
     
