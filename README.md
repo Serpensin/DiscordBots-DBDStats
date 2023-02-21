@@ -24,11 +24,11 @@ Currently this only works for Steam.
       2. Clone this repo, or download the zip file.
       3. Open a terminal inside "WebhookCreator" in the folder where you cloned the repo, or extracted the zip file.
       4. Run `docker build -t webhookcreator .` to build the docker image.
-      5. Run `docker run -d -e TOKEN=BOT_TOKEN -e OWNER_ID_=DISCORD_ID_OF_OWNER -e steamAPIkey=STEAM_APIKEY_-e support_server=ID_OF_SUPPORTSERVER --name webhookcreator webhookcreator` to start the bot.
+      5. Run `docker run -d -e TOKEN=BOT_TOKEN -e OWNER_ID_=DISCORD_ID_OF_OWNER -e steamAPIkey=STEAM_APIKEY -e support_server=ID_OF_SUPPORTSERVER --name dbdstats serpensin/dbdstats` to start the bot.
 ##### Use my pre-build image
       1. Make sure you have Docker installed. (https://docs.docker.com/get-docker/)
       2. Open a terminal.
-      3. Run `docker run -d -e TOKEN=BOT_TOKEN -e OWNER_ID_=DISCORD_ID_OF_OWNER -e steamAPIkey=STEAM_APIKEY_-e support_server=ID_OF_SUPPORTSERVER --name webhookcreator webhookcreator` to start the bot.
+      3. Run `docker run -d -e TOKEN=BOT_TOKEN -e OWNER_ID_=DISCORD_ID_OF_OWNER -e steamAPIkey=STEAM_APIKEY -e support_server=ID_OF_SUPPORTSERVER --name dbdstats serpensin/dbdstats` to start the bot.
 
 You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=137506506753&scope=bot%20applications.commands) the bot I host to your server.
 
