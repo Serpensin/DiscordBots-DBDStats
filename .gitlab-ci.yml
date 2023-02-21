@@ -1,3 +1,14 @@
+stages:
+  - preprocess
+  - build
+
+preprocess:
+  image: python:3.9
+  stage: preprocess
+  script:
+    - pip install autopep8
+    - autopep8 --in-place --aggressive --aggressive --max-line-length=120 --ignore=E402 --include=main.py --first=140 ./DBDStats/main.py
+
 docker-build:
   image: docker:latest
   stage: build
@@ -8,9 +19,5 @@ docker-build:
     - docker buildx create --use
     - sleep 2
     - docker buildx build --compress --no-cache --platform linux/386,linux/amd64 -t serpensin/dbdstats:latest --push ./DBDStats
-workflow:
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "trigger"
-      when: always
+  dependencies:
+    - preprocess
