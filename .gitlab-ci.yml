@@ -6,8 +6,7 @@ preprocess:
   image: python:3.9
   stage: preprocess
   script:
-    - pip install autopep8
-    - autopep8 --in-place --aggressive --max-line-length=120 --ignore=E402 --range 140 999999999 ./DBDStats/main.py
+    - python remove_prints.py
 
 docker-build:
   image: docker:latest
