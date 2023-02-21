@@ -7,7 +7,7 @@ preprocess:
   stage: preprocess
   script:
     - pip install autopep8
-    - autopep8 --in-place --aggressive --max-line-length=120 --ignore=E402 -S W391 --range 140+ --include main.py ./DBDStats/main.py
+    - autopep8 --in-place --aggressive --max-line-length=120 --ignore=E402 -S W391 --range 140 + --include main.py ./DBDStats/main.py
 
 docker-build:
   image: docker:latest
