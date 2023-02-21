@@ -6,7 +6,7 @@ preprocess:
   image: python:3.9
   stage: preprocess
   script:
-    - python ./DBDStats/remove_prints.py
+    - python ./remove_prints.py
 
 docker-build:
   image: docker:latest
