@@ -21,8 +21,8 @@ send-request:
     WEBHOOK_SUCCESS: $WEBHOOK
   script:
     - export CURRENT_TIME=$(date +%s)
-    - PAYLOAD=$(sed "s/\$time/$CURRENT_TIME/g" "$notify_payload")
-    - 'echo "$PAYLOAD" | curl --insecure -X POST -H "Content-Type: application/json" -d @- "$WEBHOOK_SUCCESS"'
+    - PAYLOAD=$(sed "s/\$time/$CURRENT_TIME/g" $notify_payload)
+    - 'echo "$PAYLOAD" | curl --insecure -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_SUCCESS"'
 
 workflow:
   rules:
