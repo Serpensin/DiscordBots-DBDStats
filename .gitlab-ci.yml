@@ -18,11 +18,11 @@ send-request:
   image: appropriate/curl
   stage: .pre
   variables:
-    WEBHOOK_SUCCESS: $WEBHOOK_SUCCESS
+    WEBHOOK_SUCCESS: $WEBHOOK
   script:
     - export CURRENT_TIME=$(date +%s)
     - sed "s/\$time/$CURRENT_TIME/g" $notify_payload > notify_payload_updated.json
-    - 'cat notify_payload_updated.json | curl -X POST -H "Content-Type: application/json" -d @- $WEBHOOK_SUCCESS'
+    - 'cat notify_payload_updated.json | curl -X POST -H "Content-Type: application/json" -d @- "$WEBHOOK_SUCCESS"'
 
 workflow:
   rules:
