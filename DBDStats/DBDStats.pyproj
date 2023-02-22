@@ -26,17 +26,12 @@
   <ItemGroup>
     <Compile Include="Dockerfile" />
     <Compile Include="main.py" />
-    <Compile Include="pytest.py">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include=".dockerignore" />
     <Content Include=".env" />
     <Content Include="activity.json" />
     <Content Include="docker-compose.yml" />
-    <Content Include="docker-test.bat" />
-    <Content Include="docker_build.bat" />
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>
