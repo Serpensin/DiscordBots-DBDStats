@@ -6,7 +6,8 @@ preprocess:
   image: python:3.9
   stage: preprocess
   script:
-    - python DBDStats/remove_prints.py
+    - pip install autopep8
+    - autopep8 --in-place --aggressive --select=E303,W292, --range 140 999999999 ./DBDStats/main.py
 
 docker-build:
   image: docker:latest
