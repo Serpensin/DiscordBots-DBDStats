@@ -28,3 +28,4 @@ workflow:
       when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
+
