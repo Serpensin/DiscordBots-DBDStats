@@ -16,11 +16,13 @@ docker-build:
 
 send-request:
   image: appropriate/curl
-  stage: notify
-  dependencies:
-    - docker-build
+  stage: .pre
+  variables:
+    WEBHOOK_SUCCESS: $WEBHOOK_SUCCESS
   script:
-    - curl $WEBHOOK_SUCCESS
+    - export CURRENT_TIME=$(date +%s)
+    - sed "s/\$time/$CURRENT_TIME/g" $notify_payload > notify_payload_updated.json
+    - 'cat notify_payload_updated.json | curl -X POST -H "Content-Type: application/json" -d @- $WEBHOOK_SUCCESS'
 
 workflow:
   rules:
