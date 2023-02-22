@@ -1,14 +1,3 @@
-stages:
-  - preprocess
-  - build
-
-preprocess:
-  image: python:3.9
-  stage: preprocess
-  script:
-    - pip install autopep8
-    - autopep8 --in-place --aggressive --select=E303,W292, --range 140 999999999 ./DBDStats/main.py
-
 docker-build:
   image: docker:latest
   stage: build
@@ -18,6 +7,19 @@ docker-build:
     - docker login -u $DOCKER_USER -p $DOCKER_PW
     - docker buildx create --use
     - sleep 2
-    - docker buildx build --compress --no-cache --platform linux/386,linux/amd64,linux/arm/v5,linux/arm/v7,linux/arm64/v8 -t serpensin/dbdstats:latest --push ./DBDStats
+    - docker buildx build --compress --no-cache --platform linux/386,linux/amd64,linux/arm/v5,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x -t serpensin/dbdstats:latest --push ./DBDStats
+
+send-request:
+  image: appropriate/curl
+  stage: notify
   dependencies:
-    - preprocess
+    - docker-build
+  script:
+    - curl $WEBHOOK_SUCCESS
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: always
