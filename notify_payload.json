@@ -62,7 +62,7 @@
             },
             {
                "name":"Pushed at",
-               "value":"<t:1337>",
+               "value":"<t:$time>",
                "inline":true
             }
          ]
