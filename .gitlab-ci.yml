@@ -11,7 +11,7 @@ docker-build:
 
 send-request:
   image: appropriate/curl
-  stage: notify
+  stage: .post
   dependencies:
     - docker-build
   script:
