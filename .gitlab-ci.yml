@@ -16,7 +16,7 @@ docker-build:
 
 send-request:
   image: appropriate/curl
-  stage: .pre
+  stage: notify
   variables:
     WEBHOOK_SUCCESS: $WEBHOOK
   script:
