@@ -1,3 +1,16 @@
+stages:
+   - build
+   - notify
+
+
+test:
+  image: appropriate/curl
+  stage: .pre
+  script:
+    - curl $WEBHOOK_SUCCESS
+
+
+
 docker-build:
   image: docker:latest
   stage: build
@@ -11,7 +24,7 @@ docker-build:
 
 send-request:
   image: appropriate/curl
-  stage: .post
+  stage: notify
   dependencies:
     - docker-build
   script:
