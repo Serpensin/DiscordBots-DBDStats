@@ -26,6 +26,9 @@
   <ItemGroup>
     <Compile Include="Dockerfile" />
     <Compile Include="main.py" />
+    <Compile Include="pytest.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include=".dockerignore" />
