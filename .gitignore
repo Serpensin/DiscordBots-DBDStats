@@ -371,3 +371,4 @@ FodyWeavers.xsd
 /env(WebhookCreator)
 /DBDStats/docker-test.bat
 /DBDStats/.env
+*.bat
