@@ -16,9 +16,8 @@ import sys
 import time
 from bs4 import BeautifulSoup
 from datetime import timedelta, datetime
-from discord.ext import tasks
 from dotenv import load_dotenv
-from googletrans import Translator
+from libretrans import LibreTranslateAPI
 from prettytable import PrettyTable
 from twitch import TwitchAPI
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -28,41 +27,28 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 
 #Set vars
+app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/'                                
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
-map_portraits = bot_base+'mapportraits/'  
+map_portraits = f'{bot_base}mapportraits/'  
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-languages = ['Afrikaans', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Azerbaijani',
-             'Basque', 'Belarusian', 'Bengali', 'Bosnian', 'Bulgarian',
-             'Catalan', 'Cebuano', 'Chichewa', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Corsican', 'Croatian', 'Czech',
-             'Danish', 'Dutch', 'English', 'Esperanto', 'Estonian', 'Filipino', 'Finnish', 'French', 'Frisian',
-             'Galician', 'Georgian', 'German', 'Greek', 'Gujarati',
-             'Haitian Creole', 'Hausa', 'Hawaiian', 'Hebrew', 'Hebrew', 'Hindi', 'Hmong', 'Hungarian',
-             'Icelandic', 'Igbo', 'Indonesian', 'Irish', 'Italian', 'Japanese', 'Javanese',
-             'Kannada', 'Kazakh', 'Khmer', 'Korean', 'Kurdish (Kurmanji)', 'Kyrgyz',
-             'Lao', 'Latin', 'Latvian', 'Lithuanian', 'Luxembourgish',
-             'Macedonian', 'Malagasy', 'Malay', 'Malayalam', 'Maltese', 'Maori', 'Marathi', 'Mongolian', 'Myanmar (Burmese)',
-             'Nepali', 'Norwegian', 'Odia', 'Pashto', 'Persian', 'Polish', 'Portuguese', 'Punjabi',
-             'Romanian', 'Russian', 'Samoan', 'Scots Gaelic', 'Serbian', 'Sesotho', 'Shona', 'Sindhi',
-             'Sinhala', 'Slovak', 'Slovenian', 'Somali', 'Spanish', 'Sundanese', 'Swahili', 'Swedish',
-             'Tajik', 'Tamil', 'Telugu', 'Thai', 'Turkish', 'Ukrainian', 'Urdu', 'Uyghur', 'Uzbek',
-             'Vietnamese', 'Welsh', 'Xhosa', 'Yiddish', 'Yoruba', 'Zulu']
+languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
+             'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
+             'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
 
 
-#Init
-if not os.path.exists('DBDStats'):
-    os.mkdir('DBDStats')
-if not os.path.exists('DBDStats//Logs'):
-    os.mkdir('DBDStats//Logs')
-if not os.path.exists('DBDStats//Buffer'):
-    os.mkdir('DBDStats//Buffer')
-if not os.path.exists('DBDStats//Buffer//Stats'):
-    os.mkdir('DBDStats//Buffer//Stats')
-log_folder = 'DBDStats//Logs//'
-buffer_folder = 'DBDStats//Buffer//'
-stats_folder = os.path.abspath('DBDStats//Buffer//Stats//')
+##Init
+#Set-up folders
+if not os.path.exists(f'{app_folder_name}//Logs'):
+    os.makedirs(f'{app_folder_name}//Logs')
+if not os.path.exists(f'{app_folder_name}//Buffer//Stats'):
+    os.makedirs(f'{app_folder_name}//Buffer//Stats')
+log_folder = f'{app_folder_name}//Logs//'
+buffer_folder = f'{app_folder_name}//Buffer//'
+stats_folder = os.path.abspath(f'{app_folder_name}//Buffer//Stats//')
+#Set-up logging
 logger = logging.getLogger('discord')
 manlogger = logging.getLogger('Program')
 logger.setLevel(logging.INFO)
@@ -81,6 +67,7 @@ logger.addHandler(handler)
 manlogger.addHandler(handler)
 manlogger.info('------')
 manlogger.info('Engine powering up...')
+#Load env
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
 ownerID = os.getenv('OWNER_ID')
@@ -88,13 +75,16 @@ steamAPIkey = os.getenv('steamAPIkey')
 support_id = os.getenv('support_server')
 twitch_client_id = os.getenv('twitch_client_id')
 twitch_client_secret = os.getenv('twitch_client_secret')
+libretransAPIkey = os.getenv('libretransAPIkey')
+#Set intents
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-translator = Translator()
+translator = LibreTranslateAPI(libretransAPIkey)
 tb = PrettyTable()
 twitch_api = TwitchAPI(twitch_client_id, twitch_client_secret)
-cleanup_lock = asyncio.Lock()
+#Define loop for async functions
+loop = asyncio.get_event_loop()
 #Fix error on windows on shutdown.
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -115,23 +105,11 @@ def print(msg):
 twitch_available = bool(twitch_client_secret and twitch_client_id)
 support_available = bool(support_id)
 owner_available = bool(ownerID)
+translate_available = bool(libretransAPIkey)
 if not TOKEN or not steamAPIkey:
     manlogger.critical('Missing token or steam API key. Please check your .env file.')
     pt('Missing token or steam API key. Please check your .env file.')
     sys.exit()
-
-
-
-@tasks.loop(hours=1)
-async def cleanup():
-    async with cleanup_lock:
-        manlogger.info('Cleaning up buffer...')
-        for filename in os.scandir(stats_folder):
-            if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 4:
-                try:
-                    os.remove(filename)
-                except Exception as e:
-                    manlogger.info(f"Error while deleting {filename.path}: {e}")
 
 
 
@@ -178,7 +156,7 @@ class aclient(discord.AutoShardedClient):
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = False
+        self.synced = True
     async def on_ready(self):
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
@@ -190,8 +168,6 @@ class aclient(discord.AutoShardedClient):
             await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
         global owner
         owner = await bot.fetch_user(ownerID)
-        if not cleanup.is_running():
-            cleanup.start()
         manlogger.info('Initialization completed...')
         clear()
         pt('READY')
@@ -227,7 +203,7 @@ class Events():
     @tree.error
     async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
         if isinstance(error, discord.app_commands.CommandOnCooldown):
-            await interaction.response.send_message(await Functions.translate(interaction, 'This comand is on cooldown.\nTime left: `')+await Functions.seconds_to_minutes(error.retry_after)+'`.', ephemeral = True)
+            await interaction.response.send_message('This comand is on cooldown.\nTime left: `'+await Functions.seconds_to_minutes(error.retry_after)+'`.', ephemeral = True)
         else:
             await interaction.followup.send(error, ephemeral = True)
             manlogger.warning(str(error)+' '+interaction.user.name+' | '+str(interaction.user.id))
@@ -281,6 +257,14 @@ class Functions():
             return pycountry.languages.get(alpha_2=lang_code).name
         except:
             return lang_code
+
+
+    async def get_language_code(lang_name):
+        try:
+            return pycountry.languages.get(name=lang_name).alpha_2
+        except:
+            manlogger.warning(f'Language {lang_name} not found.')
+            return None
 
 
     async def convert_time(timestamp):
@@ -357,14 +341,17 @@ class Functions():
     
 
     async def translate(interaction, text):
-        translator = Translator()
         role_names = [role.name for role in interaction.user.roles]
         for lang in languages:
             if lang in role_names:
+                dest_lang = await Functions.get_language_code(lang)
                 try:
-                    return translator.translate(text, dest=lang).text
+                    translation_response = await translator.translate(text, dest_lang)
+                    translation = translation_response['data']['translatedText']
+                    print('TRANSLATE')
+                    return translation
                 except:
-                    pass
+                    return text
         return text
 
 
@@ -442,8 +429,8 @@ class Functions():
             return embed
         else:
             for key in data.keys():
-                embed = discord.Embed(title="Perk-Description for '" + data[key]['name'] + "'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.','. ')), color=0xb19325)
                 if data[key]['name'].lower() == perk.lower():
+                    embed = discord.Embed(title="Perk-Description for '" + data[key]['name'] + "'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.','. ')), color=0xb19325)
                     await check()
                     if random:
                         return embed
@@ -1095,19 +1082,21 @@ class Info():
 
 
     async def item(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
-    
         # Check if the command is being used in a server
         if interaction.guild is None:
             await interaction.followup.send("This command can only be used in a server.")
             return
     
+        #await interaction.response.defer(thinking=True, ephemeral=True)
+
         # Load item data
         data = await Functions.item_load()
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the item data."))
             return
     
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
         # Send list of all items if no name is specified
         if name == '':
             await interaction.followup.send(content='Here is a list of all items. You can use the command again with one of the items to get more info about it.', file=discord.File(f'{buffer_folder}items.txt'))
@@ -1377,10 +1366,10 @@ class Info():
             interaction.followup.send("This command can only be used in a server.")
             return
         embeds = []
-        game_id = twitch_api.get_game_id("Dead by Daylight")
-        stats = twitch_api.get_category_stats(game_id)
-        top = twitch_api.get_top_streamers(game_id)
-        image = twitch_api.get_category_image(game_id)
+        game_id = await twitch_api.get_game_id("Dead by Daylight")
+        stats = await twitch_api.get_category_stats(game_id)
+        top = await twitch_api.get_top_streamers(game_id)
+        image = await twitch_api.get_category_image(game_id)
         embed = discord.Embed(title="Twitch Info", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xffb8ff)
         embed.set_thumbnail(url=image)
         embed.add_field(name="Total Viewers", value=await Functions.convert_number(stats['viewer_count']), inline=True)
@@ -1417,6 +1406,7 @@ class Random():
             key = random.choice(list(keys - selected_keys))
             entry = perks[key]
             if entry['role'] == role:
+                print(entry['name'])
                 embed = await Functions.perk_send(perks, entry['name'], interaction, False, True)
                 embeds.append(embed)
             selected_keys.add(key)
@@ -1816,7 +1806,8 @@ if support_available:
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
-    language = discord.Embed(title="Setup - Language", description=await Functions.translate(interaction, "Most outputs will be translated using Google Translator. However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 107 Languages/Roles, you have to setup the roles you need on your own.")+"\n\nAfrikaans, Albanian, Amharic, Arabic, Armenian, Azerbaijani, Basque, Belarusian, Bengali, Bosnian, Bulgarian, Catalan, Cebuano, Chichewa, Chinese (Simplified), Chinese (Traditional), Corsican, Croatian, Czech, Danish, Dutch, Esperanto, Estonian, Filipino, Finnish, French, Frisian, Galician, Georgian, German, Greek, Gujarati, Haitian Creole, Hausa, Hawaiian, Hebrew, Hebrew, Hindi, Hmong, Hungarian, Icelandic, Igbo, Indonesian, Irish, Italian, Japanese, Javanese, Kannada, Kazakh, Khmer, Korean, Kurdish (Kurmanji), Kyrgyz, Lao, Latin, Latvian, Lithuanian, Luxembourgish, Macedonian, Malagasy, Malay, Malayalam, Maltese, Maori, Marathi, Mongolian, Myanmar (Burmese), Nepali, Norwegian, Odia, Pashto, Persian, Polish, Portuguese, Punjabi, Romanian, Russian, Samoan, Scots Gaelic, Serbian, Sesotho, Shona, Sindhi, Sinhala, Slovak, Slovenian, Somali, Spanish, Sundanese, Swahili, Swedish, Tajik, Tamil, Telugu, Thai, Turkish, Ukrainian, Urdu, Uyghur, Uzbek, Vietnamese, Welsh, Xhosa, Yiddish, Yoruba, Zulu", color=0x004cff)
+    lang_str = ", ".join(languages)
+    language = discord.Embed(title="Setup - Language", description=await Functions.translate(interaction, "Most outputs will be translated using our Instance of [LibreTranslate](https://translate.bloodygang.com/). However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 29 Languages/Roles, you have to setup the roles you need on your own.")+f"\n\n{lang_str}", color=0x004cff)
     await interaction.response.send_message(embeds=[language])
        
 
@@ -1861,24 +1852,24 @@ async def self(interaction: discord.Interaction, category: str):
         return
 
     if category == 'char':
-        class Input(discord.ui.Modal, title = 'Get info about a char. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Get info about a char. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Enter ID or Name. Leave emnpty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.character(interaction, char = self.answer.value.lower().replace('the', '').strip())
         await interaction.response.send_modal(Input())
     
     elif category == 'stats':
-        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want stats for.', style = discord.TextStyle.short, required = True)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.playerstats(interaction, steamid = self.answer.value.strip())
         await interaction.response.send_modal(Input())  
     
     elif category == 'dlc':
-        class Input(discord.ui.Modal, title = 'Enter DLC. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter DLC. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'DLC you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.dlc(interaction, name = self.answer.value.strip())
@@ -1888,32 +1879,32 @@ async def self(interaction: discord.Interaction, category: str):
         await Info.event(interaction)
 
     elif category == 'item':
-        class Input(discord.ui.Modal, title = 'Enter Item. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter Item. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Item you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.item(interaction, name = self.answer.value.strip())
         await interaction.response.send_modal(Input())
 
     elif category == 'map':
-        class Input(discord.ui.Modal, title = 'Enter Map. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter Map. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Map you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.map(interaction, name = self.answer.value.strip())
         await interaction.response.send_modal(Input())
 
     elif category == 'offering':
-        class Input(discord.ui.Modal, title = 'Enter Offering. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter Offering. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Offering you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.offering(interaction, name = self.answer.value.strip())
         await interaction.response.send_modal(Input())
 
     elif category == 'perk':
-        class Input(discord.ui.Modal, title = 'Enter Perk. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter Perk. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Perk you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.perk(interaction, name = self.answer.value.strip())
@@ -1935,16 +1926,16 @@ async def self(interaction: discord.Interaction, category: str):
         await Info.playercount(interaction)
 
     elif category == 'legacy':
-        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want to check.', style = discord.TextStyle.short, required = True)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.legacycheck(interaction, steamid = self.answer.value.strip())
         await interaction.response.send_modal(Input())
 
     elif category == 'addon':
-        class Input(discord.ui.Modal, title = 'Enter Addon. Timeout in 15 seconds.'):
-            self.timeout = 15
+        class Input(discord.ui.Modal, title = 'Enter Addon. Timeout in 30 seconds.'):
+            self.timeout = 30
             answer = discord.ui.TextInput(label = 'Addon you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
             async def on_submit(self, interaction: discord.Interaction):
                 await Info.addon(interaction, name = self.answer.value.strip())
@@ -1956,7 +1947,7 @@ async def self(interaction: discord.Interaction, category: str):
 
 #Randomize           
 @tree.command(name = 'random', description = 'Get a random perk, offering, map, item, char or full loadout.')
-@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'What do you want to randomize?')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addon', value = 'addon'),
@@ -2054,7 +2045,8 @@ async def randomize(interaction: discord.Interaction, category: str):
         class Input(discord.ui.Modal, title='Loadout for whom? Timeout in 30 seconds.'):
             timeout = 30
             role = discord.ui.TextInput(label='Role', style=discord.TextStyle.short, placeholder='Survivor or Killer', min_length=6, max_length=8, required=True)
-
+    
+            @discord.utils.async_all
             async def on_submit(self, interaction: discord.Interaction):
                 role = self.role.value.lower().strip()
     
@@ -2065,11 +2057,13 @@ async def randomize(interaction: discord.Interaction, category: str):
                 await Random.loadout(interaction, role)
                 
         await interaction.response.send_modal(Input())
-
+    
     else:
-        await interaction.response.send_message('Invalid category.', ephemeral = True)
+        await interaction.response.send_message('Invalid category.', ephemeral=True)
+
             
     
+
         
     
 

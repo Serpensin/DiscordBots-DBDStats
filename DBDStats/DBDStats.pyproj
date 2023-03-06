@@ -12,7 +12,7 @@
     <Name>DBDStats</Name>
     <RootNamespace>DBDStats</RootNamespace>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
-    <InterpreterId>MSBuild|env(DBDStats)|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -25,6 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Dockerfile" />
+    <Compile Include="libretrans.py" />
     <Compile Include="main.py" />
     <Compile Include="twitch.py" />
   </ItemGroup>
@@ -36,10 +37,10 @@
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Interpreter Include="env(DBDStats)\">
-      <Id>env(DBDStats)</Id>
+    <Interpreter Include="env\">
+      <Id>env</Id>
       <Version>3.9</Version>
-      <Description>env(DBDStats) (Python 3.9 (64-bit))</Description>
+      <Description>env (Python 3.9 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
