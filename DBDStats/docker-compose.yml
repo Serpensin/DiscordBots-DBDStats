@@ -13,6 +13,12 @@ services:
       twitch_client_id: twitch_client_id
       twitch_client_secret: twitch_client_secret
       libretransAPIkey: APIkey_for_my_instance_of_libretrans
+      MongoDB_host: IP_OR_DOMAIN_OF_MONGODB
+      MongoDB_port: PORT_OF_MONGODB
+      MongoDB_user: USER_OF_MONGODB
+      MongoDB_password: PASSWORD_OF_MONGODB
+      MongoDB_database: DATABASE_OF_MONGODB
+      MongoDB_collection: COLLECTION_OF_MONGODB
     image: serpensin/dbdstats
     volumes:
     - dbdstats_log:/app/DBDStats/Logs

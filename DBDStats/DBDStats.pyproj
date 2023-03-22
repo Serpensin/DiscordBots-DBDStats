@@ -25,9 +25,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Dockerfile" />
-    <Compile Include="libretrans.py" />
+    <Compile Include="CustomModules\libretrans.py" />
     <Compile Include="main.py" />
-    <Compile Include="twitch.py" />
+    <Compile Include="CustomModules\test.py" />
+    <Compile Include="CustomModules\twitch.py" />
+    <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".dockerignore" />
@@ -46,6 +48,9 @@
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
       <Architecture>X64</Architecture>
     </Interpreter>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="CustomModules\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
