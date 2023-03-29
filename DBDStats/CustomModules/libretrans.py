@@ -4,9 +4,9 @@
 
 
 class LibreTranslateAPI:
-    def __init__(self, APIkey = ''):
+    def __init__(self, APIkey = '', url = ''):
         self.APIkey = APIkey
-        self.url = "https://translate.bloodygang.com"
+        self.url = url
 
 
     async def _get_sample(self, text):
