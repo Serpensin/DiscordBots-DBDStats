@@ -32,6 +32,7 @@
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".env.template" />
     <Content Include=".dockerignore" />
     <Content Include=".env" />
     <Content Include="activity.json" />
@@ -39,6 +40,10 @@
     <Content Include="Docker-Compose\docker-compose_with_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose_with_MongoDB_and_LibreTranslate.yml" />
     <Content Include="requirements.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="CustomModules\" />
+    <Folder Include="Docker-Compose\" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">
@@ -50,10 +55,6 @@
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
       <Architecture>X64</Architecture>
     </Interpreter>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="CustomModules\" />
-    <Folder Include="Docker-Compose\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

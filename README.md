@@ -10,7 +10,7 @@ Currently this only works for Steam.
       2. Clone this repo, or download the zip file.
       3. Open a terminal inside "DBDStats" in the folder where you cloned the repo, or extracted the zip file.
       4. Run `pip install -r requirements.txt` to install the dependencies.
-      5. Open the file ".env" and fill out all variables.
+      5. Open the file ".env.template" and fill out all variables.
           5.1.  TOKEN is the token of your bot. (https://discord.com/developers/applications)
           5.2.  OWNER_ID is your DiscordID.
           5.3.  steamAPIkey is your SteamAPI key. You can get your key at https://steamcommunity.com/dev/apikey.
@@ -24,8 +24,9 @@ Currently this only works for Steam.
           5.10. MongoDB_user 
           5.11. MongoDB_password 
           5.12. MongoDB_database 
-          5.13. MongoDB_collection 
-      6. Run `python main.py` or `python3 main.py` to start the bot.
+          5.13. MongoDB_collection
+      6. Rename the file ".env.template" to ".env".
+      7. Run `python main.py` or `python3 main.py` to start the bot.
 
 #### Docker
 ##### Create the image yourself
