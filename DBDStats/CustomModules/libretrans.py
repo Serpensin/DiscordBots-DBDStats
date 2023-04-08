@@ -4,7 +4,7 @@
 
 
 class LibreTranslateAPI:
-    def __init__(self, APIkey = '', url = ''):
+    def __init__(self, APIkey, url):
         self.APIkey = APIkey
         self.url = url
 

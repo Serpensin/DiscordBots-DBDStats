@@ -24,10 +24,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CustomModules\steamcharts.py" />
     <Compile Include="Dockerfile" />
     <Compile Include="CustomModules\libretrans.py" />
     <Compile Include="main.py" />
-    <Compile Include="CustomModules\test.py" />
+    <Compile Include="CustomModules\killswitch.py" />
     <Compile Include="CustomModules\twitch.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>

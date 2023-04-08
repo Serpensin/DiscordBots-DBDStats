@@ -362,15 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /DBDStats/DBDStats/Buffer
-/DBDStats/env(DBDStats)
-/DBDStats/env(WebhookCreator)
-/DBDStats/docker_build.bat
 /DBDStats/.env
-/DBDStats/DBDStats/Buffer
-/env(DBDStats)
-/env(WebhookCreator)
-/DBDStats/docker-test.bat
-/DBDStats/.env
+/DBDStats/env
 *.bat
-/DBDStats/test.py
-/DBDStats/CustomModules/test.py

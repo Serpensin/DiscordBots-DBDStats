@@ -6,6 +6,7 @@ import discord
 import json
 import logging
 import logging.handlers
+import math
 import os
 import platform
 import pycountry
@@ -20,6 +21,8 @@ import time
 from bs4 import BeautifulSoup
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
+from CustomModules import killswitch
+from CustomModules import steamcharts as sc
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
@@ -29,8 +32,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 app_folder_name = 'DBDStats'
-api_base = 'https://dbd.tricky.lol/api/' # For production
-#api_base = 'http://localhost:5000/' # For testing
+#api_base = 'https://dbd.tricky.lol/api/' # For production
+api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'  
@@ -118,11 +121,6 @@ db = pymongo.MongoClient(connection_string)
 collection = db[db_name][db_collection]
 print(collection)
 
-#Set intents
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
-
 tb = PrettyTable()
 twitch_api = TwitchAPI(twitch_client_id, twitch_client_secret)
 
@@ -138,18 +136,17 @@ def clear():
 # Check if all required variables are set
 if not TOKEN or not steamAPIkey:
     manlogger.critical('Missing token or steam API key. Please check your .env file.')
-    pt('Missing token or steam API key. Please check your .env file.')
-    sys.exit()
+    sys.exit('Missing token or steam API key. Please check your .env file.')
 try:
-    t = db.admin.command('ping')
-    print(t)
+    db.server_info()
     db_available = True
     manlogger.info('Connected to MongoDB.')
     pt('Connected to MongoDB.')
-except pymongo.errors.ServerSelectionTimeoutError:
+except Exception as e:
+    print(e.details.get("errmsg"))
     db_available = False
-    manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage.")
-    pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage.")
+    manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
+    pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
 if not docker:
     libretrans_url = libretransURL
 else:
@@ -170,53 +167,29 @@ else:
 
 twitch_available = bool(twitch_client_secret and twitch_client_id)
 support_available = bool(support_id)
-owner_available = ''
+owner_available = bool(ownerID)
 
 
-#Presence    
-class Presence():
-    @staticmethod
-    def get_activity() -> discord.Activity:
-        with open('activity.json') as f:
-            data = json.load(f)
-            activity_type = data['activity_type']
-            activity_title = data['activity_title']
-            activity_url = data['activity_url']
-        if activity_type == 'Playing':
-            return discord.Game(name=activity_title)
-        elif activity_type == 'Streaming':
-            return discord.Streaming(name=activity_title, url=activity_url)
-        elif activity_type == 'Listening':
-            return discord.Activity(type=discord.ActivityType.listening, name=activity_title)
-        elif activity_type == 'Watching':
-            return discord.Activity(type=discord.ActivityType.watching, name=activity_title)
-        elif activity_type == 'Competing':
-            return discord.Activity(type=discord.ActivityType.competing, name=activity_title)
-    
-    @staticmethod
-    def get_status() -> discord.Status:
-        with open('activity.json') as f:
-            data = json.load(f)
-            status = data['status']
-        if status == 'online':
-            return discord.Status.online
-        elif status == 'idle':
-            return discord.Status.idle
-        elif status == 'dnd':
-            return discord.Status.dnd
-        elif status == 'invisible':
-            return discord.Status.invisible
+
+
+   
 
 
         
 #Bot        
 class aclient(discord.AutoShardedClient):
     def __init__(self):
+
+        intents = discord.Intents.default()
+        intents.guild_messages = True
+        intents.dm_messages = True
+        intents.members = True
+
         super().__init__(owner_id = ownerID,
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = True
+        self.synced = False
         self.s = sched.scheduler(time.time, time.sleep)
         self.cache_updated = False
 
@@ -226,16 +199,50 @@ class aclient(discord.AutoShardedClient):
         next_run = (datetime.now() + timedelta(hours=4))
         scheduler.enterabs(next_run, 1, self.__schedule_update, (scheduler,))
 
-    async def on_ready(self):
 
+    class Presence():
+        @staticmethod
+        def get_activity() -> discord.Activity:
+            with open('activity.json') as f:
+                data = json.load(f)
+                activity_type = data['activity_type']
+                activity_title = data['activity_title']
+                activity_url = data['activity_url']
+            if activity_type == 'Playing':
+                return discord.Game(name=activity_title)
+            elif activity_type == 'Streaming':
+                return discord.Streaming(name=activity_title, url=activity_url)
+            elif activity_type == 'Listening':
+                return discord.Activity(type=discord.ActivityType.listening, name=activity_title)
+            elif activity_type == 'Watching':
+                return discord.Activity(type=discord.ActivityType.watching, name=activity_title)
+            elif activity_type == 'Competing':
+                return discord.Activity(type=discord.ActivityType.competing, name=activity_title)
+    
+        @staticmethod
+        def get_status() -> discord.Status:
+            with open('activity.json') as f:
+                data = json.load(f)
+                status = data['status']
+            if status == 'online':
+                return discord.Status.online
+            elif status == 'idle':
+                return discord.Status.idle
+            elif status == 'dnd':
+                return discord.Status.dnd
+            elif status == 'invisible':
+                return discord.Status.invisible
+
+
+    async def on_ready(self):
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
             manlogger.info('Syncing...')
+            pt('Syncing commands...')
             await tree.sync()
             manlogger.info('Synced.')
-            manlogger.info('------')
+            pt('Commands synced.')
             self.synced = True
-            await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
         global owner, owner_available
         try:
             owner = await bot.fetch_user(ownerID)
@@ -257,6 +264,7 @@ class aclient(discord.AutoShardedClient):
             await asyncio.sleep(1)
         if not docker:
             clear()
+        await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         pt('READY')
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -399,6 +407,7 @@ class update_cache():
         data = await Functions.check_api_rate_limit(f'{api_base}dlc')
         if data == 1:
             return 1
+        data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
         if db_available:
             data['_id'] = 'dlc_info'
             collection.update_one({'_id': 'dlc_info'}, {'$set': data}, upsert=True)
@@ -793,7 +802,7 @@ class Functions():
 
     async def map_load():
         if not db_available:
-            with open(f"{buffer_folder}maps.json", "r", encoding="utf8") as f:
+            with open(f"{buffer_folder}maps_info.json", "r", encoding="utf8") as f:
                 data = json.loads(f.read())
         else:
             data = json.loads(json.dumps(collection.find_one({'_id': 'map_info'})))
@@ -1036,7 +1045,7 @@ class Info():
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
             file_path = os.path.join(stats_folder, clean_filename)
             if removed == 1:
-                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.").replace('.','. '), color=0xb19325)
+                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")).replace('.','. '), color=0xb19325)
                 await interaction.followup.send(embed=embed1)
                 return
             elif removed != 0:
@@ -1258,22 +1267,29 @@ class Info():
         await interaction.response.defer(thinking=True)
         data = await Functions.dlc_load()
         if not name:
-            embed = discord.Embed(title="DLC Info (1/2)",  description=(await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. '), color=0xb19325)
-            embed2 = discord.Embed(title="DLC Info (2/2)", description=(await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. '), color=0xb19325)
-            embed.add_field(name='\u200b', value='\u200b', inline=False)
-            embed2.add_field(name='\u200b', value='\u200b', inline=False)
-            i = 0
-            for key in data.keys():
-                if str(key) == '_id':
-                    continue
-                if data[key]['steamid'] == 0:
-                    continue
-                if i <= 25:
-                    embed.add_field(name=str(data[key]['name']), value='['+await Functions.convert_time_dateonly(data[key]['time'])+']('+steamStore+str(data[key]['steamid'])+')')
-                    i += 1
-                if i > 25:
-                    embed2.add_field(name=str(data[key]['name']), value='['+await Functions.convert_time_dateonly(data[key]['time'])+']('+steamStore+str(data[key]['steamid'])+')')
-            await interaction.followup.send(embeds=[embed, embed2])
+            embed_title = "DLC Info"
+            description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. ')
+            field_limit = 25
+            sorted_data = sorted(data.items(), key=lambda x: x[1]["time"])
+            num_embeds = math.ceil(len(sorted_data) / field_limit)
+            embeds = []
+            for i in range(num_embeds):
+                embed = discord.Embed(
+                    title=f"{embed_title} ({i+1}/{num_embeds})",
+                    description=description,
+                    color=0xb19325
+                )
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                for key, value in sorted_data[i*field_limit:(i+1)*field_limit]:
+                    if key == '_id' or value['steamid'] == 0:
+                        continue
+                    embed.add_field(
+                        name=str(value['name']),
+                        value=f"[{await Functions.convert_time_dateonly(value['time'])}]({steamStore}{value['steamid']})",
+                        inline=True
+                    )
+                embeds.append(embed)
+            await interaction.followup.send(embeds=embeds)
         else:
             for key in data.keys():
                 if str(key) == '_id':
@@ -1281,6 +1297,7 @@ class Info():
                 if data[key]['name'].lower() == name.lower():
                     embed = discord.Embed(title="DLC description for '"+data[key]['name']+"'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ')), color=0xb19325)
                     embed.set_thumbnail(url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{data[key]['steamid']}/header.jpg")
+                    embed.set_footer(text = f"{await Functions.translate(interaction, 'Released at')}: {await Functions.convert_time_dateonly(data[key]['time'])}")
                     await interaction.followup.send(embed=embed)
                     return
             print('WTF?')
@@ -1371,6 +1388,16 @@ class Info():
         if interaction.guild is None:
             interaction.followup.send("This command can only be used in a server.")
             return
+        data = await killswitch.get()
+        print(data)
+        print(type(data))
+        if data == 1:
+            await interaction.followup.send(await Functions.translate(interaction, "Error while loading the killswitch data."))
+        elif data == None:
+            embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')).replace('.','. '), color=0xb19325)
+            embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            await interaction.followup.send(embed=embed)
+        return
         resp = r.get(f'{bot_base}killswitch.json')
         data = resp.json()
         count = len(data.keys())
@@ -1384,10 +1411,8 @@ class Info():
                 embed.add_field(name="\u200b", value=f"[Twitter]({data[i]['Twitter']})", inline=True)
                 embed.set_footer(text=await Functions.translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it.").replace('.','. '))
                 await interaction.followup.send(embed=embed)
-        if count == 0:
-            embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, 'Currently there is no Kill Switch active.').replace('.','. '), color=0xb19325)
-            embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-            await interaction.followup.send(embed=embed)
+
+
 
 
     async def shrine(interaction: discord.Interaction):
@@ -1456,27 +1481,19 @@ class Info():
             embed.set_footer(text=await Functions.translate(interaction, "This will be updated every full hour."))
             await interaction.followup.send(embed = embed)
         async def selfget():
-            url = 'https://steamcharts.com/app/381210'
-            header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.50'}
-            page = r.get(url, headers = header)
-            if page.status_code != 200:
-                await interaction.followup.send(await Functions.translate(interaction, "Error while fetching the playercount.").replace('.','. '))
-                manlogger.warning(str(page.status_code)+' while accessing '+url)
-            soup = BeautifulSoup(page.text, 'html.parser')
-            data = {}
-            count = 0
-            for stats in soup.find_all('div', class_='app-stat'):
-                soup2 = BeautifulSoup(str(stats), 'html.parser')
-                for stat in soup2.find_all('span', class_='num'):
-                    stat = str(stat).replace('<span class="num">', '').replace('</span>', '')
-                    if count == 0:
-                        data['Current Players'] = stat
-                    elif count == 1:
-                        data['Peak Players 24h'] = stat
-                    elif count == 2:
-                        data['Peak Players All Time'] = stat
-                    count += 1
-                data['update_hour'] = datetime.now().hour
+            data = await sc.playercount('381210')
+            try:
+                current_players = data['Current Players']
+                day_peak = data['Peak Players 24h']
+                alltime_peak = data['Peak Players All Time']
+            except:
+                error_code = data['error']['code']
+                error_message = data['error']['message']
+                pt(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
+                manlogger.warning(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
+                await interaction.followup.send(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
+                return
+            data['update_hour'] = datetime.now().hour
             with open(buffer_folder+'playercount.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
             return data
@@ -1560,7 +1577,7 @@ class Info():
             return
         top = await twitch_api.get_top_streamers(game_id)
         image = await twitch_api.get_category_image(game_id)
-        embed = discord.Embed(title="Twitch Info", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xffb8ff)
+        embed = discord.Embed(title="Twitch Info", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xff00ff)
         embed.set_thumbnail(url=image)
         embed.add_field(name="Total Viewers", value=await Functions.convert_number(stats['viewer_count']), inline=True)
         embed.add_field(name="Total Streams", value=await Functions.convert_number(stats['stream_count']), inline=True)
@@ -1568,7 +1585,7 @@ class Info():
         embed.add_field(name="Current Rank", value=await Functions.convert_number(stats['category_rank']), inline=False)
         embeds.append(embed)
         for streamer in top.values():
-            embed = discord.Embed(title=streamer['streamer'], description=await Functions.unicode_unescape(streamer['title']), color=0xffb8ff)
+            embed = discord.Embed(title=streamer['streamer'], description=streamer['title'], color=0xffb8ff)
             embed.set_thumbnail(url=streamer['thumbnail'])
             embed.add_field(name="Viewer", value=await Functions.convert_number(streamer['viewer_count']), inline=True)
             embed.add_field(name="Follower", value=await Functions.convert_number(streamer['follower_count']), inline=True)
@@ -1791,7 +1808,10 @@ if owner_available:
             db.close()
             await bot.change_presence(status = discord.Status.offline)
             await bot.close()
-            sys.exit(0)
+            try:
+                sys.exit(0)
+            except SystemExit:
+                pass
         else:
             await interaction.response.send_message(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
 
@@ -1922,7 +1942,7 @@ if owner_available:
                 data['activity_title'] = title
             with open('activity.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-            await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
+            await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
             await interaction.followup.send(await Functions.translate(interaction, 'Activity changed!'), ephemeral = True)
         else:
             await interaction.followup.send(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
@@ -1946,7 +1966,7 @@ if owner_available:
             data['status'] = status
             with open('activity.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-            await bot.change_presence(activity = Presence.get_activity(), status = Presence.get_status())
+            await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
             await interaction.followup.send(await Functions.translate(interaction, 'Status changed!'), ephemeral = True)
         else:
             await interaction.followup.send(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
@@ -2004,7 +2024,7 @@ if support_available:
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
     lang_str = ", ".join(languages)
-    language = discord.Embed(title="Setup - Language", description=await Functions.translate(interaction, "Most outputs will be translated using our Instance of [LibreTranslate](https://translate.bloodygang.com/). However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 29 Languages/Roles, you have to setup the roles you need on your own.")+f"\n\n{lang_str}", color=0x004cff)
+    language = discord.Embed(title="Setup - Language", description=f"Most outputs will be translated using our Instance of [LibreTranslate](https://translate.bloodygang.com/). However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 29 Languages/Roles, you have to setup the roles you need on your own.\n**Keep in mind that these translation can be a bit strange.**\n\n{lang_str}", color=0x004cff)
     await interaction.response.send_message(embeds=[language])
        
 
