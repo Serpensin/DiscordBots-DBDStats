@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /DBDStats/.env
 /DBDStats/env
 *.bat
+/DBDStats/CustomModules/steamcharts.py
