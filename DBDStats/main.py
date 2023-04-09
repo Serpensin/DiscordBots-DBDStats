@@ -11,6 +11,7 @@ import os
 import platform
 import pycountry
 import pymongo
+import pymongo.errors as mongoerr
 import random
 import requests as r
 import sched
@@ -19,10 +20,11 @@ import sys
 import threading
 import time
 from bs4 import BeautifulSoup
+from bson import SON
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
 from CustomModules import killswitch
-from CustomModules import steamcharts as sc
+from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
@@ -76,7 +78,6 @@ formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', 
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 manlogger.addHandler(handler)
-manlogger.info('------')
 manlogger.info('Engine powering up...')
 
 #Load env
@@ -119,7 +120,6 @@ else:
     connection_string = f'mongodb://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
 db = pymongo.MongoClient(connection_string)
 collection = db[db_name][db_collection]
-print(collection)
 
 tb = PrettyTable()
 twitch_api = TwitchAPI(twitch_client_id, twitch_client_secret)
@@ -142,11 +142,15 @@ try:
     db_available = True
     manlogger.info('Connected to MongoDB.')
     pt('Connected to MongoDB.')
-except Exception as e:
-    print(e.details.get("errmsg"))
-    db_available = False
+except mongoerr.OperationFailure as e:
+    print(e)
     manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
     pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
+    db_available = False
+except mongoerr.ServerSelectionTimeoutError as e:
+    manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> Connection Timeout")
+    pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> Connection Timeout")
+    db_available = False 
 if not docker:
     libretrans_url = libretransURL
 else:
@@ -170,11 +174,6 @@ support_available = bool(support_id)
 owner_available = bool(ownerID)
 
 
-
-
-   
-
-
         
 #Bot        
 class aclient(discord.AutoShardedClient):
@@ -189,7 +188,7 @@ class aclient(discord.AutoShardedClient):
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = False
+        self.synced = True
         self.s = sched.scheduler(time.time, time.sleep)
         self.cache_updated = False
 
@@ -315,6 +314,8 @@ class update_cache():
     async def __update_perks():
         data = await Functions.check_api_rate_limit(f"{api_base}perks")
         if data == 1:
+            manlogger.warning("Perks couldn't be updated.")
+            print("Perks couldn't be updated.")
             return 1
         char = await Functions.char_load()
         if char == 1:
@@ -346,6 +347,8 @@ class update_cache():
     async def __update_shrine():
         data = await Functions.check_api_rate_limit(f'{api_base}shrine')
         if data == 1:
+            manlogger.warning("Shrine couldn't be updated.")
+            print("Shrine couldn't be updated.")
             return 1
         if db_available:
             data['_id'] = 'shrine_info'
@@ -358,6 +361,8 @@ class update_cache():
     async def __update_offerings():
         data = await Functions.check_api_rate_limit(f'{api_base}offerings')
         if data == 1:
+            manlogger.warning("Offerings couldn't be updated.")
+            print("Offerings couldn't be updated.")
             return 1
         if db_available:
             data['_id'] = 'offering_info'
@@ -385,6 +390,8 @@ class update_cache():
     async def __update_chars():
         data = await Functions.check_api_rate_limit(f'{api_base}characters')
         if data == 1:
+            manlogger.warning("Characters couldn't be updated.")
+            print("Characters couldn't be updated.")
             return 1
         if db_available:
             data['_id'] = 'character_info'
@@ -406,11 +413,12 @@ class update_cache():
     async def __update_dlc():
         data = await Functions.check_api_rate_limit(f'{api_base}dlc')
         if data == 1:
+            manlogger.warning("DLC couldn't be updated.")
+            print("DLC couldn't be updated.")
             return 1
-        data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
         if db_available:
             data['_id'] = 'dlc_info'
-            collection.update_one({'_id': 'dlc_info'}, {'$set': data}, upsert=True)
+            collection.update_many({'_id': 'dlc_info'}, {'$set': SON(data)}, upsert=True)
         else:
             with open(f"{buffer_folder}dlc_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
@@ -419,6 +427,8 @@ class update_cache():
     async def __update_item():
         data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor')
         if data == 1:
+            manlogger.warning("Items couldn't be updated.")
+            print("Items couldn't be updated.")
             return 1
         if db_available:
             data['_id'] = 'item_info'
@@ -441,6 +451,8 @@ class update_cache():
     async def __update_addon():
         char = await Functions.char_load()
         if char == 1:
+            manlogger.warning("Addons couldn't be updated.")
+            print("Addons couldn't be updated.")
             return 1
         data = await Functions.check_api_rate_limit(f'{api_base}addons')
         if data == 1:
@@ -476,6 +488,8 @@ class update_cache():
     async def __update_map():
         data = await Functions.check_api_rate_limit(f'{api_base}maps')
         if data == 1:
+            manlogger.warning("Maps couldn't be updated.")
+            print("Maps couldn't be updated.")
             return 1
         if db_available:
             data['_id'] = 'map_info'
@@ -493,6 +507,8 @@ class update_cache():
     async def __update_event():
         data_list = await Functions.check_api_rate_limit(f'{api_base}events')
         if data_list == 1:
+            manlogger.warning("Events couldn't be updated.")
+            print("Events couldn't be updated.")
             return 1
         data = {}
         for i in range(len(data_list)):
@@ -1267,27 +1283,43 @@ class Info():
         await interaction.response.defer(thinking=True)
         data = await Functions.dlc_load()
         if not name:
-            embed_title = "DLC Info"
-            description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. ')
-            field_limit = 25
-            sorted_data = sorted(data.items(), key=lambda x: x[1]["time"])
-            num_embeds = math.ceil(len(sorted_data) / field_limit)
+            data.pop('_id', None)
+            data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
+            print(data)
+
+            # Anzahl der Einträge in data (ignoriere _id)
+            num_entries = sum(1 for key in data.keys() if key != '_id')
+    
+            # Maximale Anzahl von Feldern pro Embed
+            max_fields_per_embed = 25
+    
+            # Anzahl der Embeds
+            num_embeds = math.ceil(num_entries / max_fields_per_embed)
+    
+            # Beschreibungstext der Embeds
+            embed_description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. ')
+    
+            # Erstelle Embeds
             embeds = []
             for i in range(num_embeds):
-                embed = discord.Embed(
-                    title=f"{embed_title} ({i+1}/{num_embeds})",
-                    description=description,
-                    color=0xb19325
-                )
+                start_index = i * max_fields_per_embed
+                end_index = min(start_index + max_fields_per_embed, num_entries)
+                embed_title = f"DLC Info ({i+1}/{num_embeds})" if num_embeds > 1 else "DLC Info"
+                embed = discord.Embed(title=embed_title, description=embed_description, color=0xb19325)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
-                for key, value in sorted_data[i*field_limit:(i+1)*field_limit]:
-                    if key == '_id' or value['steamid'] == 0:
+                j = 0
+                for key in data.keys():
+                    if key == '_id':
                         continue
-                    embed.add_field(
-                        name=str(value['name']),
-                        value=f"[{await Functions.convert_time_dateonly(value['time'])}]({steamStore}{value['steamid']})",
-                        inline=True
-                    )
+                    if data[key]['steamid'] == 0:
+                        continue
+                    if j < start_index:
+                        j += 1
+                        continue
+                    if j >= end_index:
+                        break
+                    embed.add_field(name=str(data[key]['name']), value=f"[{await Functions.convert_time_dateonly(data[key]['time'])}]({steamStore}{str(data[key]['steamid'])})", inline=True)
+                    j += 1
                 embeds.append(embed)
             await interaction.followup.send(embeds=embeds)
         else:
@@ -1301,6 +1333,7 @@ class Info():
                     await interaction.followup.send(embed=embed)
                     return
             print('WTF?')
+
 
 
     async def item(interaction: discord.Interaction, name: str):
@@ -1481,7 +1514,7 @@ class Info():
             embed.set_footer(text=await Functions.translate(interaction, "This will be updated every full hour."))
             await interaction.followup.send(embed = embed)
         async def selfget():
-            data = await sc.playercount('381210')
+            data = await steamcharts.playercount('381210')
             try:
                 current_players = data['Current Players']
                 day_peak = data['Peak Players 24h']
