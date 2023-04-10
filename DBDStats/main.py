@@ -13,7 +13,6 @@ import pycountry
 import pymongo
 import pymongo.errors as mongoerr
 import random
-import requests as r
 import sched
 import socket
 import sys
@@ -143,7 +142,6 @@ try:
     manlogger.info('Connected to MongoDB.')
     pt('Connected to MongoDB.')
 except mongoerr.OperationFailure as e:
-    print(e)
     manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
     pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
     db_available = False
@@ -188,7 +186,7 @@ class aclient(discord.AutoShardedClient):
                               intents = intents,
                               status = discord.Status.invisible
                         )
-        self.synced = True
+        self.synced = False
         self.s = sched.scheduler(time.time, time.sleep)
         self.cache_updated = False
 
@@ -551,34 +549,38 @@ class Functions():
         vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
         vanity = vanity.replace('https://steamcommunity.com/id/', '')
         vanity = vanity.replace('/', '')
-        resp = r.get(f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steamAPIkey}&vanityurl={vanity}')
-        if resp.json()['response']['success'] == 1:
-            return resp.json()['response']['steamid']
-        else:
-            return vanity
+        api_url = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steamAPIkey}&vanityurl={vanity}'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url) as resp:
+                data = await resp.json()
+                if data['response']['success'] == 1:
+                    return data['response']['steamid']
+                else:
+                    return vanity
     
 
     async def check_for_dbd(id, steamAPIkey):
         id = await Functions.steam_link_to_id(id)
         if len(id) != 17:
-            return(1, 1)
+            return (1, 1)
         try:
             int(id)
         except:
-            return(1, 1)
+            return (1, 1)
         try:
-            resp = r.get(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={steamAPIkey}&steamid={id}&format=json')
-            data = resp.json()
-            if resp.status_code == 400:
-                return(2, 2)
-            if data['response'] == {}:
-                return(3, 3)
-            for event in data['response']['games']:
-                if event['appid'] == 381210:
-                    return(0, id)
-                else:
-                    continue
-            return(4, 4)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={steamAPIkey}&steamid={id}&format=json') as resp:
+                    data = await resp.json()
+                    if resp.status == 400:
+                        return (2, 2)
+                    if data['response'] == {}:
+                        return (3, 3)
+                    for event in data['response']['games']:
+                        if event['appid'] == 381210:
+                            return (0, id)
+                        else:
+                            continue
+                    return (4, 4)
         except:
             return(5, 5)
 
@@ -626,14 +628,23 @@ class Functions():
 
     async def check_if_removed(id):
         try:
-            resp = r.get(f'{api_base}playerstats?steamid={id}')
-            resp.raise_for_status()  # Throws an exception if the status code is not 200
-            return 0
-        except r.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{api_base}playerstats?steamid={id}') as resp:
+                    print(resp.status)
+                    resp.raise_for_status()  # Throws an exception if the status code is not 200
+                    return 0
+        except aiohttp.ClientResponseError as e:
+            print(e)
+            print(e.status)
+            print(e.message)
+            #print(e.url)
+            print(e.request_info.url)
+            if e.status == 404:
                 url = f'{alt_playerstats}{id}'
                 try:
-                    page = r.get(url).text
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url) as resp:
+                            page = await resp.text()
                     soup = BeautifulSoup(page, 'html.parser')
                     for i in soup.find_all('div', id='error'):
                         return i.text
@@ -697,9 +708,7 @@ class Functions():
             with open(f"{buffer_folder}perk_info.json", "r", encoding="utf8") as f:
                 data = json.load(f)
         else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'perk_info'})))
-            print(data)
-            print(type(data))          
+            data = json.loads(json.dumps(collection.find_one({'_id': 'perk_info'})))          
         return data
     
 
@@ -854,6 +863,8 @@ class Functions():
 
     async def offering_send(interaction, data, name, loadout: bool = False):
         for item in data.keys():
+            if item == '_id':
+                continue
             if str(data[item]['name']).lower() == name.lower() or str(item).lower() == name.lower():
                 embed = discord.Embed(title = data[item]['name'],
                                       description = await Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
@@ -875,6 +886,8 @@ class Functions():
 
     async def item_send(interaction, data, name, loadout: bool = False):
         for i in data.keys():
+            if i == '_id':
+                continue
             if str(data[i]['name']).lower() == name.lower() or str(i).lower() == name.lower():
                 if data[i]['name'] is None:
                     title = i
@@ -940,6 +953,8 @@ class Functions():
 
     async def get_item_type(item, data):
         for key, value in data.items():
+            if value == 'item_info':
+                continue
             if item.lower() == key.lower() or item.lower() == value["name"].lower():
                 return value["item_type"]
         return 1
@@ -948,6 +963,8 @@ class Functions():
     async def find_killer_item(killer, chars):
         killer_data = None
         for char_data in chars.values():
+            if char_data == 'character_info':
+                continue
             if str(char_data['id']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip() or str(char_data['name']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip():
                 killer_data = char_data
                 break
@@ -958,6 +975,8 @@ class Functions():
 
     async def find_killer_by_item(item_name: str, killers_data) -> str:
         for killer in killers_data.values():
+            if killer == 'character_info':
+                continue
             if killer.get('item') == item_name:
                 return killer['id']
         return 1
@@ -979,8 +998,9 @@ class Info():
         if interaction.guild is None:
             await interaction.response.send_message(await Functions.translate(interaction, "This command can only be used in a server."))
         else:
-            resp = r.get(f'{api_base}rankreset')
-            data = resp.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{api_base}rankreset') as resp:
+                    data = await resp.json()
             embed = discord.Embed(description=f"{await Functions.translate(interaction, 'The next rank reset will take place on the following date: ')} <t:{data['rankreset']}>.", color=0x0400ff)
             await interaction.response.send_message(embed=embed)    
 
@@ -996,6 +1016,8 @@ class Info():
         upcoming_event = None
     
         for event in data:
+            if event == '_id':
+                continue
             start_time = data[event]['start']
             end_time = data[event]['end']
             now = time.time()
@@ -1073,8 +1095,11 @@ class Info():
             else:
                 data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={check[1]}')
                 if data != 1:
-                    with open(file_path, 'w', encoding='utf8') as f:
-                        json.dump(r.get(f'{api_base}playerstats?steamid={check[1]}').json(), f, indent=2)
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(f'{api_base}playerstats?steamid={check[1]}') as resp:
+                            player_stats = await resp.json()
+                            with open(file_path, 'w', encoding='utf8') as f:
+                                json.dump(player_stats, f, indent=2)
                 else:
                     await interaction.followup.send(await Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
                     return
@@ -1101,7 +1126,7 @@ class Info():
             embed10 = discord.Embed(title=await Functions.translate(interaction, "Statistics (10/10) - Survivors downed with power"), description=personaname+'\n'+profileurl, color=0xb19325)
             #Set Static Infos
             embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
-            footer = await Functions.translate(interaction, "Stats are updated every ~4h. | Last update: ").replace('.|','. | ')+str(await Functions.convert_time(int(player_stats['updated_at'])))+" UTC"
+            footer = (await Functions.translate(interaction, "Stats are updated every ~4h. | Last update: ")).replace('.|','. | ')+str(await Functions.convert_time(int(player_stats['updated_at'])))+" UTC"
 
             for embed in embeds:
                 embed.set_thumbnail(url=avatar)
@@ -1285,7 +1310,6 @@ class Info():
         if not name:
             data.pop('_id', None)
             data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
-            print(data)
 
             # Anzahl der Einträge in data (ignoriere _id)
             num_entries = sum(1 for key in data.keys() if key != '_id')
@@ -1326,13 +1350,13 @@ class Info():
             for key in data.keys():
                 if str(key) == '_id':
                     continue
-                if data[key]['name'].lower() == name.lower():
+                if data[key]['name'].lower().replace('chapter', '').replace('®', '').replace('™', '').strip() == name.lower().replace('chapter', '').replace('®', '').replace('™', '').strip():
                     embed = discord.Embed(title="DLC description for '"+data[key]['name']+"'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ')), color=0xb19325)
                     embed.set_thumbnail(url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{data[key]['steamid']}/header.jpg")
                     embed.set_footer(text = f"{await Functions.translate(interaction, 'Released at')}: {await Functions.convert_time_dateonly(data[key]['time'])}")
                     await interaction.followup.send(embed=embed)
                     return
-            print('WTF?')
+            await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
 
 
 
@@ -1426,13 +1450,12 @@ class Info():
         print(type(data))
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the killswitch data."))
-        elif data == None:
+            return
+        elif data is None:
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')).replace('.','. '), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
             await interaction.followup.send(embed=embed)
-        return
-        resp = r.get(f'{bot_base}killswitch.json')
-        data = resp.json()
+            return
         count = len(data.keys())
         for i in data.keys():
             if data[i]['Text'] == '':
@@ -1444,8 +1467,6 @@ class Info():
                 embed.add_field(name="\u200b", value=f"[Twitter]({data[i]['Twitter']})", inline=True)
                 embed.set_footer(text=await Functions.translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it.").replace('.','. '))
                 await interaction.followup.send(embed=embed)
-
-
 
 
     async def shrine(interaction: discord.Interaction):
@@ -1487,8 +1508,9 @@ class Info():
             embed2.add_field(name=await Functions.translate(interaction, 'Name'), value='\u200b', inline=True)
             embed2.add_field(name=await Functions.translate(interaction, 'Version'), value='\u200b', inline=True)
             embed2.add_field(name=await Functions.translate(interaction, 'Last Update'), value='\u200b', inline=True)
-            resp = r.get(api_base+'versions')
-            data = resp.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_base+'versions') as resp:
+                    data = await resp.json()
             i = 0
             for key in data.keys():
                 i += 1
@@ -1559,8 +1581,9 @@ class Info():
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.response.send_message(embed=embed1)
         elif dbd_check[0] == 0:
-            resp = r.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={dbd_check[1]}&appid=381210')
-            data = resp.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={dbd_check[1]}&appid=381210') as resp:
+                    data = await resp.json()
             if data['playerstats']['success'] == False:
                 await interaction.followup.send(await Functions.translate(interaction, 'This profile is private.'))
                 return
@@ -1746,9 +1769,11 @@ class Random():
             while i < 2:
                 key = random.choice(keys)
                 entry = addons[key]
-                if entry['item_type'] is None:
+                if entry == 'addon_info':
                     continue
-                if entry['item_type'] == parent_type and key not in selected_keys:
+                elif entry['item_type'] is None or entry == 'addon_info':
+                    continue
+                elif entry['item_type'] == parent_type and key not in selected_keys:
                     embed = await Functions.addon_send(addons, entry['name'], interaction, True)
                     embeds.append(embed)
                     i += 1
@@ -1783,6 +1808,8 @@ class Random():
         while i < 2:
             key = random.choice(keys)
             entry = addons[key]
+            if entry == 'addon_info':
+                continue
             if killer_item in entry['parents'] and key not in selected_keys:
                 embed = await Functions.addon_send(addons, entry['name'], interaction, True)
                 embeds.append(embed)
@@ -2084,7 +2111,7 @@ async def self(interaction: discord.Interaction):
     discord.app_commands.Choice(name = 'DLCs', value = 'dlc'),
     discord.app_commands.Choice(name = 'Events', value = 'event'),
     discord.app_commands.Choice(name = 'Items', value = 'item'),
-    discord.app_commands.Choice(name = 'Killswitch (WIP - Not working!)', value = 'killswitch'),
+    discord.app_commands.Choice(name = 'Killswitch (WIP)', value = 'killswitch'),
     discord.app_commands.Choice(name = 'Legacy check', value = 'legacy'),
     discord.app_commands.Choice(name = 'Maps', value = 'map'),
     discord.app_commands.Choice(name = 'Offerings', value = 'offering'),
