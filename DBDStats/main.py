@@ -19,7 +19,6 @@ import sys
 import threading
 import time
 from bs4 import BeautifulSoup
-from bson import SON
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
 from CustomModules import killswitch
@@ -33,8 +32,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 app_folder_name = 'DBDStats'
-#api_base = 'https://dbd.tricky.lol/api/' # For production
-api_base = 'http://localhost:5000/' # For testing
+api_base = 'https://dbd.tricky.lol/api/' # For production
+#api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'  
@@ -262,7 +261,17 @@ class aclient(discord.AutoShardedClient):
         if not docker:
             clear()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
-        pt('READY')
+        pt(r'''
+ ____     ____     ____     ____     __              __              
+/\  _`\  /\  _`\  /\  _`\  /\  _`\  /\ \__          /\ \__           
+\ \ \/\ \\ \ \L\ \\ \ \/\ \\ \,\L\_\\ \ ,_\     __  \ \ ,_\    ____  
+ \ \ \ \ \\ \  _ <'\ \ \ \ \\/_\__ \ \ \ \/   /'__`\ \ \ \/   /',__\ 
+  \ \ \_\ \\ \ \L\ \\ \ \_\ \ /\ \L\ \\ \ \_ /\ \L\.\_\ \ \_ /\__, `\
+   \ \____/ \ \____/ \ \____/ \ `\____\\ \__\\ \__/.\_\\ \__\\/\____/
+    \/___/   \/___/   \/___/   \/_____/ \/__/ \/__/\/_/ \/__/ \/___/ 
+                                                                     
+        ''')
+        pt('Ready.')
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
 
@@ -416,7 +425,7 @@ class update_cache():
             return 1
         if db_available:
             data['_id'] = 'dlc_info'
-            collection.update_many({'_id': 'dlc_info'}, {'$set': SON(data)}, upsert=True)
+            collection.update_many({'_id': 'dlc_info'}, {'$set': data}, upsert=True)
         else:
             with open(f"{buffer_folder}dlc_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
@@ -517,7 +526,6 @@ class update_cache():
         else:
             with open(f'{buffer_folder}event_info.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-
 
 
     async def start_cache_update():
@@ -634,10 +642,6 @@ class Functions():
                     resp.raise_for_status()  # Throws an exception if the status code is not 200
                     return 0
         except aiohttp.ClientResponseError as e:
-            print(e)
-            print(e.status)
-            print(e.message)
-            #print(e.url)
             print(e.request_info.url)
             if e.status == 404:
                 url = f'{alt_playerstats}{id}'
@@ -670,7 +674,7 @@ class Functions():
         channel: discord.TextChannel = guild.text_channels[0]
         try:
             invite: discord.Invite = await channel.create_invite(
-                reason=f"Created invite for {interaction.user.name} from server {interaction.guild.name}",
+                reason=f"Created invite for {interaction.user.name} from server {interaction.guild.name} ({interaction.guild_id})",
                 max_age=60,
                 max_uses=1,
                 unique=True
@@ -1879,42 +1883,45 @@ if owner_available:
 #Get Logs
 if owner_available:
     @tree.command(name = 'get_logs', description = 'Get the current, or all logfiles.')
-    async def self(interaction: discord.Interaction):
-        class LastXLines(discord.ui.Modal, title = 'Line Input'):
-            self.timeout = 15
-            answer = discord.ui.TextInput(label = Functions.translate(interaction, 'How many lines?'), style = discord.TextStyle.short, required = True, min_length = 1, max_length = 4)
-            async def on_submit(self, interaction: discord.Interaction):
-                try:
-                    int(self.answer.value)
-                except:
-                    await interaction.response.send_message(content = await Functions.translate(interaction, 'You can only use numbers!'), ephemeral = True)
-                    return
-                if int(self.answer.value) == 0:
-                    await interaction.response.send_message(content = await Functions.translate(interaction, 'You can not use 0 as a number!'), ephemeral = True)
-                    return
-                with open(log_folder+'DBDStats.log', 'r', encoding='utf8') as f:
-                    with open(buffer_folder+'log-lines.txt', 'w', encoding='utf8') as f2:
-                        count = 0
-                        for line in (f.readlines()[-int(self.answer.value):]):
-                            f2.write(line)
-                            count += 1
-                await interaction.response.send_message(content = await Functions.translate(interaction, 'Here are the last '+str(count)+' lines of the current logfile:'), file = discord.File(r''+buffer_folder+'log-lines.txt') , ephemeral = True)
-                if os.path.exists(buffer_folder+'log-lines.txt'):
-                    os.remove(buffer_folder+'log-lines.txt')
-                 
-        class LogButton(discord.ui.View):
-            def __init__(self):
-                super().__init__()
-                
-            @discord.ui.button(label = Functions.translate(interaction, 'Last X lines'), style = discord.ButtonStyle.blurple)
-            async def xlines(self, interaction: discord.Interaction, button: discord.ui.Button):
-                LogButton.stop(self)
-                await interaction.response.send_modal(LastXLines())
-         
-            @discord.ui.button(label = Functions.translate(interaction, 'Current Log'), style = discord.ButtonStyle.grey)
-            async def current(self, interaction: discord.Interaction, button: discord.ui.Button):
-                LogButton.stop(self)
-                await interaction.response.defer()
+    @discord.app_commands.choices(choice = [
+        discord.app_commands.Choice(name="Last X lines", value="xlines"),
+        discord.app_commands.Choice(name="Current Log", value="current"),
+        discord.app_commands.Choice(name="Whole Folder", value="whole")
+    ])
+    async def self(interaction: discord.Interaction, choice: str):
+        if interaction.user.id != int(ownerID):
+            await interaction.response.send_message(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
+            return
+        else:
+            if choice == 'xlines':
+                class LastXLines(discord.ui.Modal, title = 'Line Input'):
+                    def __init__(self, interaction):
+                        super().__init__()
+                        self.timeout = 15
+                        self.answer = discord.ui.TextInput(label = 'How many lines?', style = discord.TextStyle.short, required = True, min_length = 1, max_length = 4)
+                        self.add_item(self.answer)
+
+                    async def on_submit(self, interaction: discord.Interaction):
+                        try:
+                            int(self.answer.value)
+                        except:
+                            await interaction.response.send_message(content = await Functions.translate(interaction, 'You can only use numbers!'), ephemeral = True)
+                            return
+                        if int(self.answer.value) == 0:
+                            await interaction.response.send_message(content = await Functions.translate(interaction, 'You can not use 0 as a number!'), ephemeral = True)
+                            return
+                        with open(log_folder+'DBDStats.log', 'r', encoding='utf8') as f:
+                            with open(buffer_folder+'log-lines.txt', 'w', encoding='utf8') as f2:
+                                count = 0
+                                for line in (f.readlines()[-int(self.answer.value):]):
+                                    f2.write(line)
+                                    count += 1
+                        await interaction.response.send_message(content = await Functions.translate(interaction, 'Here are the last '+str(count)+' lines of the current logfile:'), file = discord.File(r''+buffer_folder+'log-lines.txt') , ephemeral = True)
+                        if os.path.exists(buffer_folder+'log-lines.txt'):
+                            os.remove(buffer_folder+'log-lines.txt')
+                await interaction.response.send_modal(LastXLines(interaction))
+            elif choice == 'current':
+                await interaction.response.defer(ephemeral = True)
                 try:
                     await interaction.followup.send(file=discord.File(r''+log_folder+'DBDStats.log'), ephemeral=True)
                 except discord.HTTPException as err:
@@ -1926,12 +1933,8 @@ if owner_available:
                         except discord.HTTPException as err:
                             if err.status == 413:
                                 await interaction.followup.send(await Functions.translate(interaction, "The log is too big to be send directly.\nYou have to look at the log in your server(VPS)."))
-                    os.remove(buffer_folder+'Logs.zip')
-                                
-            @discord.ui.button(label = Functions.translate(interaction, 'Whole Folder'), style = discord.ButtonStyle.grey)
-            async def whole(self, interaction: discord.Interaction, button: discord.ui.Button):
-                LogButton.stop(self)
-                await interaction.response.defer()
+                        os.remove(buffer_folder+'Logs.zip')
+            elif choice == 'whole':
                 if os.path.exists(buffer_folder+'Logs.zip'):
                     os.remove(buffer_folder+'Logs.zip')
                 with ZipFile(buffer_folder+'Logs.zip', mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as f:
@@ -1940,27 +1943,18 @@ if owner_available:
                             continue
                         f.write(log_folder+file)
                 try:
-                    await interaction.followup.send(file=discord.File(r''+buffer_folder+'Logs.zip'), ephemeral=True)
+                    await interaction.response.send_message(file=discord.File(r''+buffer_folder+'Logs.zip'), ephemeral=True)
                 except discord.HTTPException as err:
                     if err.status == 413:
-                        await interaction.followup.send(await Functions.translate(interaction, "The folder is too big to be send directly.\nPlease get the current file, or the last X lines."))          
+                        await interaction.followup.send(await Functions.translate(interaction, "The folder is too big to be send directly.\nPlease get the current file, or the last X lines."))
                 os.remove(buffer_folder+'Logs.zip')
-        if interaction.user.id != int(ownerID):
-            await interaction.response.send_message(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
-            return
-        else:
-            await interaction.response.send_message(await Functions.translate(interaction, 'Send only the current Log, or the whole folder?'), view = LogButton(), ephemeral = True)
 
 
 #Clear Buffer
 if owner_available:        
-    @tree.command(name = 'clear_buffer', description = 'Delete all files in buffer and stats.')
+    @tree.command(name = 'clear_stats', description = 'Delete all cached playerstats.')
     async def self(interaction: discord.Interaction):
         files_removed = 0
-        for filename in os.listdir(buffer_folder):
-            if os.path.isfile(os.path.join(buffer_folder, filename)):
-                os.remove(os.path.join(buffer_folder, filename))
-                files_removed += 1
         for filename in os.listdir(stats_folder):
             if os.path.isfile(os.path.join(stats_folder, filename)):
                 os.remove(os.path.join(stats_folder, filename))
@@ -2103,7 +2097,7 @@ async def self(interaction: discord.Interaction):
 
 #Info about Stuff
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
-#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
@@ -2224,7 +2218,7 @@ async def self(interaction: discord.Interaction, category: str):
 
 #Randomize           
 @tree.command(name = 'random', description = 'Get a random perk, offering, map, item, char or full loadout.')
-#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'What do you want to randomize?')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addon', value = 'addon'),
