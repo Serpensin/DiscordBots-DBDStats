@@ -1,4 +1,16 @@
+version: '3'
+
 services:
+  mongo:
+    image: mongo:latest
+    container_name: MongoDB
+    hostname: mongo
+    restart: always
+    volumes:
+      - dbdata:/data/db
+    networks:
+      - dbd_net
+
   dbdstats:
     container_name: DBDStats
     deploy:
@@ -11,16 +23,23 @@ services:
       OWNER_ID: DISCORD_ID_OF_OWNER
       twitch_client_id: twitch_client_id
       twitch_client_secret: twitch_client_secret
-      libretransAPIkey: APIkey_for_my_instance_of_libretrans
-      MongoDB_host: IP_OR_DOMAIN_OF_MONGODB
-      MongoDB_port: PORT_OF_MONGODB
-      MongoDB_user: USER_OF_MONGODB
-      MongoDB_password: PASSWORD_OF_MONGODB
-      MongoDB_database: DATABASE_OF_MONGODB
-      MongoDB_collection: COLLECTION_OF_MONGODB
+      libretransURL: URL_for_libretranslate
+      libretransAPIkey: APIKey_for_libretranslate
+      MongoDB_host: mongo           #####################################
+      MongoDB_port: 27017           #           Don't change!!!         #
+      MongoDB_database: DBDStats    #                                   #
+      MongoDB_collection: API       #####################################
     image: serpensin/dbdstats
     volumes:
-    - dbdstats_log:/app/DBDStats/Logs
-version: '3'
+      - dbdstats_log:/app/DBDStats/Logs
+    depends_on:
+      - mongo
+    networks:
+      - dbd_net
+
+networks:
+  dbd_net:
+
 volumes:
-    dbdstats_log: {}
+  dbdata:
+  dbdstats_log:

@@ -37,9 +37,8 @@
     <Content Include=".dockerignore" />
     <Content Include=".env" />
     <Content Include="activity.json" />
+    <Content Include="Docker-Compose\docker-compose_without_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose.yml" />
-    <Content Include="Docker-Compose\docker-compose_with_MongoDB.yml" />
-    <Content Include="Docker-Compose\docker-compose_with_MongoDB_and_LibreTranslate.yml" />
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>

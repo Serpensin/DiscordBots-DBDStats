@@ -148,23 +148,25 @@ except mongoerr.ServerSelectionTimeoutError as e:
     manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> Connection Timeout")
     pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> Connection Timeout")
     db_available = False 
-if not docker:
-    libretrans_url = libretransURL
-else:
-    libretrans_url = "http://libretrans:5000"
-    try:
-        socket.gethostbyname('libretrans')
-    except socket.error:
-        libretrans_url = libretransURL
+libretrans_url = libretransURL
 translator = LibreTranslateAPI(libretransAPIkey, libretrans_url)
-if asyncio.run(translator.check_status()):
-    manlogger.info('Connected to LibreTranslate.')
-    pt('Connected to LibreTranslate.')
-    translate_available = True
-else:
-    manlogger.warning('Error connecting to LibreTranslate. | Disabling translation.')
-    pt('Error connecting to LibreTranslate. | Disabling translation.')
-    translate_available = False
+translate_available = False
+retry_count = 10
+while not translate_available and retry_count > 0:
+    if asyncio.run(translator.check_status()):
+        manlogger.info('Connected to LibreTranslate.')
+        pt('Connected to LibreTranslate.')
+        translate_available = True
+    else:
+        retry_count -= 1
+        if retry_count > 0:
+            manlogger.warning(f'Error connecting to LibreTranslate. | Retrying in 5 seconds. | Retries left: {retry_count}')
+            pt(f'Error connecting to LibreTranslate. | Retrying in 5 seconds. | Retries left: {retry_count}')
+            asyncio.run(asyncio.sleep(5))
+        else:
+            manlogger.warning('Could not connect to LibreTranslate. | Disabling translation.')
+            pt('Could not connect to LibreTranslate. | Disabling translation.')
+            translate_available = False
 
 twitch_available = bool(twitch_client_secret and twitch_client_id)
 support_available = bool(support_id)
@@ -1883,6 +1885,7 @@ if owner_available:
 #Get Logs
 if owner_available:
     @tree.command(name = 'get_logs', description = 'Get the current, or all logfiles.')
+    @discord.app_commands.describe(choice = 'Choose which log files you want to receive.')
     @discord.app_commands.choices(choice = [
         discord.app_commands.Choice(name="Last X lines", value="xlines"),
         discord.app_commands.Choice(name="Current Log", value="current"),
