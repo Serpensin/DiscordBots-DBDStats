@@ -80,7 +80,7 @@ docker-compose -f docker-compose_without_MongoDB.yml up -d
    - Variables containing 'MongoDB' are for storing the bot's data. Remove them if you don't want to use MongoDB.
 
 #### Run the bot
-
+```bash
 docker run -d \
 -e steamAPIkey=STEAM_APIKEY \
 -e support_server=ID_OF_SUPPORTSERVER \
@@ -100,7 +100,7 @@ docker run -d \
 --restart any \
 -v dbdstats_log:/app/DBDStats/Logs \
 serpensin/dbdstats
-
+```
 
 
 You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands) the bot I host to your server.
