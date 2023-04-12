@@ -14,9 +14,7 @@ import pymongo
 import pymongo.errors as mongoerr
 import random
 import sched
-import socket
 import sys
-import threading
 import time
 from bs4 import BeautifulSoup
 from CustomModules.libretrans import LibreTranslateAPI
@@ -191,11 +189,11 @@ class aclient(discord.AutoShardedClient):
         self.s = sched.scheduler(time.time, time.sleep)
         self.cache_updated = False
 
-    def __schedule_update(self, scheduler):
-        asyncio.run(update_cache.start_cache_update())
-        self.cache_updated = True
-        next_run = (datetime.now() + timedelta(hours=4))
-        scheduler.enterabs(next_run, 1, self.__schedule_update, (scheduler,))
+    async def __schedule_update(self):
+        while True:
+            await update_cache.start_cache_update()
+            self.cache_updated = True
+            await asyncio.sleep(14400) #14400 
 
 
     class Presence():
@@ -252,12 +250,7 @@ class aclient(discord.AutoShardedClient):
         manlogger.info('Initialization completed...')
 
         #Start Schedular as seperate Thread
-        t1 = threading.Thread(target=self.__schedule_update, args=(self.s,), daemon=True)
-        t2 = threading.Thread(target=self.s.run, daemon=True)
-        global threads
-        threads = [t1, t2]
-        for t in threads:
-            t.start()
+        asyncio.create_task(self.__schedule_update())
         while not self.cache_updated:
             await asyncio.sleep(1)
         if not docker:
