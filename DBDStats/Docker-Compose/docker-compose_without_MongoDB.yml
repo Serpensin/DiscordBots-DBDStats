@@ -1,0 +1,21 @@
+services:
+  dbdstats:
+    container_name: DBDStats
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      steamAPIkey: STEAM_APIKEY
+      support_server: ID_OF_SUPPORTSERVER
+      TOKEN: BOT_TOKEN
+      OWNER_ID: DISCORD_ID_OF_OWNER
+      twitch_client_id: twitch_client_id
+      twitch_client_secret: twitch_client_secret
+      libretransURL: URL_for_libretranslate
+      libretransAPIkey: APIKey_for_libretranslate
+    image: serpensin/dbdstats
+    volumes:
+    - dbdstats_log:/app/DBDStats/Logs
+version: '3'
+volumes:
+    dbdstats_log: {}

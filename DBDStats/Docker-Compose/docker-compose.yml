@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: MongoDB
+    hostname: mongo
+    restart: always
+    volumes:
+      - dbdata:/data/db
+    networks:
+      - dbd_net
+
+  dbdstats:
+    container_name: DBDStats
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      steamAPIkey: STEAM_APIKEY
+      support_server: ID_OF_SUPPORTSERVER
+      TOKEN: BOT_TOKEN
+      OWNER_ID: DISCORD_ID_OF_OWNER
+      twitch_client_id: twitch_client_id
+      twitch_client_secret: twitch_client_secret
+      libretransURL: URL_for_libretranslate
+      libretransAPIkey: APIKey_for_libretranslate
+      MongoDB_host: mongo           #####################################
+      MongoDB_port: 27017           #           Don't change!!!         #
+      MongoDB_database: DBDStats    #                                   #
+      MongoDB_collection: API       #####################################
+    image: serpensin/dbdstats
+    volumes:
+      - dbdstats_log:/app/DBDStats/Logs
+    depends_on:
+      - mongo
+    networks:
+      - dbd_net
+
+networks:
+  dbd_net:
+
+volumes:
+  dbdata:
+  dbdstats_log:
