@@ -14,6 +14,7 @@ import pymongo
 import pymongo.errors as mongoerr
 import random
 import sched
+import sentry_sdk
 import sys
 import time
 from bs4 import BeautifulSoup
@@ -43,6 +44,13 @@ languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', '
 
 
 ##Init
+#Init sentry
+sentry_sdk.init(
+    dsn="https://cf0b21ee8a8f4abe9a60d9188e0bda4d@o4504883552780288.ingest.sentry.io/4505002613407744",
+    traces_sample_rate=1.0,
+    profiles_sample_rate=1.0,
+    environment='Produktion'
+)
 # print() will only print if run in debugger. pt() will always print.
 pt = print
 def print(msg):
