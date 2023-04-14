@@ -15,6 +15,7 @@ import pymongo.errors as mongoerr
 import random
 import sched
 import sentry_sdk
+import socket
 import sys
 import time
 from bs4 import BeautifulSoup
@@ -103,25 +104,42 @@ db_collection = os.getenv('MongoDB_collection')
 
 #Check if running in docker
 try:
-    with open('/proc/1/cgroup', 'rt') as f:
-        if 'docker' in f.read():
-            manlogger.info('Running in docker container.')
-            print('Running in docker container.')
-            docker = True
-        else:
-            manlogger.info('Not running in docker container.')
-            print('Not running in docker container.')
-            docker = False
+    running_in_docker = os.getenv('RUNNING_IN_DOCKER', 'false').lower() == 'true'
+    
+    if running_in_docker:
+        manlogger.info('Running in docker container.')
+        pt('Running in docker container.')
+        docker = True
+    else:
+        manlogger.info('Not running in docker container.')
+        pt('Not running in docker container.')
+        docker = False
 except:
     manlogger.info('Not running in docker container.')
     print('Not running in docker container.')
     docker = False
 
 #Set-up DB
-if docker:
-    connection_string = 'mongodb://mongo:27017/DBDStats'
+def is_mongo_reachable(host, port, timeout=2):
+    try:
+        sock = socket.create_connection((host, port), timeout)
+        sock.close()
+        manlogger.info('Running with MongoDB conntainer.')
+        pt('Running with MongoDB conntainer.')
+        return True
+    except socket.error:
+        manlogger.info('Running with MongoDB conntainer.')
+        pt('Running with MongoDB conntainer.')        
+        return False
+
+mongo_host = 'mongo'
+mongo_port = 27017
+
+if docker and is_mongo_reachable(mongo_host, mongo_port):
+    connection_string = f'mongodb://{mongo_host}:{mongo_port}/DBDStats'
 else:
     connection_string = f'mongodb://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
+
 db = pymongo.MongoClient(connection_string)
 collection = db[db_name][db_collection]
 
@@ -198,10 +216,13 @@ class aclient(discord.AutoShardedClient):
         self.cache_updated = False
 
     async def __schedule_update(self):
-        while True:
-            await update_cache.start_cache_update()
-            self.cache_updated = True
-            await asyncio.sleep(14400) #14400 
+        try:
+            while True:
+                await update_cache.start_cache_update()
+                self.cache_updated = True
+                await asyncio.sleep(14400) #14400 
+        except asyncio.CancelledError:
+            pass
 
 
     class Presence():
@@ -257,8 +278,8 @@ class aclient(discord.AutoShardedClient):
             owner_available = False
         manlogger.info('Initialization completed...')
 
-        #Start Schedular as seperate Thread
-        asyncio.create_task(self.__schedule_update())
+        global update_task
+        update_task = asyncio.create_task(self.__schedule_update())
         while not self.cache_updated:
             await asyncio.sleep(1)
         if not docker:
@@ -631,6 +652,7 @@ class Functions():
         # Check the 429 status code and return 1 when this appearance
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                pt(response)
                 if response.status == 429:
                     return 1
                 else:
@@ -1869,9 +1891,7 @@ if owner_available:
             print('Engine powering down...')
             await interaction.response.send_message(await Functions.translate(interaction, 'Engine powering down...'), ephemeral = True)
             manlogger.info('Engine powering down...')
-            threads = []
-            for t in threads:
-                t.join()
+            update_task.cancel()
             db.close()
             await bot.change_presence(status = discord.Status.offline)
             await bot.close()
