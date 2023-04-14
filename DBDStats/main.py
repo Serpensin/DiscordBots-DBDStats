@@ -652,6 +652,7 @@ class Functions():
         # Check the 429 status code and return 1 when this appearance
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                pt(response)
                 if response.status == 429:
                     return 1
                 else:
