@@ -9,6 +9,7 @@ COPY activity.json .
 
 ENV TERM xterm
 ENV PYTHONUNBUFFERED 1
+ENV RUNNING_IN_DOCKER 'true'
 
 RUN python -m pip install --upgrade pip
 RUN pip install --upgrade setuptools
