@@ -124,12 +124,12 @@ def is_mongo_reachable(host, port, timeout=2):
     try:
         sock = socket.create_connection((host, port), timeout)
         sock.close()
-        manlogger.info('Running with MongoDB conntainer.')
-        pt('Running with MongoDB conntainer.')
+        manlogger.info('Running with MongoDB container.')
+        pt('Running with MongoDB container.')
         return True
     except socket.error:
-        manlogger.info('Running with MongoDB conntainer.')
-        pt('Running with MongoDB conntainer.')        
+        manlogger.info('Running without MongoDB container.')
+        pt('Running without MongoDB container.')        
         return False
 
 mongo_host = 'mongo'
@@ -652,7 +652,7 @@ class Functions():
         # Check the 429 status code and return 1 when this appearance
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
-                pt(response)
+                print(response)
                 if response.status == 429:
                     return 1
                 else:
