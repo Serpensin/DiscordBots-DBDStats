@@ -567,8 +567,8 @@ class update_cache():
                    update_cache.__update_event()]
 
         for update in updates:
-            await update
-            #time.sleep(1)
+            #await update
+            time.sleep(1)
         
         pt('Cache updated.')
         manlogger.info('Cache updated.')
@@ -780,7 +780,7 @@ class Functions():
                 length(data, 2)
     
         if shrine:
-            embed = discord.Embed(title=f"Perk-Description for '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.','. ')), color=0xb19325)
+            embed = discord.Embed(title=f"Perk-Description for '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')), color=0xb19325)
             key = perk
             await check()
             return embed
@@ -789,7 +789,7 @@ class Functions():
                 if str(key) == '_id':
                     continue
                 if data[key]['name'].lower() == perk.lower():
-                    embed = discord.Embed(title=f"Perk-Description for '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.','. ')), color=0xb19325)
+                    embed = discord.Embed(title=f"Perk-Description for '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ')), color=0xb19325)
                     await check()
                     if random:
                         return embed
@@ -1095,11 +1095,11 @@ class Info():
         elif check[0] == 2:
             await interaction.response.send_message(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
         elif check[0] == 3:
-            await interaction.response.send_message(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).", ephemeral=True)
+            await interaction.response.send_message(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking")+f"\n[here](https://steamcommunity.com/profiles/{id}/edit/settings).", ephemeral=True)
         elif check[0] == 4:
-            await interaction.response.send_message(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.response.send_message(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
         elif check[0] == 5:
-            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.response.send_message(embed=embed1, ephemeral=True)
         elif check[0] == 0:
@@ -1112,7 +1112,7 @@ class Info():
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
             file_path = os.path.join(stats_folder, clean_filename)
             if removed == 1:
-                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")).replace('.','. '), color=0xb19325)
+                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
                 await interaction.followup.send(embed=embed1)
                 return
             elif removed != 0:
@@ -1130,13 +1130,13 @@ class Info():
                             with open(file_path, 'w', encoding='utf8') as f:
                                 json.dump(player_stats, f, indent=2)
                 else:
-                    await interaction.followup.send(await Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h.").replace('.','. '), ephemeral=True)
+                    await interaction.followup.send(await Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h."), ephemeral=True)
                     return
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
             steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={steamAPIkey}&steamids={check[1]}')
             if steam_data == 1 or player_stats == 1:
-                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)").replace('.','. '), ephemeral=True)
+                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
             for event in steam_data['response']['players']:
                 personaname = event['personaname']
@@ -1319,11 +1319,11 @@ class Info():
             return
         data = await Functions.char_load()
         if data == 1:
-            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
+            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
             return
         dlc_data = await Functions.dlc_load()
         if dlc_data == 1:
-            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '))
+            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
             return
         if char == '':
             await interaction.followup.send(content=await Functions.translate(interaction, "Here are the characters:"), file = discord.File(buffer_folder+'characters.txt'))
@@ -1350,7 +1350,7 @@ class Info():
             num_embeds = math.ceil(num_entries / max_fields_per_embed)
     
             # Beschreibungstext der Embeds
-            embed_description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage.")).replace('.','. ')
+            embed_description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage."))
     
             # Erstelle Embeds
             embeds = []
@@ -1421,13 +1421,13 @@ class Info():
         else:
             data = await Functions.map_load()
             if data == 1:
-                await interaction.followup.send(await Functions.translate(interaction, "Error while loading map-data. Please try again later.").replace('.','. '))
+                await interaction.followup.send(await Functions.translate(interaction, "Error while loading map-data. Please try again later."))
                 return
             for key, value in data.items():
                 if key == 'Swp_Mound' or str(value) == 'map_info':
                     continue
                 if value['name'].lower() == name.lower():
-                    embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ').replace('.','. ')), color=0xb19325)
+                    embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
                     embed.set_thumbnail(url=f"{map_portraits}{key}.png")
                     await interaction.followup.send(embed=embed)
                     return
@@ -1481,7 +1481,7 @@ class Info():
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the killswitch data."))
             return
         elif data is None:
-            embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')).replace('.','. '), color=0xb19325)
+            embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
             await interaction.followup.send(embed=embed)
             return
@@ -1490,11 +1490,11 @@ class Info():
             if data[i]['Text'] == '':
                 count -= 1  
             else:
-                embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data[i]['Text']).replace('.','. '), type='rich' , color=0xb19325)
+                embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data[i]['Text']), type='rich' , color=0xb19325)
                 embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
                 embed.add_field(name="\u200b", value=f"[Forum]({data[i]['Forum']})", inline=True)
                 embed.add_field(name="\u200b", value=f"[Twitter]({data[i]['Twitter']})", inline=True)
-                embed.set_footer(text=await Functions.translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it.").replace('.','. '))
+                embed.set_footer(text=await Functions.translate(interaction, "The data from this Kill Switch is updated manually.\nThis means it can take some time to update after BHVR changed it."))
                 await interaction.followup.send(embed=embed)
 
 
@@ -1527,7 +1527,7 @@ class Info():
         else:
             data = await Functions.check_api_rate_limit(api_base+'versions')
             if data == 1:
-                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later.").replace('.','. '), ephemeral=True)
+                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."), ephemeral=True)
                 return
             embed1 = discord.Embed(title='DB Version (1/2)', color=0x42a32e)
             embed1.add_field(name=await Functions.translate(interaction, 'Name'), value='\u200b', inline=True)
@@ -1602,11 +1602,11 @@ class Info():
         elif dbd_check[0] == 2:
             await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'))
         elif dbd_check[0] == 3:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking").replace('.','. ')+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking")+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
         elif dbd_check[0] == 4:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look").replace('.','. ')+" [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
         elif dbd_check[0] == 5:
-            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our").replace('.','. ')+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.response.send_message(embed=embed1)
         elif dbd_check[0] == 0:
