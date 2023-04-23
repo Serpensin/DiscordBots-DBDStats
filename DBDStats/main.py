@@ -567,8 +567,8 @@ class update_cache():
                    update_cache.__update_event()]
 
         for update in updates:
-            #await update
-            time.sleep(1)
+            await update
+            #time.sleep(1)
         
         pt('Cache updated.')
         manlogger.info('Cache updated.')
