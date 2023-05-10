@@ -11,8 +11,13 @@ ENV TERM xterm
 ENV PYTHONUNBUFFERED 1
 ENV RUNNING_IN_DOCKER 'true'
 
+ARG TARGETPLATFORM
+
 RUN python -m pip install --upgrade pip
 RUN pip install --upgrade setuptools
+RUN if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
+        apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
+    fi
 RUN pip install -r requirements.txt
 
 ARG BUILD_DATE
