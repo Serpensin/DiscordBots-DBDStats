@@ -65,7 +65,6 @@ docker-compose -f docker-compose_without_MongoDB.yml up -d
 2. Clone this repository or download the zip file.
 3. Open a terminal in the "DBDStats" folder where you cloned the repository or extracted the zip file.
 4. Run `docker build -t dbdstats .` to build the Docker image.
-5. Run the bot using the command below, but replace the last line with `dbdstats`.
 
 #### Use the pre-built image
 
