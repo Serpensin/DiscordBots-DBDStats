@@ -50,7 +50,7 @@ sentry_sdk.init(
     dsn="https://cf0b21ee8a8f4abe9a60d9188e0bda4d@o4504883552780288.ingest.sentry.io/4505002613407744",
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
-    environment='Produktion'
+    environment='Production'
 )
 # print() will only print if run in debugger. pt() will always print.
 pt = print
@@ -206,6 +206,7 @@ class aclient(discord.AutoShardedClient):
         intents.guild_messages = True
         intents.dm_messages = True
         intents.members = True
+        intents.presences = True
 
         super().__init__(owner_id = ownerID,
                               intents = intents,
@@ -323,7 +324,18 @@ class Events():
                         await channel.send(f'<@&{role}>')
                     await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
                 return
-        await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
+        for member in guild.members:
+            if str(member.status) != 'offline' and member != guild.owner and not member.bot:
+                if any((role.permissions.manage_guild and role.permissions.manage_roles) or (role.permissions.administrator and not role.is_bot_managed()) for role in member.roles):
+                    try:
+                        await member.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
+                        return
+                    except discord.Forbidden:
+                        continue
+        try:
+            await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
+        except discord.Forbidden:
+            manlogger.info(f'Failed to send setup message for {guild}.')
     
     @tree.error
     async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
@@ -336,7 +348,7 @@ class Events():
             await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{await Functions.seconds_to_minutes(error.retry_after)}`.', ephemeral=True)
         else:
             await interaction.followup.send(f"{error}\n\n{option_values}", ephemeral=True)
-            manlogger.warning(f"{error} -> {option_values} | invoked by {interaction.user.name} ({interaction.user.id})")
+            manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id})")
 
 
 
