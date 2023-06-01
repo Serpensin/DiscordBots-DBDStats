@@ -1400,7 +1400,6 @@ class Info():
             await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
 
 
-
     async def item(interaction: discord.Interaction, name: str):
         # Check if the command is being used in a server
         if interaction.guild is None:
@@ -2141,7 +2140,7 @@ async def self(interaction: discord.Interaction):
     discord.app_commands.Choice(name = 'DLCs', value = 'dlc'),
     discord.app_commands.Choice(name = 'Events', value = 'event'),
     discord.app_commands.Choice(name = 'Items', value = 'item'),
-    discord.app_commands.Choice(name = 'Killswitch (WIP)', value = 'killswitch'),
+    #discord.app_commands.Choice(name = 'Killswitch (WIP)', value = 'killswitch'),
     discord.app_commands.Choice(name = 'Legacy check', value = 'legacy'),
     discord.app_commands.Choice(name = 'Maps', value = 'map'),
     discord.app_commands.Choice(name = 'Offerings', value = 'offering'),
