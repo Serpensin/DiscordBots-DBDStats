@@ -347,7 +347,10 @@ class Events():
         if isinstance(error, discord.app_commands.CommandOnCooldown):
             await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{await Functions.seconds_to_minutes(error.retry_after)}`.', ephemeral=True)
         else:
-            await interaction.followup.send(f"{error}\n\n{option_values}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"{error}\n\n{option_values}", ephemeral=True)
+            except:
+                await interaction.response.send_message(f"{error}\n\n{option_values}", ephemeral=True)
             manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id})")
 
 
