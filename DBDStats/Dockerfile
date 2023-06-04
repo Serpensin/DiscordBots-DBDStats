@@ -21,11 +21,12 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/ar
 RUN pip install -r requirements.txt
 
 ARG BUILD_DATE
-ARG VERSION
+ARG COMMIT
 
 LABEL maintainer="./𝕾𝖊𝖗𝖕𝖊𝖓𝖘𝖎𝖓.𝖘𝖍#0007"
-LABEL version=$VERSION
+LABEL commit=$COMMIT
 LABEL description="Discord bot for DBD for Steam stats."
 LABEL release=$BUILD_DATE
+LABEL url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]
