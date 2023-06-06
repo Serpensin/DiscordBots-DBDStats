@@ -45,9 +45,10 @@ languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', '
 
 
 ##Init
+load_dotenv()
 #Init sentry
 sentry_sdk.init(
-    dsn="https://cf0b21ee8a8f4abe9a60d9188e0bda4d@o4504883552780288.ingest.sentry.io/4505002613407744",
+    dsn=os.getenv('SENTRY_DSN'),
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production'
@@ -86,7 +87,6 @@ manlogger.addHandler(handler)
 manlogger.info('Engine powering up...')
 
 #Load env
-load_dotenv()
 TOKEN = os.getenv('TOKEN')
 ownerID = os.getenv('OWNER_ID')
 steamAPIkey = os.getenv('steamAPIkey')

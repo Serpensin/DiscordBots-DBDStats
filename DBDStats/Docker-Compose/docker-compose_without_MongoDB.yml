@@ -5,6 +5,7 @@ services:
       restart_policy:
         condition: any
     environment:
+      SENTRY_DSN: SENTRY_DSN_FOR_ERROR_REPORTING
       steamAPIkey: STEAM_APIKEY
       support_server: ID_OF_SUPPORTSERVER
       TOKEN: BOT_TOKEN
