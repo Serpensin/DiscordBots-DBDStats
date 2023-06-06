@@ -5,7 +5,6 @@ WORKDIR /app
 COPY CustomModules ./CustomModules
 COPY *.py .
 COPY requirements.txt .
-COPY activity.json .
 
 ENV TERM xterm
 ENV PYTHONUNBUFFERED 1
