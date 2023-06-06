@@ -400,8 +400,13 @@ class Events():
         else:
             try:
                 await interaction.followup.send(f"{error}\n\n{option_values}", ephemeral=True)
-            except:
-                await interaction.response.send_message(f"{error}\n\n{option_values}", ephemeral=True)
+            except discord.NotFound:
+                try:
+                    await interaction.response.send_message(f"{error}\n\n{option_values}", ephemeral=True)
+                except discord.NotFound:
+                    pass
+            except Exception as e:
+                manlogger.warning(f"Unexpected error while sending message: {e}")
             manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id})")
 
 
