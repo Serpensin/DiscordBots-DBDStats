@@ -1,3 +1,5 @@
+version: '3'
+
 services:
   dbdstats:
     container_name: DBDStats
@@ -16,7 +18,7 @@ services:
       libretransAPIkey: APIKey_for_libretranslate
     image: serpensin/dbdstats
     volumes:
-    - dbdstats_log:/app/DBDStats/Logs
-version: '3'
+    - dbdstats_log:/app/DBDStats
+
 volumes:
-    dbdstats_log: {}
+    dbdstats_log:

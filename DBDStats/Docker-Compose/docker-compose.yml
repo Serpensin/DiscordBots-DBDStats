@@ -32,7 +32,7 @@ services:
       MongoDB_collection: API       #####################################
     image: serpensin/dbdstats
     volumes:
-      - dbdstats_log:/app/DBDStats/Logs
+      - dbdstats:/app/DBDStats
     depends_on:
       - mongo
     networks:
@@ -43,4 +43,4 @@ networks:
 
 volumes:
   dbdata:
-  dbdstats_log:
+  dbdstats:
