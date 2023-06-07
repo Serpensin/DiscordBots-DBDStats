@@ -347,7 +347,7 @@ class aclient(discord.AutoShardedClient):
     \/___/   \/___/   \/___/   \/_____/ \/__/ \/__/\/_/ \/__/ \/___/ 
                                                                      
         ''')
-        pt('Ready.')
+        pt('READY')
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
 
@@ -623,6 +623,15 @@ class update_cache():
                 json.dump(data, f, indent=2)
 
 
+    async def __clear_playerstats():
+        if db_available:
+            collection.delete_many({})
+        else:
+            for filename in os.scandir(stats_folder):
+                if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
+                    os.remove(filename)
+
+
     async def start_cache_update():
         pt('Updating cache...')
         manlogger.info('Updating cache...')
@@ -635,7 +644,8 @@ class update_cache():
                    update_cache.__update_item(),
                    update_cache.__update_map(),
                    update_cache.__update_addon(),
-                   update_cache.__update_event()]
+                   update_cache.__update_event(),
+                   update_cache.__clear_playerstats()]
 
         for update in updates:
             await update
@@ -1175,9 +1185,6 @@ class Info():
             await interaction.response.send_message(embed=embed1, ephemeral=True)
         elif check[0] == 0:
             await interaction.response.defer(thinking=True)
-            for filename in os.scandir(stats_folder):
-                if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
-                    os.remove(filename)
             #Get Stats
             removed = await Functions.check_if_removed(check[1])
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
@@ -2044,18 +2051,6 @@ if owner_available:
                 os.remove(buffer_folder+'Logs.zip')
 
 
-#Clear Buffer
-if owner_available:        
-    @tree.command(name = 'clear_stats', description = 'Delete all cached playerstats.')
-    async def self(interaction: discord.Interaction):
-        files_removed = 0
-        for filename in os.listdir(stats_folder):
-            if os.path.isfile(os.path.join(stats_folder, filename)):
-                os.remove(os.path.join(stats_folder, filename))
-                files_removed += 1
-        await interaction.response.send_message(content=await Functions.translate(interaction, f'{files_removed} files were removed.'), ephemeral=True)
-
-
 #Change Activity
 if owner_available:
     @tree.command(name = 'activity', description = 'Change my activity.')
@@ -2119,20 +2114,6 @@ if owner_available:
         else:
             await interaction.followup.send(await Functions.translate(interaction, 'Only the BotOwner can use this command!'), ephemeral = True)
 
-
-#Sync Commands
-if owner_available:
-    @tree.command(name = 'sync', description = 'Sync commands to guild.')
-    async def self(interaction: discord.Interaction):
-        if interaction.user.id == int(ownerID):
-            await interaction.response.defer(ephemeral = True)
-            await interaction.followup.send('Syncing...')
-            await tree.sync()
-            await interaction.edit_original_response(content='Synced.')
-        else:
-            await interaction.response.send_message('You are not allowed to use this command.', ephemeral = True)        
-      
-       
 
 ##Bot Commands (These commands are for the bot itself.)
 #Ping
