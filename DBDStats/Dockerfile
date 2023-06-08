@@ -11,6 +11,8 @@ ENV PYTHONUNBUFFERED 1
 ENV RUNNING_IN_DOCKER 'true'
 
 ARG TARGETPLATFORM
+ARG BUILD_DATE
+ARG COMMIT
 
 RUN python -m pip install --upgrade pip
 RUN pip install --upgrade setuptools
@@ -18,9 +20,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/ar
         apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
     fi
 RUN pip install -r requirements.txt
-
-ARG BUILD_DATE
-ARG COMMIT
 
 LABEL maintainer="./𝕾𝖊𝖗𝖕𝖊𝖓𝖘𝖎𝖓.𝖘𝖍#0007"
 LABEL commit=$COMMIT
