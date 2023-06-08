@@ -24,6 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CustomModules\patchnotes.py" />
     <Compile Include="CustomModules\steamcharts.py" />
     <Compile Include="Dockerfile" />
     <Compile Include="CustomModules\libretrans.py" />
@@ -36,7 +37,6 @@
     <Content Include=".env.template" />
     <Content Include=".dockerignore" />
     <Content Include=".env" />
-    <Content Include="activity.json" />
     <Content Include="Docker-Compose\docker-compose_without_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose.yml" />
     <Content Include="requirements.txt" />

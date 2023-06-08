@@ -17,6 +17,7 @@ services:
       restart_policy:
         condition: any
     environment:
+      SENTRY_DSN: SENTRY_DSN_FOR_ERROR_REPORTING
       steamAPIkey: STEAM_APIKEY
       support_server: ID_OF_SUPPORTSERVER
       TOKEN: BOT_TOKEN
@@ -31,7 +32,7 @@ services:
       MongoDB_collection: API       #####################################
     image: serpensin/dbdstats
     volumes:
-      - dbdstats_log:/app/DBDStats/Logs
+      - dbdstats:/app/DBDStats
     depends_on:
       - mongo
     networks:
@@ -42,4 +43,4 @@ networks:
 
 volumes:
   dbdata:
-  dbdstats_log:
+  dbdstats:
