@@ -211,9 +211,6 @@ def clear():
         os.system('clear')
 
 # Check if all required variables are set
-if not TOKEN or not steamAPIkey:
-    manlogger.critical('Missing token or steam API key. Please check your .env file.')
-    sys.exit('Missing token or steam API key. Please check your .env file.')
 try:
     db.server_info()
     db_available = True
@@ -222,7 +219,13 @@ try:
 except mongoerr.OperationFailure as e:
     manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
     pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {e.details.get('errmsg')}")
-db_available = False
+    db_available = False
+except mongoerr.ServerSelectionTimeoutError as e:
+    error_message = e.args[0]
+    error_content = (error_message.split("error=")[1]).replace(">]>","")
+    manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
+    pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
+    db_available = False
 libretrans_url = libretransURL
 translator = LibreTranslateAPI(libretransAPIkey, libretrans_url)
 translate_available = False
@@ -713,10 +716,6 @@ class Functions():
             return(5, 5)
 
 
-    async def unicode_unescape(s):
-        return bytes(s, 'utf-8').decode('unicode_escape')
-
-
     async def get_language_name(lang_code):
         try:
             return pycountry.languages.get(alpha_2=lang_code).name
@@ -732,12 +731,13 @@ class Functions():
             return None
 
 
-    async def convert_time(timestamp):
-        return(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp)))
-
-
-    async def convert_time_dateonly(timestamp):
-        return(time.strftime('%Y-%m-%d', time.gmtime(timestamp)))
+    async def convert_time(timestamp, request='full'):
+        if request == 'full':
+            return(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp)))
+        elif request == 'date':
+            return(time.strftime('%Y-%m-%d', time.gmtime(timestamp)))
+        elif request == 'time':
+            return(time.strftime('%H:%M:%S', time.gmtime(timestamp)))
 
 
     async def convert_number(number):
@@ -790,8 +790,14 @@ class Functions():
     async def create_support_invite(interaction: discord.Interaction):
         try:
             guild = bot.get_guild(int(support_id))
+            if guild is None:
+               guild = bot.fetch_guild(int(support_id)) 
         except ValueError:
             return "Could not find support guild."
+        if guild is None:
+            return "Could not find support guild."
+        if not guild.text_channels:
+            return "Support guild has no text channels."
         channel: discord.TextChannel = guild.text_channels[0]
         try:
             invite: discord.Invite = await channel.create_invite(
@@ -1453,7 +1459,7 @@ class Info():
                         continue
                     if j >= end_index:
                         break
-                    embed.add_field(name=str(data[key]['name']), value=f"[{await Functions.convert_time_dateonly(data[key]['time'])}]({steamStore}{str(data[key]['steamid'])})", inline=True)
+                    embed.add_field(name=str(data[key]['name']), value=f"[{await Functions.convert_time(data[key]['time'], 'date')}]({steamStore}{str(data[key]['steamid'])})", inline=True)
                     j += 1
                 embeds.append(embed)
             await interaction.followup.send(embeds=embeds)
@@ -1464,7 +1470,7 @@ class Info():
                 if data[key]['name'].lower().replace('chapter', '').replace('®', '').replace('™', '').strip() == name.lower().replace('chapter', '').replace('®', '').replace('™', '').strip():
                     embed = discord.Embed(title="DLC description for '"+data[key]['name']+"'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ')), color=0xb19325)
                     embed.set_thumbnail(url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{data[key]['steamid']}/header.jpg")
-                    embed.set_footer(text = f"{await Functions.translate(interaction, 'Released at')}: {await Functions.convert_time_dateonly(data[key]['time'])}")
+                    embed.set_footer(text = f"{await Functions.translate(interaction, 'Released at')}: {await Functions.convert_time(data[key]['time'], 'date')}")
                     await interaction.followup.send(embed=embed)
                     return
             await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
