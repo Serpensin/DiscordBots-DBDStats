@@ -2182,7 +2182,7 @@ async def self(interaction: discord.Interaction):
 
 #Info about Stuff
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
-#@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
