@@ -642,12 +642,9 @@ class update_cache():
 
 
     async def __clear_playerstats():
-        if db_available:
-            collection.delete_many({})
-        else:
-            for filename in os.scandir(stats_folder):
-                if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
-                    os.remove(filename)
+        for filename in os.scandir(stats_folder):
+            if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
+                os.remove(filename)
 
 
     async def start_cache_update():
@@ -787,11 +784,9 @@ class Functions():
             return 1
 
 
-    async def create_support_invite(interaction: discord.Interaction):
+    async def create_support_invite(interaction):
         try:
             guild = bot.get_guild(int(support_id))
-            if guild is None:
-               guild = bot.fetch_guild(int(support_id)) 
         except ValueError:
             return "Could not find support guild."
         if guild is None:
@@ -811,10 +806,6 @@ class Functions():
             return "I do not have permission to create an invite in that channel."
         except discord.HTTPException:
             return "There was an error creating the invite."
-
-
-    async def seconds_to_minutes(input_int):
-        return(str(timedelta(seconds=input_int)))
 
 
     async def translate(interaction, text):
