@@ -406,7 +406,7 @@ class Events():
             for option in options:
                 option_values += f"{option['name']}: {option['value']}"
         if isinstance(error, discord.app_commands.CommandOnCooldown):
-            await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{await Functions.seconds_to_minutes(error.retry_after)}`.', ephemeral=True)
+            await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{str(timedelta(seconds=int(error.retry_after)))}`', ephemeral=True)
         else:
             try:
                 await interaction.user.send(f"{error}\n\n{option_values}")
