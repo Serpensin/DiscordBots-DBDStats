@@ -34,8 +34,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 app_folder_name = 'DBDStats'
-#api_base = 'https://dbd.tricky.lol/api/' # For production
-api_base = 'http://localhost:5000/' # For testing
+api_base = 'https://dbd.tricky.lol/api/' # For production
+#api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
