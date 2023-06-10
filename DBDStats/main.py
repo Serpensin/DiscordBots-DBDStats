@@ -34,8 +34,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 app_folder_name = 'DBDStats'
-api_base = 'https://dbd.tricky.lol/api/' # For production
-#api_base = 'http://localhost:5000/' # For testing
+#api_base = 'https://dbd.tricky.lol/api/' # For production
+api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
@@ -321,7 +321,7 @@ class aclient(discord.AutoShardedClient):
             pt('Syncing commands...')
             await tree.sync()
             manlogger.info('Synced.')
-            pt('Commands synced.')
+            print('Commands synced.')
             self.synced = True
         global owner, owner_available
         try:
@@ -641,6 +641,20 @@ class update_cache():
                 json.dump(data, f, indent=2)
 
 
+    async def __update_version():
+        data = await Functions.check_api_rate_limit(f'{api_base}versions')
+        if data == 1:
+            manlogger.warning("Version couldn't be updated.")
+            print("Version couldn't be updated.")
+            return 1
+        if db_available:
+            data['_id'] = 'version_info'
+            collection.update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
+        else:
+            with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
+
+
     async def __clear_playerstats():
         for filename in os.scandir(stats_folder):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
@@ -648,7 +662,7 @@ class update_cache():
 
 
     async def start_cache_update():
-        pt('Updating cache...')
+        print('Updating cache...')
         manlogger.info('Updating cache...')
 
         updates = [update_cache.__update_chars(),
@@ -660,13 +674,14 @@ class update_cache():
                    update_cache.__update_map(),
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
+                   update_cache.__update_version(),
                    update_cache.__clear_playerstats()]
 
         for update in updates:
             await update
             #time.sleep(1)
 
-        pt('Cache updated.')
+        print('Cache updated.')
         manlogger.info('Cache updated.')
 
 
@@ -1111,6 +1126,15 @@ class Functions():
                 data = json.loads(f.read())
         else:
             data = json.loads(json.dumps(collection.find_one({'_id': 'event_info'})))
+        return data
+
+
+    async def version_load():
+        if not db_available:
+            with open(f'{buffer_folder}version_info.json', 'r', encoding='utf8') as f:
+                data = json.loads(f.read())
+        else:
+            data = json.loads(json.dumps(collection.find_one({'_id': 'version_info'})))
         return data
 
 
@@ -1597,10 +1621,8 @@ class Info():
 
     async def version(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        data = await Functions.check_api_rate_limit(api_base+'versions')
-        if data == 1:
-            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."), ephemeral=True)
-            return
+        data = await Functions.version_load()
+
         embed1 = discord.Embed(title='DB Version (1/2)', color=0x42a32e)
         embed1.add_field(name=await Functions.translate(interaction, 'Name'), value='\u200b', inline=True)
         embed1.add_field(name=await Functions.translate(interaction, 'Version'), value='\u200b', inline=True)
