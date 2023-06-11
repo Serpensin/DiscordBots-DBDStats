@@ -41,6 +41,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
+bot_version = "1.2.0"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -323,7 +324,7 @@ class aclient(discord.AutoShardedClient):
             manlogger.info('Synced.')
             print('Commands synced.')
             self.synced = True
-        global owner, owner_available
+        global owner, owner_available, update_task, start_time
         try:
             owner = await bot.fetch_user(ownerID)
             print('Owner found.')
@@ -333,7 +334,6 @@ class aclient(discord.AutoShardedClient):
             owner_available = False
         manlogger.info('Initialization completed...')
 
-        global update_task
         update_task = asyncio.create_task(self.__schedule_update())
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -350,6 +350,7 @@ class aclient(discord.AutoShardedClient):
     \/___/   \/___/   \/___/   \/_____/ \/__/ \/__/\/_/ \/__/ \/___/
 
         ''')
+        start_time = datetime.now()
         pt('READY')
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -2155,6 +2156,44 @@ async def self(interaction: discord.Interaction):
     await interaction.edit_original_response(content=f'Pong! \nCommand execution time: `{int(ping)}ms`\nPing to gateway: `{int(bot.latency * 1000)}ms`')
 
 
+#Bot Info
+@tree.command(name = 'botinfo', description = 'Get information about the bot.')
+async def self(interaction: discord.Interaction):
+    member_count = sum(guild.member_count for guild in bot.guilds)
+
+    embed = discord.Embed(
+        title=f"Informationen about {bot.user.name}",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=bot.user.avatar.url if bot.user.avatar else '')
+
+    embed.add_field(name="Created at", value=bot.user.created_at.strftime("%d.%m.%Y, %H:%M:%S"), inline=True)
+    embed.add_field(name="Bot-Version", value=bot_version, inline=True)
+    embed.add_field(name="Uptime", value=str(timedelta(seconds=int((datetime.now() - start_time).total_seconds()))), inline=True)
+
+    embed.add_field(name="Bot-Owner", value=f"<@!{ownerID}>", inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    embed.add_field(name="Server", value=f"{len(bot.guilds)}", inline=True)
+    embed.add_field(name="Member count", value=str(member_count), inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    embed.add_field(name="Shards", value=f"{bot.shard_count}", inline=True)
+    embed.add_field(name="Shard ID", value=f"{interaction.guild.shard_id if interaction.guild else 'N/A'}", inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    embed.add_field(name="Python-Version", value=f"{platform.python_version()}", inline=True)
+    embed.add_field(name="discord.py-Version", value=f"{discord.__version__}", inline=True)
+    embed.add_field(name="Sentry-Version", value=f"{sentry_sdk.consts.VERSION}", inline=True)
+
+    embed.add_field(name="Repo", value=f"[GitLab](https://gitlab.bloodygang.com/Serpensin/DBDStats)", inline=True)
+    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot%20applications.commands)", inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)  
+
+    await interaction.response.send_message(embed=embed)
+
+
 #Change Nickname
 @tree.command(name = 'change_nickname', description = 'Change the nickname of the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
@@ -2446,6 +2485,12 @@ async def randomize(interaction: discord.Interaction, category: str):
 
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)
+
+
+
+
+
+
 
 
 

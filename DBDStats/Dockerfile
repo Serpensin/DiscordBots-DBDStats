@@ -25,6 +25,7 @@ LABEL maintainer="./𝕾𝖊𝖗𝖕𝖊𝖓𝖘𝖎𝖓.𝖘𝖍#0007"
 LABEL commit=$COMMIT
 LABEL description="Discord bot for DBD for Steam stats."
 LABEL release=$BUILD_DATE
+LABEL VERSION="1.2.0"
 LABEL url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]

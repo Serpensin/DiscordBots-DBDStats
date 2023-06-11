@@ -15,7 +15,7 @@ jsonschema==4.17.3
 multidict==6.0.4
 packaging==23.1
 pip==23.1.2
-prettytable==3.7.0
+prettytable==3.8.0
 pycountry==22.3.5
 pymongo==4.3.3
 pyrsistent==0.19.3

@@ -48,10 +48,4 @@ async def get_killswitch(return_type='html'):
 if __name__ == '__main__':
     import asyncio
     md = asyncio.run(get_killswitch('md'))
-    
-    md = md.strip()
-    md.replace("\n", "")
-    
-
-    print(type(md))
     print(md)
