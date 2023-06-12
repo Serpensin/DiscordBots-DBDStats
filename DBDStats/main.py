@@ -41,7 +41,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.0"
+bot_version = "1.2.1"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -410,11 +410,13 @@ class Events():
             await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{str(timedelta(seconds=int(error.retry_after)))}`', ephemeral=True)
         else:
             try:
-                await interaction.user.send(f"{error}\n\n{option_values}")
                 try:
-                    await interaction.response.send_message(f"Error! Look in your DMs.", ephemeral=True)
+                    await interaction.response.send_message(f"Error! Try again.", ephemeral=True)
                 except:
-                    await interaction.followup.send(f"Error! Look in your DMs.", ephemeral=True)
+                    try:
+                        await interaction.followup.send(f"Error! Try again.", ephemeral=True)
+                    except:
+                        pass
             except discord.Forbidden:
                 try:
                     await interaction.followup.send(f"{error}\n\n{option_values}", ephemeral=True)
