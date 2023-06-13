@@ -811,19 +811,27 @@ class Functions():
             return "Could not find support guild."
         if not guild.text_channels:
             return "Support guild has no text channels."
-        channel: discord.TextChannel = guild.text_channels[0]
         try:
-            invite: discord.Invite = await channel.create_invite(
-                reason=f"Created invite for {interaction.user.name} from server {interaction.guild.name} ({interaction.guild_id})",
-                max_age=60,
-                max_uses=1,
-                unique=True
-            )
-            return invite.url
-        except discord.Forbidden:
-            return "I do not have permission to create an invite in that channel."
-        except discord.HTTPException:
-            return "There was an error creating the invite."
+            member = await guild.fetch_member(interaction.user.id)
+        except discord.NotFound:
+            member = None
+        if member is not None:
+            return "You are already in the support guild."
+        channels: discord.TextChannel = guild.text_channels
+        for channel in channels:
+            try:
+                invite: discord.Invite = await channel.create_invite(
+                    reason=f"Created invite for {interaction.user.name} from server {interaction.guild.name} ({interaction.guild_id})",
+                    max_age=60,
+                    max_uses=1,
+                    unique=True
+                )
+                return invite.url
+            except discord.Forbidden:
+                continue
+            except discord.HTTPException:
+                continue
+        return "Could not create invite. There is either no text-channel, or I don't have the rights to create an invite."
 
 
     async def translate(interaction, text):
@@ -2210,12 +2218,13 @@ async def self(interaction: discord.Interaction, nick: str):
 #Support Invite
 if support_available:
     @tree.command(name = 'support', description = 'Get invite to our support server.')
-    @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+    @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
     async def self(interaction: discord.Interaction):
         if str(interaction.guild.id) != support_id:
-            await interaction.response.send_message(await Functions.create_support_invite(interaction), ephemeral = True)
+            await interaction.response.defer(ephemeral = True)
+            await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
         else:
-            await interaction.response.send_message(await Functions.translate(interaction, 'You are already in our support server!'), ephemeral = True)
+            await interaction.response.send_message('You are already in our support server!', ephemeral = True)
 
 
 #Setup
