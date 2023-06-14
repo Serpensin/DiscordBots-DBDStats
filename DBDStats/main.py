@@ -41,7 +41,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.1"
+bot_version = "1.2.2"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -699,14 +699,19 @@ class Functions():
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as resp:
                 data = await resp.json()
-                if data['response']['success'] == 1:
-                    return data['response']['steamid']
-                else:
-                    return vanity
+                try:
+                    if data['response']['success'] == 1:
+                        return data['response']['steamid']
+                    else:
+                        return vanity
+                except:
+                    return None
 
 
     async def check_for_dbd(id, steamAPIkey):
         id = await Functions.steam_link_to_id(id)
+        if id is None:
+            return (1, 1)
         if len(id) != 17:
             return (1, 1)
         try:
@@ -1203,27 +1208,27 @@ class Info():
 
 
     async def playerstats(interaction: discord.Interaction, steamid):
+        await interaction.response.defer(thinking=True)
         check = await Functions.check_for_dbd(steamid, steamAPIkey)
         try:
             int(check[0])
         except:
             embed = discord.Embed(title=await Functions.translate(interaction, 'Try again'), description=await Functions.translate(interaction, check[1]), color=0x004cff)
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
             return
         if check[0] == 1:
-            await interaction.response.send_message(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)
+            await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)
         elif check[0] == 2:
-            await interaction.response.send_message(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
+            await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
         elif check[0] == 3:
-            await interaction.response.send_message(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking")+f"\n[here](https://steamcommunity.com/profiles/{id}/edit/settings).", ephemeral=True)
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
         elif check[0] == 4:
-            await interaction.response.send_message(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
         elif check[0] == 5:
             embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.response.send_message(embed=embed1, ephemeral=True)
+            await interaction.followup.send(embed=embed1, ephemeral=True)
         elif check[0] == 0:
-            await interaction.response.defer(thinking=True)
             #Get Stats
             removed = await Functions.check_if_removed(check[1])
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
@@ -1704,11 +1709,11 @@ class Info():
         elif dbd_check[0] == 2:
             await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'))
         elif dbd_check[0] == 3:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking")+"\n[here](https://steamcommunity.com/profiles/"+id+"/edit/settings).")
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
         elif dbd_check[0] == 4:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
         elif dbd_check[0] == 5:
-            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+            embed1 = discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our") + f" [Support-Server]({str(await Functions.create_support_invite(interaction))})" + await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.response.send_message(embed=embed1)
         elif dbd_check[0] == 0:
