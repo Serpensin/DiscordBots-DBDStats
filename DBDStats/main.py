@@ -41,7 +41,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.2"
+bot_version = "1.2.3"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -1577,17 +1577,19 @@ class Info():
         await interaction.response.defer()
 
         if os.path.exists(f'{buffer_folder}killswitch.json'):
-            if os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 14400:
+            if os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
                 with open(f'{buffer_folder}killswitch.json', 'r') as f:
                     data = json.load(f)
                     if data['killswitch_on'] == 0:
                         embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
                         embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                        embed.set_footer(text = f'Update every 15 minutes.')
                         await interaction.followup.send(embed=embed)
                         return
                     else:
                         embed = discord.Embed(title="Killswitch", description=data['md'], color=0xb19325)
                         embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                        embed.set_footer(text = f'Update every 15 minutes.')
                         await interaction.followup.send(embed=embed)
                         return
         try:
@@ -1599,11 +1601,13 @@ class Info():
         if data is None:
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            embed.set_footer(text = f'Update every 15 minutes.')
             await interaction.followup.send(embed=embed)
             killswitch_on = 0
         elif data is not None:
             embed = discord.Embed(title="Killswitch", description=data, color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            embed.set_footer(text = f'Update every 15 minutes.')
             await interaction.followup.send(embed=embed)
             killswitch_on = 1
 
