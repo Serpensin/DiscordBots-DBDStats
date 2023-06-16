@@ -48,6 +48,7 @@ languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', '
 
 
 ##Init
+discord.VoiceClient.warn_nacl = False
 load_dotenv()
 #Init sentry
 sentry_sdk.init(
