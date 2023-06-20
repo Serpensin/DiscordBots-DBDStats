@@ -20,12 +20,13 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/ar
         apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
     fi
 RUN pip install -r requirements.txt
+RUN apk del gcc musl-dev python3-dev
 
-LABEL maintainer="./𝕾𝖊𝖗𝖕𝖊𝖓𝖘𝖎𝖓.𝖘𝖍#0007"
+LABEL maintainer="the_devil_of_the_rhine (863687441809801246)"
 LABEL commit=$COMMIT
 LABEL description="Discord bot for DBD for Steam stats."
 LABEL release=$BUILD_DATE
-LABEL VERSION="1.2.3"
+LABEL VERSION="1.2.4"
 LABEL url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]
