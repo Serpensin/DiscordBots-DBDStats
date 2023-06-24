@@ -42,7 +42,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.4"
+bot_version = "1.2.5"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -267,7 +267,8 @@ class aclient(discord.AutoShardedClient):
 
         super().__init__(owner_id = ownerID,
                               intents = intents,
-                              status = discord.Status.invisible
+                              status = discord.Status.invisible,
+                              auto_reconnect = True
                         )
         self.synced = False
         self.s = sched.scheduler(time.time, time.sleep)
