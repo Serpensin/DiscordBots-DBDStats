@@ -16,13 +16,9 @@ ARG COMMIT
 
 RUN python -m pip install --upgrade pip && \
     pip install --upgrade setuptools && \
-    if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
-        apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
-    fi && \
+    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
     pip install -r requirements.txt && \
-    if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
-        apk del .build-deps; \
-    fi && \
+    apk del .build-deps; && \
     find /usr/local \
     \( -type d -a -name test -o -name tests \) \
     -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
