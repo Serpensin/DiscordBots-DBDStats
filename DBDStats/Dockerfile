@@ -16,9 +16,9 @@ ARG COMMIT
 
 RUN python -m pip install --upgrade pip && \
     pip install --upgrade setuptools && \
-    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
+    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev && \
     pip install -r requirements.txt && \
-    apk del .build-deps; && \
+    apk del .build-deps && \
     find /usr/local \
     \( -type d -a -name test -o -name tests \) \
     -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
