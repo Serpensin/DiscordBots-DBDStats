@@ -14,12 +14,12 @@ ARG TARGETPLATFORM
 ARG BUILD_DATE
 ARG COMMIT
 
-RUN python -m pip install --upgrade pip
-RUN pip install --upgrade setuptools
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev
-RUN pip install -r requirements.txt
-RUN apk del .build-deps
-RUN find /usr/local \
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev rust cargo && \
+    python -m pip install --upgrade pip && \
+    pip install --upgrade setuptools && \
+    pip install -r requirements.txt && \
+    apk del .build-deps && \
+    find /usr/local \
     \( -type d -a -name test -o -name tests \) \
     -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
     -exec rm -rf '{}' + && \
