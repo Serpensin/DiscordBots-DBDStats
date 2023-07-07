@@ -42,7 +42,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.6"
+bot_version = "1.2.7"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -1558,7 +1558,7 @@ class Info():
 
 
     async def offering(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         data = await Functions.offering_load()
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the perk data."), ephemeral=True)
@@ -1571,7 +1571,7 @@ class Info():
 
 
     async def perk(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         data = await Functions.perk_load()
         if data == 1:
             await interaction.followup.send("Error while loading the perk data.")
@@ -1587,7 +1587,7 @@ class Info():
 
 
     async def killswitch(interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         if os.path.exists(f'{buffer_folder}killswitch.json'):
             if os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
@@ -1634,7 +1634,7 @@ class Info():
 
 
     async def shrine(interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         data = await Functions.shrine_load()
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the shrine data."))
@@ -1719,7 +1719,7 @@ class Info():
 
 
     async def legacycheck(interaction: discord.Interaction, steamid):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         dbd_check = await Functions.check_for_dbd(steamid, steamAPIkey)
         if dbd_check[0] == 1:
             await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))
@@ -1753,7 +1753,7 @@ class Info():
 
 
     async def addon(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         if name == '':
             await interaction.followup.send(content = 'Here are the addons:' , file=discord.File(r''+buffer_folder+'addons.txt'))
         else:
@@ -1771,7 +1771,7 @@ class Info():
         if not twitch_available:
             await interaction.response.send_message("Twitch API is currently not available.\nAsk the owner of this instance to enable it.", ephemeral=True)
             return
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         embeds = []
         game_id = await twitch_api.get_game_id("Dead by Daylight")
         stats = await twitch_api.get_category_stats(game_id)
@@ -1805,7 +1805,7 @@ class Info():
             await interaction.response.send_message(file = discord.File(f'{patchnotes_folder}{version_clean}.md'))
             return
 
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         try:
             data = await patchnotes.get_update_content(version, return_type = 'md')
         except ValueError as e:
@@ -1851,7 +1851,7 @@ class Random():
 
     async def offering(interaction: discord.Interaction, role, loadout: bool = False):
         if not loadout:
-            await interaction.response.defer(thinking = True)
+            await interaction.response.defer(thinking=True, ephemeral=True)
         offerings = await Functions.offering_load()
         if offerings == 1:
             await interaction.followup.send("Error while loading the offering data.", ephemeral = True)
@@ -1874,7 +1874,7 @@ class Random():
 
     async def item(interaction: discord.Interaction, loadout: bool = False):
         if not loadout:
-            await interaction.response.defer(thinking = True)
+            await interaction.response.defer(thinking=True, ephemeral=True)
         items = await Functions.item_load()
         if items == 1:
             await interaction.followup.send("Error while loading the item data.")
@@ -1894,7 +1894,7 @@ class Random():
 
     async def char(interaction: discord.Interaction, role, loadout: bool = False):
         if not loadout:
-            await interaction.response.defer(thinking = True)
+            await interaction.response.defer(thinking=True, ephemeral=True)
         dlc_data = await Functions.dlc_load()
         if dlc_data == 1:
             await interaction.followup.send("Error while loading the dlc data.", ephemeral = True)
@@ -1919,7 +1919,7 @@ class Random():
 
     async def addon(interaction: discord.Interaction, parent, loadout: bool = False):
         if not loadout:
-            await interaction.response.defer()
+            await interaction.response.defer(thinking=True, ephemeral=True)
         item = await Functions.item_load()
         if item == 1:
             await interaction.followup.send("Error while loading the item data.", ephemeral = True)
@@ -1956,7 +1956,7 @@ class Random():
 
     async def adfk(interaction: discord.Interaction, killer, loadout: bool = False):
         if not loadout:
-            await interaction.response.defer()
+            await interaction.response.defer(thinking=True, ephemeral=True)
         addons = await Functions.addon_load()
         if addons == 1:
             await interaction.followup.send("Error while loading the addon data.", ephemeral = True)
@@ -1992,7 +1992,7 @@ class Random():
 
 
     async def loadout(interaction: discord.Interaction, role):
-        await interaction.response.defer(thinking = True, ephemeral = True)
+        await interaction.response.send_message(f'Generating loadout for {role}...', ephemeral=True)
         chars = await Functions.char_load()
         if chars == 1:
             await interaction.followup.send("Error while loading the char data.")

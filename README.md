@@ -1,6 +1,6 @@
-# Dead by Daylight Stats Bot
+# Dead by Daylight Stats Bot [![Discord Bot Invite](https://img.shields.io/badge/Invite-DBDStats-blue)](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands)
 
-This Discord bot allows you to display Dead by Daylight (DBD) player stats and items for Steam users. It supports multiple methods to set up and start the bot, including the Classic Method and Docker Method. You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands) the bot I host to your server.
+This Discord bot allows you to display Dead by Daylight (DBD) player stats and items for Steam users. It supports multiple methods to set up and start the bot, including the Classic Method and Docker Method.
 
 ## Features
 
@@ -100,7 +100,4 @@ docker run -d \
 -v dbdstats_log:/app/DBDStats/Logs \
 serpensin/dbdstats
 ```
-
-
-You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands) the bot I host to your server.
 
