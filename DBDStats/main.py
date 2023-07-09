@@ -42,7 +42,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.7"
+bot_version = "1.2.8"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -262,8 +262,6 @@ class aclient(discord.AutoShardedClient):
         intents = discord.Intents.default()
         intents.guild_messages = True
         intents.dm_messages = True
-        intents.members = True
-        intents.presences = True
 
         super().__init__(owner_id = ownerID,
                               intents = intents,
@@ -320,31 +318,20 @@ class aclient(discord.AutoShardedClient):
                 perms = []
                 for roles in guild.roles:
                     if roles.permissions.manage_guild and roles.permissions.manage_roles or roles.permissions.administrator and not roles.is_bot_managed():
-                        perms.append(roles.id)
+                        perms.append(f'<@&{roles.id}>')
                 if perms == []:
-                    break
+                    continue
                 else:
-                    for role in perms:
-                        try:
-                            await channel.send(f'<@&{role}>')
-                        except:
-                            continue
                     try:
-                        await channel.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
+                        mention_roles = ' '.join(perms)
+                        await channel.send(f'{mention_roles}\nHello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
                         return
                     except:
                         pass
-                return
-        for member in guild.members:
-            if str(member.status) != 'offline' and member != guild.owner and not member.bot:
-                if any((role.permissions.manage_guild and role.permissions.manage_roles) or (role.permissions.administrator and not role.is_bot_managed()) for role in member.roles):
-                    try:
-                        await member.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
-                        return
-                    except discord.Forbidden:
-                        continue
         try:
-            await guild.owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
+            guild_owner = await bot.fetch_user(guild.owner_id)
+
+            await guild_owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
         except discord.Forbidden:
             manlogger.info(f'Failed to send setup message for {guild}.')
 
