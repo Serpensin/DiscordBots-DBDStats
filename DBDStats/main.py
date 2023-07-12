@@ -42,7 +42,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.8"
+bot_version = "1.2.9"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -82,12 +82,12 @@ manlogger = logging.getLogger('Program')
 logger.setLevel(logging.INFO)
 manlogger.setLevel(logging.INFO)
 logging.getLogger('discord.http').setLevel(logging.INFO)
-handler = logging.handlers.RotatingFileHandler(
+handler = logging.handlers.TimedRotatingFileHandler(
     filename = f'{log_folder}DBDStats.log',
     encoding = 'utf-8',
-    maxBytes = 8 * 1024 * 1024,
-    backupCount = 5,
-    mode='w')
+    when = 'midnight',
+    backupCount = 27
+    )
 dt_fmt = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
 handler.setFormatter(formatter)
@@ -983,7 +983,7 @@ class Functions():
         for i in data.keys():
             if str(i) == '_id':
                 continue
-            if data[i]['name'] == addon:
+            if str(data[i]['name']).lower() == addon.lower():
                 embed = discord.Embed(title=data[i]['name'],
                                       description = await Functions.translate(interaction, str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('<i>','').replace('</i>','').replace('.', '. ')), color=0x0400ff)
                 embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}")
@@ -1004,6 +1004,8 @@ class Functions():
                     return embed
                 else:
                     await interaction.followup.send(embed=embed, ephemeral = True)
+                    return
+        return 1
 
 
     async def offering_send(interaction, data, name, loadout: bool = False):
@@ -1026,7 +1028,7 @@ class Functions():
                     return embed
                 await interaction.followup.send(embed = embed, ephemeral = True)
                 return
-        await interaction.followup.send(await Functions.translate(interaction, "This offering doesn't exist."), ephemeral = True)
+        await interaction.followup.send(await Functions.translate(interaction, f"The offering {name} doesn't exist."), ephemeral = True)
 
 
     async def item_send(interaction, data, name, loadout: bool = False):
@@ -2012,20 +2014,20 @@ class Random():
 #Shutdown
 @tree.command(name = 'shutdown', description = 'Safely shut down the bot.')
 async def self(interaction: discord.Interaction):
-	if interaction.user.id == int(ownerID):
-		global shutdown
-		shutdown = True
-		manlogger.info('Engine powering down...')
-		await interaction.response.send_message('Engine powering down...', ephemeral=True)
-		await bot.change_presence(status=discord.Status.invisible)
-		
-		tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-		[task.cancel() for task in tasks]
-		await asyncio.gather(*tasks, return_exceptions=True)
+    if interaction.user.id == int(ownerID):
+        global shutdown
+        shutdown = True
+        manlogger.info('Engine powering down...')
+        await interaction.response.send_message('Engine powering down...', ephemeral=True)
+        await bot.change_presence(status=discord.Status.invisible)
+        
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        [task.cancel() for task in tasks]
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-		await bot.close()
-	else:
-		await interaction.response.send_message('Only the BotOwner can use this command!', ephemeral=True)
+        await bot.close()
+    else:
+        await interaction.response.send_message('Only the BotOwner can use this command!', ephemeral=True)
 
 
 #Get Logs
@@ -2520,17 +2522,17 @@ async def randomize(interaction: discord.Interaction, category: str):
 
 
 if __name__ == '__main__':
-	if not TOKEN or not steamAPIkey:
-		error_message = 'Missing token or steam API key. Please check your .env file.'
-		manlogger.critical(error_message)
-		sys.exit(error_message)
-	else:
-		try:
-			bot.run(TOKEN, log_handler=None)
-		except discord.errors.LoginFailure:
-			error_message = 'Invalid token. Please check your .env file.'
-			manlogger.critical(error_message)
-			sys.exit(error_message)
-		except asyncio.CancelledError:
-			if shutdown:
-				pass
+    if not TOKEN or not steamAPIkey:
+        error_message = 'Missing token or steam API key. Please check your .env file.'
+        manlogger.critical(error_message)
+        sys.exit(error_message)
+    else:
+        try:
+            bot.run(TOKEN, log_handler=None)
+        except discord.errors.LoginFailure:
+            error_message = 'Invalid token. Please check your .env file.'
+            manlogger.critical(error_message)
+            sys.exit(error_message)
+        except asyncio.CancelledError:
+            if shutdown:
+                pass
