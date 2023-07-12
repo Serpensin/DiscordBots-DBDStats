@@ -14,7 +14,6 @@ import pycountry
 import pymongo
 import pymongo.errors as mongoerr
 import random
-import sched
 import sentry_sdk
 import socket
 import sys
@@ -269,7 +268,6 @@ class aclient(discord.AutoShardedClient):
                               auto_reconnect = True
                         )
         self.synced = False
-        self.s = sched.scheduler(time.time, time.sleep)
         self.cache_updated = False
 
 
@@ -376,7 +374,7 @@ class aclient(discord.AutoShardedClient):
             manlogger.info('Synced.')
             print('Commands synced.')
             self.synced = True
-        global owner, update_task, start_time, shutdown
+        global owner, start_time, shutdown
         shutdown = False
         try:
             owner = await bot.fetch_user(ownerID)
