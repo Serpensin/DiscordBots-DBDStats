@@ -1955,6 +1955,9 @@ class Random():
             return
         else:
             parent_type = await Functions.get_item_type(parent, item)
+            if parent_type == 1:
+                await interaction.followup.send(f"There is no addon named **{parent}**.", ephemeral = True)
+                return
             keys = list(addons.keys())
             selected_keys = set()
             embeds = []
@@ -1992,7 +1995,7 @@ class Random():
             return
         killer_item = await Functions.find_killer_item(killer, chars)
         if killer_item == 1:
-            await interaction.followup.send(f"There is no killer named '{killer}'.", ephemeral = True)
+            await interaction.followup.send(f"There is no killer named **{killer}**.", ephemeral = True)
             return
         keys = list(addons.keys())
         selected_keys = set()
@@ -2259,7 +2262,11 @@ async def self(interaction: discord.Interaction, nick: str):
     if interaction.guild is None:
         await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
         return
-    await interaction.guild.me.edit(nick=nick)
+    try:
+        await interaction.guild.me.edit(nick=nick)
+    except discord.Forbidden:
+        await interaction.response.send_message('I do not have the permission to change my nickname.', ephemeral=True)
+        return
     await interaction.response.send_message(await Functions.translate(interaction, f'My new nickname is now **{nick}**.'), ephemeral=True)
 
 
