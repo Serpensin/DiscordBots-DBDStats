@@ -2227,10 +2227,10 @@ async def self(interaction: discord.Interaction):
     embed.set_thumbnail(url=bot.user.avatar.url if bot.user.avatar else '')
 
     embed.add_field(name="Created at", value=bot.user.created_at.strftime("%d.%m.%Y, %H:%M:%S"), inline=True)
-    embed.add_field(name="Bot-Version", value=bot_version, inline=True)
+    embed.add_field(name="Version", value=bot_version, inline=True)
     embed.add_field(name="Uptime", value=str(timedelta(seconds=int((datetime.now() - start_time).total_seconds()))), inline=True)
 
-    embed.add_field(name="Bot-Owner", value=f"<@!{ownerID}>", inline=True)
+    embed.add_field(name="Owner", value=f"<@!{ownerID}>", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
@@ -2242,12 +2242,12 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Shard ID", value=f"{interaction.guild.shard_id if interaction.guild else 'N/A'}", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
-    embed.add_field(name="Python-Version", value=f"{platform.python_version()}", inline=True)
-    embed.add_field(name="discord.py-Version", value=f"{discord.__version__}", inline=True)
-    embed.add_field(name="Sentry-Version", value=f"{sentry_sdk.consts.VERSION}", inline=True)
+    embed.add_field(name="Python", value=f"{platform.python_version()}", inline=True)
+    embed.add_field(name="discord.py", value=f"{discord.__version__}", inline=True)
+    embed.add_field(name="Sentry", value=f"{sentry_sdk.consts.VERSION}", inline=True)
 
     embed.add_field(name="Repo", value=f"[GitLab](https://gitlab.bloodygang.com/Serpensin/DBDStats)", inline=True)
-    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot%20applications.commands)", inline=True)
+    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot)", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
     await interaction.response.send_message(embed=embed)
