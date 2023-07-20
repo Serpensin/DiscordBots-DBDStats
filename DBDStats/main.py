@@ -18,7 +18,6 @@ import sentry_sdk
 import socket
 import sys
 import time
-import topgg
 from bs4 import BeautifulSoup
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
@@ -430,7 +429,6 @@ class aclient(discord.AutoShardedClient):
         #Start background tasks
         bot.loop.create_task(update_cache.task())
         if topgg_token:
-            bot.topggpy = topgg.DBLClient(bot, topgg_token)
             bot.loop.create_task(Functions.update_topgg())
         if discordbots_token:
             bot.loop.create_task(Functions.update_discordbots())
@@ -1200,8 +1198,15 @@ class Functions():
 
 
     async def update_topgg():
+        headers = {
+            'Authorization': topgg_token,
+            'Content-Type': 'application/json'
+        }
         while not shutdown:
-            await bot.topggpy.post_guild_count()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://top.gg/api/bots/{bot.user.id}/stats', headers=headers, json={'server_count': len(bot.guilds), 'shard_count': len(bot.shards)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update top.gg: {resp.status} {resp.reason}')
             try:
                 await asyncio.sleep(60*30)
             except asyncio.CancelledError:
