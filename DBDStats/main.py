@@ -41,7 +41,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.10"
+bot_version = "1.2.11"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -380,6 +380,10 @@ class aclient(discord.AutoShardedClient):
                 option_values += f"{option['name']}: {option['value']}"
         if isinstance(error, discord.app_commands.CommandOnCooldown):
             await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{str(timedelta(seconds=int(error.retry_after)))}`', ephemeral=True)
+            return
+        if isinstance(error, discord.app_commands.MissingPermissions):
+            await interaction.response.send_message(f'You are missing the following permissions: `{", ".join(error.missing_permissions)}`', ephemeral=True)
+            return
         else:
             try:
                 try:
@@ -1021,7 +1025,7 @@ class Functions():
                 continue
             if str(data[i]['name']).lower() == addon.lower():
                 embed = discord.Embed(title=data[i]['name'],
-                                      description = await Functions.translate(interaction, str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('<i>','').replace('</i>','').replace('.', '. ')), color=0x0400ff)
+                                      description = await Functions.translate(interaction, str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('<i>','').replace('</i>','').replace('.', '. ').replace('&nbsp;', ' ').replace('&nbsp;', ' ')), color=0x0400ff)
                 embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}")
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name='Rarity', value=data[i]['rarity'], inline=True)
@@ -1079,7 +1083,7 @@ class Functions():
                 embed = discord.Embed(title = title,
                                       description = await Functions.translate(interaction, str(data[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
-                embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}")
+                embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
                 embed.add_field(name = 'Rarity', value = str(data[i]['rarity']))
                 embed.add_field(name = 'Is in Bloodweb', value = str(data[i]['bloodweb']))
@@ -1089,6 +1093,9 @@ class Functions():
                 if loadout == True:
                     return embed, data[i]['item_type']
                 await interaction.followup.send(embed = embed, ephemeral = True)
+                return
+        else:
+            await interaction.followup.send(await Functions.translate(interaction, f"The item {name} doesn't exist."), ephemeral = True)
 
 
     async def char_send(interaction, data, char, dlc_data, loadout: bool = False):
@@ -1135,6 +1142,9 @@ class Functions():
 
 
     async def get_item_type(item, data):
+        types = ['map', 'key', 'toolbox', 'medkit', 'flashlight', 'firecracker', 'rainbow_map']
+        if item in types:
+            return item
         for key, value in data.items():
             if value == 'item_info':
                 continue
@@ -1497,19 +1507,14 @@ class Info():
             data.pop('_id', None)
             data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
 
-            # Anzahl der Einträge in data (ignoriere _id)
             num_entries = sum(1 for key in data.keys() if key != '_id')
 
-            # Maximale Anzahl von Feldern pro Embed
             max_fields_per_embed = 25
 
-            # Anzahl der Embeds
             num_embeds = math.ceil(num_entries / max_fields_per_embed)
 
-            # Beschreibungstext der Embeds
             embed_description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage."))
 
-            # Erstelle Embeds
             embeds = []
             for i in range(num_embeds):
                 start_index = i * max_fields_per_embed
@@ -1855,17 +1860,19 @@ class Random():
         if perks == 1:
             await interaction.followup.send("Error while loading the perk data.")
             return
-        keys = set(perks.keys())
-        selected_keys = set()
+        keys = list(perks.keys())
+        if '_id' in keys:
+            keys.remove('_id')
+        role_keys = [key for key in keys if perks[key]['role'] == role]
+        random.shuffle(role_keys)
         embeds = []
-        while len(embeds) < amount and keys - selected_keys:
-            key = random.choice(list(keys - selected_keys))
+        for key in role_keys:
+            if len(embeds) >= amount:
+                break
             entry = perks[key]
-            if entry['role'] == role:
-                print(entry['name'])
-                embed = await Functions.perk_send(perks, entry['name'], interaction, False, True)
-                embeds.append(embed)
-            selected_keys.add(key)
+            print(entry['name'])
+            embed = await Functions.perk_send(perks, entry['name'], interaction, False, True)
+            embeds.append(embed)
         if not embeds:
             await interaction.followup.send(f"No perks found for {role}.", ephemeral=True)
             return
@@ -1883,18 +1890,19 @@ class Random():
             return
         else:
             keys = list(offerings.keys())
-            while True:
-                key = random.choice(keys)
-                entry = offerings[key]
-                if entry['retired'] == 1:
-                    continue
-                if entry['role'] == role or entry['role'] is None:
-                    if loadout:
-                        return await Functions.offering_send(interaction, offerings, entry['name'], True)
-                    await Functions.offering_send(interaction, offerings, entry['name'])
-                    return
-                else:
-                    continue
+            if '_id' in keys:
+                keys.remove('_id')
+            valid_keys = [key for key in keys if offerings[key]['retired'] != 1 and (offerings[key]['role'] == role or offerings[key]['role'] is None)]
+            random.shuffle(valid_keys)
+            if not valid_keys:
+                await interaction.followup.send(f"No offerings found for {role}.", ephemeral=True)
+                return
+            key = valid_keys[0]
+            entry = offerings[key]
+            if loadout:
+                return await Functions.offering_send(interaction, offerings, entry['name'], True)
+            await Functions.offering_send(interaction, offerings, entry['name'])
+            return
 
 
     async def item(interaction: discord.Interaction, loadout: bool = False):
@@ -1905,16 +1913,20 @@ class Random():
             await interaction.followup.send("Error while loading the item data.")
             return
         keys = list(items.keys())
-        while True:
-            key = random.choice(keys)
-            entry = items[key]
-            if entry['bloodweb'] == 0:
-                continue
-            if loadout:
-                temp = await Functions.item_send(interaction, items, entry['name'], True)
-                return temp[0], temp[1]
-            await Functions.item_send(interaction, items, entry['name'])
+        if '_id' in keys:
+            keys.remove('_id')
+        valid_keys = [key for key in keys if items[key]['bloodweb'] != 0]
+        random.shuffle(valid_keys)
+        if not valid_keys:
+            await interaction.followup.send("No items found.", ephemeral=True)
             return
+        key = valid_keys[0]
+        entry = items[key]
+        if loadout:
+            temp = await Functions.item_send(interaction, items, entry['name'], True)
+            return temp[0], temp[1]
+        await Functions.item_send(interaction, items, entry['name'])
+        return
 
 
     async def char(interaction: discord.Interaction, role, loadout: bool = False):
@@ -1930,56 +1942,61 @@ class Random():
             return
         else:
             keys = list(chars.keys())
-            while True:
-                key = random.choice(keys)
-                entry = chars[key]
-                if entry['role'] == role:
-                    if loadout == True:
-                        return await Functions.char_send(interaction, chars, entry['name'], dlc_data, True), entry['id'], entry['role']
-                    await Functions.char_send(interaction, chars, entry['name'], dlc_data)
-                    return
-                else:
-                    continue
+            if '_id' in keys:
+                keys.remove('_id')
+            valid_keys = [key for key in keys if chars[key]['role'] == role]
+            random.shuffle(valid_keys)
+            if not valid_keys:
+                await interaction.followup.send(f"No characters found for {role}.", ephemeral=True)
+                return
+            key = valid_keys[0]
+            entry = chars[key]
+            if loadout:
+                return await Functions.char_send(interaction, chars, entry['name'], dlc_data, True), entry['id'], entry['role']
+            await Functions.char_send(interaction, chars, entry['name'], dlc_data)
+            return
 
 
     async def addon(interaction: discord.Interaction, parent, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        item = await Functions.item_load()
-        if item == 1:
-            await interaction.followup.send("Error while loading the item data.", ephemeral = True)
+    
+        try:
+            item = await Functions.item_load()
+            addons = await Functions.addon_load()
+        except Exception as e:
+            await interaction.followup.send(f"Error while loading the data: {str(e)}", ephemeral = True)
             return
-        addons = await Functions.addon_load()
-        if addons == 1:
-            await interaction.followup.send("Error while loading the addon data.", ephemeral = True)
+    
+        parent_type = await Functions.get_item_type(parent, item)
+        if parent_type is None and not loadout:
+            await interaction.followup.send(f"There is no addon for an item named **{parent}**.", ephemeral = True)
             return
-        else:
-            parent_type = await Functions.get_item_type(parent, item)
-            if parent_type == 1:
-                await interaction.followup.send(f"There is no addon named **{parent}**.", ephemeral = True)
-                return
-            keys = list(addons.keys())
-            selected_keys = set()
-            embeds = []
-            i = 0
-            while i < 2:
-                key = random.choice(keys)
-                entry = addons[key]
-                if entry == 'addon_info':
-                    continue
-                elif entry['item_type'] is None or entry == 'addon_info':
-                    continue
-                elif entry['item_type'] == parent_type and key not in selected_keys:
-                    embed = await Functions.addon_send(addons, entry['name'], interaction, True)
-                    embeds.append(embed)
-                    i += 1
-                    selected_keys.add(key)
-                else:
-                    continue
-            if loadout:
-                return embeds
-            await interaction.followup.send(embeds=embeds, ephemeral = True)
-            return
+    
+        keys = list(addons.keys())
+        random.shuffle(keys)
+        selected_keys = []
+        embeds = []
+    
+        for key in keys:
+            if len(selected_keys) >= 2:
+                break
+            if key == '_id':
+                continue
+            entry = addons[key]
+            if entry == 'addon_info':
+                continue
+            if entry['item_type'] is None or entry['item_type'] != parent_type:
+                continue
+    
+            embed = await Functions.addon_send(addons, entry['name'], interaction, True)
+            embeds.append(embed)
+            selected_keys.append(key)
+    
+        if loadout:
+            return embeds
+        await interaction.followup.send(embeds=embeds, ephemeral = True)
+        return
 
 
     async def adfk(interaction: discord.Interaction, killer, loadout: bool = False):
@@ -1998,21 +2015,19 @@ class Random():
             await interaction.followup.send(f"There is no killer named **{killer}**.", ephemeral = True)
             return
         keys = list(addons.keys())
-        selected_keys = set()
+        if '_id' in keys:
+            keys.remove('_id')
+        valid_keys = [key for key in keys if killer_item in addons[key]['parents']]
+        random.shuffle(valid_keys)
+        if len(valid_keys) < 2:
+            await interaction.followup.send(f"Not enough addons found for {killer_item}.", ephemeral=True)
+            return
         embeds = []
-        i = 0
-        while i < 2:
-            key = random.choice(keys)
+        for i in range(2):
+            key = valid_keys[i]
             entry = addons[key]
-            if entry == 'addon_info':
-                continue
-            if killer_item in entry['parents'] and key not in selected_keys:
-                embed = await Functions.addon_send(addons, entry['name'], interaction, True)
-                embeds.append(embed)
-                i += 1
-                selected_keys.add(key)
-            else:
-                continue
+            embed = await Functions.addon_send(addons, entry['name'], interaction, True)
+            embeds.append(embed)
         if loadout:
             return embeds
         await interaction.followup.send(embeds=embeds, ephemeral = True)
@@ -2033,12 +2048,14 @@ class Random():
             item = await Random.item(interaction, True)
             embeds.append(item[0])
             addon = await Random.addon(interaction, item[1], True)
-            embeds.extend(addon)
+            if addon is not None:
+                embeds.extend(addon)
         elif char[2] == 'killer':
             killer_item = await Functions.find_killer_item(char[1], chars)
             killer = await Functions.find_killer_by_item(killer_item, chars)
             addon = await Random.adfk(interaction, killer, True)
-            embeds.extend(addon)
+            if addon is not None:
+                embeds.extend(addon)
 
         perks = await Random.perk(interaction, 4, char[2], True)
         embeds.extend(perks)
@@ -2307,7 +2324,7 @@ async def self(interaction: discord.Interaction):
 
 #Info about Stuff
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
-@discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
+@discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.')
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
