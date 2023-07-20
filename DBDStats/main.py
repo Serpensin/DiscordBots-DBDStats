@@ -110,6 +110,7 @@ db_pass = os.getenv('MongoDB_password')
 db_name = os.getenv('MongoDB_database')
 db_collection = os.getenv('MongoDB_collection')
 topgg_token = os.getenv('TOPGG_TOKEN')
+discordbots_token = os.getenv('DISCORDBOTS_TOKEN')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -430,6 +431,8 @@ class aclient(discord.AutoShardedClient):
         if topgg_token:
             bot.topggpy = topgg.DBLClient(bot, topgg_token)
             bot.loop.create_task(Functions.update_topgg())
+        if discordbots_token:
+            bot.loop.create_task(Functions.update_discordbots())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -1196,6 +1199,22 @@ class Functions():
     async def update_topgg():
         while not shutdown:
             await bot.topggpy.post_guild_count()
+            try:
+                await asyncio.sleep(60*30)
+            except asyncio.CancelledError:
+                pass
+
+
+    async def update_discordbots():
+        headers = {
+            'Authorization': discordbots_token,
+            'Content-Type': 'application/json'
+        }
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://discord.bots.gg/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guildCount': len(bot.guilds), 'shardCount': len(bot.shards)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update discordbots.gg: {resp.status} {resp.reason}')
             try:
                 await asyncio.sleep(60*30)
             except asyncio.CancelledError:
