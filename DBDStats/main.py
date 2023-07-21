@@ -429,11 +429,11 @@ class aclient(discord.AutoShardedClient):
         #Start background tasks
         bot.loop.create_task(update_cache.task())
         if topgg_token:
-            bot.loop.create_task(Functions.update_topgg())
+            bot.loop.create_task(update_stats.topgg())
         if discordbots_token:
-            bot.loop.create_task(Functions.update_discordbots())
+            bot.loop.create_task(update_stats.discordbots())
         if discordbotlist_token:
-            bot.loop.create_task(Functions.update_discordbotlist())
+            bot.loop.create_task(update_stats.discordbotlist())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -719,6 +719,57 @@ class update_cache():
             await update_cache.__start_cache_update()
             try:
                 await asyncio.sleep(60*60*4)
+            except asyncio.CancelledError:
+                pass
+
+
+
+#Update botstats on websites
+class update_stats():
+    async def topgg():
+        headers = {
+            'Authorization': topgg_token,
+            'Content-Type': 'application/json'
+        }
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://top.gg/api/bots/{bot.user.id}/stats', headers=headers, json={'server_count': len(bot.guilds), 'shard_count': len(bot.shards)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update top.gg: {resp.status} {resp.reason}')
+            try:
+                await asyncio.sleep(60*30)
+            except asyncio.CancelledError:
+                pass
+
+
+    async def discordbots():
+        headers = {
+            'Authorization': discordbots_token,
+            'Content-Type': 'application/json'
+        }
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://discord.bots.gg/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guildCount': len(bot.guilds), 'shardCount': len(bot.shards)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update discordbots.gg: {resp.status} {resp.reason}')
+            try:
+                await asyncio.sleep(60*30)
+            except asyncio.CancelledError:
+                pass
+
+
+    async def discordbotlist():
+        headers = {
+            'Authorization': discordbotlist_token,
+            'Content-Type': 'application/json'
+        }
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://discordbotlist.com/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guilds': len(bot.guilds), 'users': sum(guild.member_count for guild in bot.guilds)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update discordbotlist.com: {resp.status} {resp.reason}')
+            try:
+                await asyncio.sleep(60*30)
             except asyncio.CancelledError:
                 pass
 
@@ -1195,54 +1246,6 @@ class Functions():
         else:
             data = json.loads(json.dumps(collection.find_one({'_id': 'version_info'})))
         return data
-
-
-    async def update_topgg():
-        headers = {
-            'Authorization': topgg_token,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://top.gg/api/bots/{bot.user.id}/stats', headers=headers, json={'server_count': len(bot.guilds), 'shard_count': len(bot.shards)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update top.gg: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-
-    async def update_discordbots():
-        headers = {
-            'Authorization': discordbots_token,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://discord.bots.gg/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guildCount': len(bot.guilds), 'shardCount': len(bot.shards)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discordbots.gg: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-
-    async def update_discordbotlist():
-        headers = {
-            'Authorization': discordbotlist_token,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://discordbotlist.com/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guilds': len(bot.guilds), 'users': sum(guild.member_count for guild in bot.guilds)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discordbotlist.com: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
 
 
 
@@ -2003,24 +2006,24 @@ class Random():
     async def addon(interaction: discord.Interaction, parent, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-    
+
         try:
             item = await Functions.item_load()
             addons = await Functions.addon_load()
         except Exception as e:
             await interaction.followup.send(f"Error while loading the data: {str(e)}", ephemeral = True)
             return
-    
+
         parent_type = await Functions.get_item_type(parent, item)
         if parent_type is None and not loadout:
             await interaction.followup.send(f"There is no addon for an item named **{parent}**.", ephemeral = True)
             return
-    
+
         keys = list(addons.keys())
         random.shuffle(keys)
         selected_keys = []
         embeds = []
-    
+
         for key in keys:
             if len(selected_keys) >= 2:
                 break
@@ -2031,11 +2034,11 @@ class Random():
                 continue
             if entry['item_type'] is None or entry['item_type'] != parent_type:
                 continue
-    
+
             embed = await Functions.addon_send(addons, entry['name'], interaction, True)
             embeds.append(embed)
             selected_keys.append(key)
-    
+
         if loadout:
             return embeds
         await interaction.followup.send(embeds=embeds, ephemeral = True)
