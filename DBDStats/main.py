@@ -111,6 +111,7 @@ db_collection = os.getenv('MongoDB_collection')
 topgg_token = os.getenv('TOPGG_TOKEN')
 discordbots_token = os.getenv('DISCORDBOTS_TOKEN')
 discordbotlist_token = os.getenv('DISCORDBOTLIST_TOKEN')
+discordlist_token = os.getenv('DISCORDLIST_TOKEN')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -434,6 +435,8 @@ class aclient(discord.AutoShardedClient):
             bot.loop.create_task(update_stats.discordbots())
         if discordbotlist_token:
             bot.loop.create_task(update_stats.discordbotlist())
+        if discordlist_token:
+            bot.loop.create_task(update_stats.discordlist())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -766,6 +769,22 @@ class update_stats():
         while not shutdown:
             async with aiohttp.ClientSession() as session:
                 async with session.post(f'https://discordbotlist.com/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guilds': len(bot.guilds), 'users': sum(guild.member_count for guild in bot.guilds)}) as resp:
+                    if resp.status != 200:
+                        manlogger.error(f'Failed to update discordbotlist.com: {resp.status} {resp.reason}')
+            try:
+                await asyncio.sleep(60*30)
+            except asyncio.CancelledError:
+                pass
+
+
+    async def discordlist():
+        headers = {
+            'Authorization': f'Bearer {discordlist_token}',
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'https://api.discordlist.gg/v0/bots/1030163127926542400/guilds', headers=headers, json={"count": len(bot.guilds)}) as resp:
                     if resp.status != 200:
                         manlogger.error(f'Failed to update discordbotlist.com: {resp.status} {resp.reason}')
             try:
@@ -2310,7 +2329,7 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Sentry", value=f"{sentry_sdk.consts.VERSION}", inline=True)
 
     embed.add_field(name="Repo", value=f"[GitLab](https://gitlab.bloodygang.com/Serpensin/DBDStats)", inline=True)
-    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot)", inline=True)
+    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot)", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
     await interaction.response.send_message(embed=embed)
