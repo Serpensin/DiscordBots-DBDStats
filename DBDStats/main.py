@@ -40,7 +40,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.2.11"
+bot_version = "1.3.0"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -113,6 +113,7 @@ discordbots_token = os.getenv('DISCORDBOTS_TOKEN')
 discordbotlistcom_token = os.getenv('DISCORDBOTLIST_TOKEN')
 discordlist_token = os.getenv('DISCORDLIST_TOKEN')
 discords_token = os.getenv('DISCORDS_TOKEN')
+heartbeat_url = os.getenv('HEARTBEAT_URL')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -440,6 +441,8 @@ class aclient(discord.AutoShardedClient):
             bot.loop.create_task(update_stats.discordlist())
         if discords_token:
             bot.loop.create_task(update_stats.discords())
+        if heartbeat_url:
+            bot.loop.create_task(Functions.heartbeat())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -815,6 +818,18 @@ class update_stats():
 
 #Functions
 class Functions():
+    async def heartbeat():
+        while not shutdown:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(heartbeat_url) as r:
+                    if r.status != 200:
+                        manlogger.error(f'Heartbeat failed with status {r.status}')
+            try:
+                await asyncio.sleep(20)
+            except asyncio.CancelledError:
+                pass
+
+
     async def steam_link_to_id(vanity):
         vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
         vanity = vanity.replace('https://steamcommunity.com/id/', '')
