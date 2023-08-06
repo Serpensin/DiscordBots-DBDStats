@@ -2450,38 +2450,45 @@ offering_names = ['Bot is starting...',]
 perk_names = ['Bot is starting...',]
 
 
-async def autocomplete_addons(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Addons')
+async def autocomplete_addons(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in addon_names[:25]]
     matching_names = [name for name in addon_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_character(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Chars')
+async def autocomplete_character(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in char_names[:25]]
     matching_names = [name for name in char_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_dlcs(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_DLCs')
+async def autocomplete_dlcs(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in dlc_names[:25]]
     matching_names = [name for name in dlc_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_items(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Items')
+async def autocomplete_items(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in item_names[:25]]
     matching_names = [name for name in item_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_maps(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Maps')
+async def autocomplete_maps(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in map_names[:25]]
     matching_names = [name for name in map_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_offerings(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Offerings')
+async def autocomplete_offerings(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in offering_names[:25]]
     matching_names = [name for name in offering_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-async def autocomplete_perks(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    print('AutoComplete_Perks')
+async def autocomplete_perks(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in perk_names[:25]]
     matching_names = [name for name in perk_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
@@ -2490,20 +2497,20 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str) -> 
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.',
                                addon = 'Only used if "Addons" is selected. Start writing to search...',
-                               character = 'Only used if "Characters" is selected. Start writing to search...'
-                               #DLCs = 'Only used if "DLCs" is selected. Start writing to search...',
-                               #Items = 'Only used if "Items" is selected. Start writing to search...',
-                               #Maps = 'Only used if "Maps" is selected. Start writing to search...',
-                               #Offerings = 'Only used if "Offerings" is selected. Start writing to search...',
-                               #Perks = 'Only used if "Perks" is selected. Start writing to search...'
+                               character = 'Only used if "Characters" is selected. Start writing to search...',
+                               dlc = 'Only used if "DLCs" is selected. Leave empty to get an overview. Start writing to search...',
+                               item = 'Only used if "Items" is selected. Start writing to search...',
+                               map = 'Only used if "Maps" is selected. Start writing to search...',
+                               offering = 'Only used if "Offerings" is selected. Start writing to search...',
+                               perk = 'Only used if "Perks" is selected. Start writing to search...'
                                )
 @discord.app_commands.autocomplete(addon=autocomplete_addons,
-                                   character=autocomplete_character
-                                   #DLCs=AutoComplete.dlcs,
-                                   #Items=AutoComplete.items,
-                                   #Maps=AutoComplete.maps,
-                                   #Offerings=AutoComplete.offerings,
-                                   #Perks=AutoComplete.perks
+                                   character=autocomplete_character,
+                                   dlc=autocomplete_dlcs,
+                                   item=autocomplete_items,
+                                   map=autocomplete_maps,
+                                   offering=autocomplete_offerings,
+                                   perk=autocomplete_perks
                                    )
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
@@ -2527,12 +2534,12 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str) -> 
 async def self(interaction: discord.Interaction,
                category: str,
                addon: str = None,
-               character: str = None
-               #DLCs: str = None,
-               #Items: str = None,
-               #Maps: str = None,
-               #Offerings: str = None,
-               #Perks: str = None
+               character: str = None,
+               dlc: str = None,
+               item: str = None,
+               map: str = None,
+               offering: str = None,
+               perk: str = None
                ):
     if interaction.guild is None:
         interaction.followup.send("This command can only be used in a server.")
@@ -2553,47 +2560,34 @@ async def self(interaction: discord.Interaction,
         await interaction.response.send_modal(Input())
 
     elif category == 'dlc':
-        class Input(discord.ui.Modal, title = 'Enter DLC. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'DLC you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.dlc(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        await Info.dlc(interaction, name = dlc)
 
     elif category == 'event':
         await Info.event(interaction)
 
     elif category == 'item':
-        class Input(discord.ui.Modal, title = 'Enter Item. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Item you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.item(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        if item is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an item."))
+        else:
+            await Info.item(interaction, name = item)
 
     elif category == 'map':
-        class Input(discord.ui.Modal, title = 'Enter Map. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Map you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.maps(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        if map is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a map."))
+        else:
+            await Info.maps(interaction, name = mapp)
 
     elif category == 'offering':
-        class Input(discord.ui.Modal, title = 'Enter Offering. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Offering you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.offering(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        if offering is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an offering."))
+        else:
+            await Info.offering(interaction, name = offering)
 
     elif category == 'perk':
-        class Input(discord.ui.Modal, title = 'Enter Perk. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Perk you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.perk(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        if perk is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a perk."))
+        else:
+            await Info.perk(interaction, name = perk)
 
     elif category == 'killswitch':
         await Info.killswitch(interaction)
