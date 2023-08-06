@@ -17,6 +17,7 @@ ARG COMMIT
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev rust cargo && \
     python -m pip install --upgrade pip && \
     pip install --upgrade setuptools && \
+    pip install psutil && \
     pip install -r requirements.txt && \
     apk del .build-deps && \
     find /usr/local \
