@@ -27,14 +27,15 @@ from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
+from typing import List
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
 
 #Set vars
 app_folder_name = 'DBDStats'
-api_base = 'https://dbd.tricky.lol/api/' # For production
-#api_base = 'http://localhost:5000/' # For testing
+#api_base = 'https://dbd.tricky.lol/api/' # For production
+api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
@@ -66,9 +67,6 @@ if not os.path.exists(f'{app_folder_name}//Logs'):
     os.makedirs(f'{app_folder_name}//Logs')
 if not os.path.exists(f'{app_folder_name}//Buffer//Stats'):
     os.makedirs(f'{app_folder_name}//Buffer//Stats')
-if not os.path.exists(f'{app_folder_name}//Buffer//Patchnotes'):
-    os.makedirs(f'{app_folder_name}//Buffer//Patchnotes')
-patchnotes_folder = f'{app_folder_name}//Buffer//Patchnotes//'
 log_folder = f'{app_folder_name}//Logs//'
 buffer_folder = f'{app_folder_name}//Buffer//'
 stats_folder = os.path.abspath(f'{app_folder_name}//Buffer//Stats//')
@@ -699,6 +697,30 @@ class update_cache():
                 os.remove(filename)
 
 
+    async def __char_names():
+        global char_names
+
+        data = await Functions.char_load()
+        
+        new_names = []
+
+        for key in data.keys():
+            if str(key) == '_id':
+                continue
+            new_names.append(data[key]['name'])
+
+        char_names = new_names
+
+        print(new_names)
+        print(len(new_names))
+            
+
+
+
+
+
+
+
     async def __start_cache_update():
         print('Updating cache...')
         manlogger.info('Updating cache...')
@@ -713,7 +735,8 @@ class update_cache():
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
                    update_cache.__update_version(),
-                   update_cache.__clear_playerstats()]
+                   update_cache.__clear_playerstats(),
+                   update_cache.__char_names()]
 
         for update in updates:
             await update
@@ -1928,25 +1951,18 @@ class Info():
         await interaction.followup.send(embeds=embeds)
 
 
-    async def patch(interaction: discord.Interaction, version: str):
-        version_clean = version.replace('.', '')
-        if os.path.isfile(f'{patchnotes_folder}{version_clean}.md'):
-            await interaction.response.send_message(file = discord.File(f'{patchnotes_folder}{version_clean}.md'))
-            return
-
-        await interaction.response.defer(thinking=True)
-        try:
-            data = await patchnotes.get_update_content(version, return_type = 'md')
-        except ValueError as e:
-            await interaction.followup.send(str(e), ephemeral = True)
-            return
-        if data is None:
-            await interaction.followup.send(f"Version {version} doesn't exist.", ephemeral = True)
-            return
+    async def patch(interaction: discord.Interaction):
+        # If the patchnotes are older than 2 hours, update them
+        if os.path.isfile(f'{buffer_folder}patchnotes.md') and time.time() - os.path.getmtime(f'{buffer_folder}patchnotes.md') < 7200:
+            await interaction.response.send_message(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
         else:
-            with open(f'{patchnotes_folder}{version_clean}.md', 'w', encoding='utf-8') as f:
+            await interaction.response.defer(thinking=True)
+
+            data = await patchnotes.get_update_content(return_type = 'md')
+
+            with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf-8') as f:
                 f.write(data)
-            await interaction.followup.send(file = discord.File(f'{patchnotes_folder}{version_clean}.md'))
+            await interaction.followup.send(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
 
 
 
@@ -2421,10 +2437,25 @@ async def self(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
 
 
+
+async def character_autocomplete(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    matching_names = [name for name in char_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+
 #Info about Stuff
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
-@discord.app_commands.describe(category = 'The category you want to get informations about.')
+@discord.app_commands.describe(category = 'The category you want to get informations about.'
+                               #Addons = 'Only used if "Addons" is selected. Start writing to search...',
+                               #Characters = 'Only used if "Characters" is selected. Start writing to search...',
+                               #DLCs = 'Only used if "DLCs" is selected. Start writing to search...',
+                               #Items = 'Only used if "Items" is selected. Start writing to search...',
+                               #Maps = 'Only used if "Maps" is selected. Start writing to search...',
+                               #Offerings = 'Only used if "Offerings" is selected. Start writing to search...',
+                               #Patchnotes = 'Only used if "Patchnotes" is selected. Start writing to search...',
+                               #Perks = 'Only used if "Perks" is selected. Start writing to search...'
+                               )
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
     discord.app_commands.Choice(name = 'Characters', value = 'char'),
@@ -2543,12 +2574,7 @@ async def self(interaction: discord.Interaction, category: str):
         await Info.twitch_info(interaction)
 
     elif category == 'patch':
-        class Input(discord.ui.Modal, title = 'Enter Patch. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Patch you want infos about.', placeholder = '5.0.0 or 500', style = discord.TextStyle.short, min_length = 3, max_length = 6, required = True)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.patch(interaction, version = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        await Info.patch(interaction)
 
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)
@@ -2669,6 +2695,31 @@ async def randomize(interaction: discord.Interaction, category: str):
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async def character_autocomplete(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    matching_names = [name for name in char_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+
+
+
+@tree.command()
+@discord.app_commands.autocomplete(character=character_autocomplete)
+async def characters(interaction: discord.Interaction, character: str):
+    await interaction.response.send_message(f'You have selected {character}')
 
 
 
