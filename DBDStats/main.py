@@ -10,6 +10,7 @@ import logging.handlers
 import math
 import os
 import platform
+import psutil
 import pycountry
 import pymongo
 import pymongo.errors as mongoerr
@@ -2371,6 +2372,17 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Repo", value=f"[GitLab](https://gitlab.bloodygang.com/Serpensin/DBDStats)", inline=True)
     embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot)", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    if interaction.user.id == int(ownerID):
+        # Add CPU and RAM usage
+        process = psutil.Process(os.getpid())
+        cpu_usage = process.cpu_percent()
+        ram_usage = round(process.memory_percent(), 2)
+        ram_real = round(process.memory_info().rss / (1024 ** 2), 2)
+
+        embed.add_field(name="CPU", value=f"{cpu_usage}%", inline=True)
+        embed.add_field(name="RAM", value=f"{ram_usage}%", inline=True)
+        embed.add_field(name="RAM", value=f"{ram_real} MB", inline=True)
 
     await interaction.response.send_message(embed=embed)
 
