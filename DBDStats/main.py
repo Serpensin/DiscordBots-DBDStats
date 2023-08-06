@@ -1233,7 +1233,7 @@ class Functions():
         for key in data.keys():
             if str(key) == '_id':
                 continue
-            if str(data[key]['id']).lower().replace('the ', '') == char.lower().replace('the ', '') or str(data[key]['name']).lower().replace('the ', '') == char.lower().replace('the ', ''):
+            if str(data[key]['name']) == char:
                 embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=str(data[key]['name']), color=0xb19325)
                 embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
                 embed.add_field(name=await Functions.translate(interaction, "Role"), value=str(data[key]['role']).capitalize(), inline=True)
@@ -1613,9 +1613,6 @@ class Info():
         dlc_data = await Functions.dlc_load()
         if dlc_data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
-            return
-        if char == '':
-            await interaction.followup.send(content=await Functions.translate(interaction, "Here are the characters:"), file = discord.File(buffer_folder+'characters.txt'))
             return
         else:
             await Functions.char_send(interaction, data, char, dlc_data)
@@ -2181,6 +2178,12 @@ class Random():
 
 
 
+
+
+
+
+
+
 ##Owner Commands
 class Owner():
     async def log(message, args):
@@ -2438,24 +2441,71 @@ async def self(interaction: discord.Interaction):
 
 
 
-async def character_autocomplete(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+#Info about Stuff
+addon_names = ['Bot is starting...',]
+char_names = ['Bot is starting...',]
+dlc_names = ['Bot is starting...',]
+item_names = ['Bot is starting...',]
+map_names = ['Bot is starting...',]
+offering_names = ['Bot is starting...',]
+perk_names = ['Bot is starting...',]
+
+
+async def autocomplete_addons(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Addons')
+    matching_names = [name for name in addon_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+async def autocomplete_character(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Chars')
     matching_names = [name for name in char_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
+async def autocomplete_dlcs(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_DLCs')
+    matching_names = [name for name in dlc_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-#Info about Stuff
+async def autocomplete_items(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Items')
+    matching_names = [name for name in item_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+async def autocomplete_maps(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Maps')
+    matching_names = [name for name in map_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+async def autocomplete_offerings(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Offerings')
+    matching_names = [name for name in offering_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+async def autocomplete_perks(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+    print('AutoComplete_Perks')
+    matching_names = [name for name in perk_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
-@discord.app_commands.describe(category = 'The category you want to get informations about.'
+@discord.app_commands.describe(category = 'The category you want to get informations about.',
                                #Addons = 'Only used if "Addons" is selected. Start writing to search...',
-                               #Characters = 'Only used if "Characters" is selected. Start writing to search...',
+                               characters = 'Only used if "Characters" is selected. Start writing to search...'
                                #DLCs = 'Only used if "DLCs" is selected. Start writing to search...',
                                #Items = 'Only used if "Items" is selected. Start writing to search...',
                                #Maps = 'Only used if "Maps" is selected. Start writing to search...',
                                #Offerings = 'Only used if "Offerings" is selected. Start writing to search...',
-                               #Patchnotes = 'Only used if "Patchnotes" is selected. Start writing to search...',
                                #Perks = 'Only used if "Perks" is selected. Start writing to search...'
                                )
+@discord.app_commands.autocomplete(#Addons=AutoComplete.addons,
+                                   characters=autocomplete_character
+                                   #DLCs=AutoComplete.dlcs,
+                                   #Items=AutoComplete.items,
+                                   #Maps=AutoComplete.maps,
+                                   #Offerings=AutoComplete.offerings,
+                                   #Perks=AutoComplete.perks
+                                   )
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
     discord.app_commands.Choice(name = 'Characters', value = 'char'),
@@ -2475,18 +2525,25 @@ async def character_autocomplete(interaction: discord.Interaction, current: str)
     discord.app_commands.Choice(name = 'Twitch', value = 'twitch'),
     discord.app_commands.Choice(name = 'Versions', value = 'version')
     ])
-async def self(interaction: discord.Interaction, category: str):
+async def self(interaction: discord.Interaction,
+               category: str,
+               #Addons: str = None,
+               characters: str = None
+               #DLCs: str = None,
+               #Items: str = None,
+               #Maps: str = None,
+               #Offerings: str = None,
+               #Perks: str = None
+               ):
     if interaction.guild is None:
         interaction.followup.send("This command can only be used in a server.")
         return
 
     if category == 'char':
-        class Input(discord.ui.Modal, title = 'Get info about a char. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Enter ID or Name. Leave emnpty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.character(interaction, char = self.answer.value.lower().replace('the', '').strip())
-        await interaction.response.send_modal(Input())
+        if characters is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a character."))
+        else:
+            await Info.character(interaction, char = characters)
 
     elif category == 'stats':
         class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
@@ -2709,17 +2766,7 @@ async def randomize(interaction: discord.Interaction, category: str):
 
 
 
-async def character_autocomplete(interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
-    matching_names = [name for name in char_names if current.lower() in name.lower()]
-    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
-
-
-
-@tree.command()
-@discord.app_commands.autocomplete(character=character_autocomplete)
-async def characters(interaction: discord.Interaction, character: str):
-    await interaction.response.send_message(f'You have selected {character}')
 
 
 
