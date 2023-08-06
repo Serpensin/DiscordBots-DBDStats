@@ -698,41 +698,20 @@ class update_cache():
 
 
     async def __name_lists():
-        global addon_names, char_names, dlc_names, item_names, map_names, offering_names, perk_names
-
-        data = await Functions.addon_load()
-
-        new_names = []
-
-        for key in data.keys():
-            if str(key) == '_id':
-                continue
-            new_names.append(data[key]['name'])
-
-        addon_names = new_names
-
-        print(addon_names)
-
-
-        data = await Functions.char_load()
-        
-        new_names = []
-
-        for key in data.keys():
-            if str(key) == '_id':
-                continue
-            new_names.append(data[key]['name'])
-
-        char_names = new_names
-
-        print(char_names)
-        
-         
-
-
-
-
-
+        async def load_and_set_names(loader_func, target_var_name):
+            data = await loader_func()
+            new_names = [data[key]['name'] for key in data.keys() if str(key) != '_id']
+            globals()[target_var_name] = new_names
+            print(f'\n{new_names}')
+    
+        await load_and_set_names(Functions.addon_load, 'addon_names')
+        await load_and_set_names(Functions.char_load, 'char_names')
+        await load_and_set_names(Functions.dlc_load, 'dlc_names')
+        await load_and_set_names(Functions.item_load, 'item_names')
+        await load_and_set_names(Functions.map_load, 'map_names')
+        await load_and_set_names(Functions.offering_load, 'offering_names')
+        await load_and_set_names(Functions.perk_load, 'perk_names')
+      
 
 
     async def __start_cache_update():
