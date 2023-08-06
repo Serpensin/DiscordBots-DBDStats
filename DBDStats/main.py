@@ -35,14 +35,14 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 app_folder_name = 'DBDStats'
-#api_base = 'https://dbd.tricky.lol/api/' # For production
-api_base = 'http://localhost:5000/' # For testing
+api_base = 'https://dbd.tricky.lol/api/' # For production
+#api_base = 'http://localhost:5000/' # For testing
 perks_base = 'https://dbd.tricky.lol/dbdassets/perks/'
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.3.1"
+bot_version = "1.4.0"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -2575,7 +2575,7 @@ async def self(interaction: discord.Interaction,
         if map is None:
             await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a map."))
         else:
-            await Info.maps(interaction, name = mapp)
+            await Info.maps(interaction, name = map)
 
     elif category == 'offering':
         if offering is None:
@@ -2742,19 +2742,6 @@ async def randomize(interaction: discord.Interaction, category: str):
 
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

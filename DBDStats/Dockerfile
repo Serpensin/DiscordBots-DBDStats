@@ -29,7 +29,7 @@ LABEL maintainer="Discord: the_devil_of_the_rhine (863687441809801246)" \
       commit=$COMMIT \
       description="Discord bot for DBD for Steam stats." \
       release=$BUILD_DATE \
-      VERSION="1.3.1" \
+      VERSION="1.4.0" \
       url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]
