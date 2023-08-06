@@ -17,6 +17,7 @@ ARG COMMIT
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev && \
     python -m pip install --upgrade pip && \
     pip install --upgrade setuptools wheel && \
+    pip install --no-binary :all: psutil && \
     pip install -r requirements.txt && \
     apk del .build-deps && \
     find /usr/local \
