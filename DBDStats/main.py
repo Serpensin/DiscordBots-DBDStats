@@ -697,8 +697,22 @@ class update_cache():
                 os.remove(filename)
 
 
-    async def __char_names():
-        global char_names
+    async def __name_lists():
+        global addon_names, char_names, dlc_names, item_names, map_names, offering_names, perk_names
+
+        data = await Functions.addon_load()
+
+        new_names = []
+
+        for key in data.keys():
+            if str(key) == '_id':
+                continue
+            new_names.append(data[key]['name'])
+
+        addon_names = new_names
+
+        print(addon_names)
+
 
         data = await Functions.char_load()
         
@@ -711,9 +725,9 @@ class update_cache():
 
         char_names = new_names
 
-        print(new_names)
-        print(len(new_names))
-            
+        print(char_names)
+        
+         
 
 
 
@@ -736,7 +750,7 @@ class update_cache():
                    update_cache.__update_event(),
                    update_cache.__update_version(),
                    update_cache.__clear_playerstats(),
-                   update_cache.__char_names()]
+                   update_cache.__name_lists()]
 
         for update in updates:
             await update
@@ -2178,12 +2192,6 @@ class Random():
 
 
 
-
-
-
-
-
-
 ##Owner Commands
 class Owner():
     async def log(message, args):
@@ -2490,16 +2498,16 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str) -> 
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.',
-                               #Addons = 'Only used if "Addons" is selected. Start writing to search...',
-                               characters = 'Only used if "Characters" is selected. Start writing to search...'
+                               addon = 'Only used if "Addons" is selected. Start writing to search...',
+                               character = 'Only used if "Characters" is selected. Start writing to search...'
                                #DLCs = 'Only used if "DLCs" is selected. Start writing to search...',
                                #Items = 'Only used if "Items" is selected. Start writing to search...',
                                #Maps = 'Only used if "Maps" is selected. Start writing to search...',
                                #Offerings = 'Only used if "Offerings" is selected. Start writing to search...',
                                #Perks = 'Only used if "Perks" is selected. Start writing to search...'
                                )
-@discord.app_commands.autocomplete(#Addons=AutoComplete.addons,
-                                   characters=autocomplete_character
+@discord.app_commands.autocomplete(addon=autocomplete_addons,
+                                   character=autocomplete_character
                                    #DLCs=AutoComplete.dlcs,
                                    #Items=AutoComplete.items,
                                    #Maps=AutoComplete.maps,
@@ -2527,8 +2535,8 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str) -> 
     ])
 async def self(interaction: discord.Interaction,
                category: str,
-               #Addons: str = None,
-               characters: str = None
+               addon: str = None,
+               character: str = None
                #DLCs: str = None,
                #Items: str = None,
                #Maps: str = None,
@@ -2540,10 +2548,10 @@ async def self(interaction: discord.Interaction,
         return
 
     if category == 'char':
-        if characters is None:
+        if character is None:
             await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a character."))
         else:
-            await Info.character(interaction, char = characters)
+            await Info.character(interaction, char = character)
 
     elif category == 'stats':
         class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
@@ -2620,12 +2628,10 @@ async def self(interaction: discord.Interaction,
         await interaction.response.send_modal(Input())
 
     elif category == 'addon':
-        class Input(discord.ui.Modal, title = 'Enter Addon. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Addon you want infos. Empty for list.', style = discord.TextStyle.short, required = False)
-            async def on_submit(self, interaction: discord.Interaction):
-                await Info.addon(interaction, name = self.answer.value.strip())
-        await interaction.response.send_modal(Input())
+        if addon is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an addon."))
+        else:
+            await Info.addon(interaction, name = addon)
 
     elif category == 'twitch':
         await Info.twitch_info(interaction)
