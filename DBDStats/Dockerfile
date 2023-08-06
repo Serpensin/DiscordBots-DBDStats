@@ -1,4 +1,4 @@
-﻿FROM python:3.9.17-alpine
+﻿FROM python:3.9.17
 
 WORKDIR /app
 
@@ -14,11 +14,9 @@ ARG TARGETPLATFORM
 ARG BUILD_DATE
 ARG COMMIT
 
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev glibc-dev python3-dev libc-dev rust cargo && \
-    python -m pip install --upgrade pip && \
+RUN python -m pip install --upgrade pip && \
     pip install --upgrade setuptools wheel && \
     pip install -r requirements.txt && \
-    apk del .build-deps && \
     find /usr/local \
     \( -type d -a -name test -o -name tests \) \
     -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
