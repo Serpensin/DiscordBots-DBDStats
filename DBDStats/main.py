@@ -2542,7 +2542,7 @@ async def self(interaction: discord.Interaction,
                perk: str = None
                ):
     if interaction.guild is None:
-        interaction.followup.send("This command can only be used in a server.")
+        await interaction.followup.send("This command can only be used in a server.")
         return
 
     if category == 'char':
