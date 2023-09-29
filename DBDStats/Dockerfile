@@ -1,4 +1,4 @@
-﻿FROM python:3.9.17-alpine
+﻿FROM python:3.9.18-alpine
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ ARG TARGETPLATFORM
 ARG BUILD_DATE
 ARG COMMIT
 
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo && \
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo curl && \
     python -m pip install --upgrade pip && \
     pip install --upgrade setuptools wheel && \
     pip install -r requirements.txt && \
@@ -25,11 +25,13 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev l
     -exec rm -rf '{}' + && \
     rm -rf /root/.cache/pip
 
+EXPOSE 5000
+
 LABEL maintainer="Discord: the_devil_of_the_rhine (863687441809801246)" \
       commit=$COMMIT \
       description="Discord bot for DBD for Steam stats." \
       release=$BUILD_DATE \
-      VERSION="1.4.1" \
+      VERSION="1.4.2" \
       url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]

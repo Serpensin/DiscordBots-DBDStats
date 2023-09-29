@@ -80,6 +80,8 @@ docker-compose -f docker-compose_without_MongoDB.yml up -d
    - Variables containing 'MongoDB' are for storing the bot's data. Remove them if you don't want to use MongoDB.
 
 #### Run the bot
+You only need to expose the port `-p 5000:5000`, if you want to use an external tool, to test, if the bot is running.
+You need to call the `/health` endpoint.
 ```bash
 docker run -d \
 -e steamAPIkey=STEAM_APIKEY \
@@ -98,6 +100,12 @@ docker run -d \
 -e MongoDB_collection=COLLECTION_OF_MONGODB \
 --name DBDStats \
 --restart any \
+--health-cmd="curl -f http://localhost:5000/health || exit 1" \
+--health-interval=30s \
+--health-timeout=10s \
+--health-retries=3 \
+--health-start-period=40s \
+-p 5000:5000 \
 -v dbdstats_log:/app/DBDStats/Logs \
 serpensin/dbdstats
 ```
