@@ -14,7 +14,7 @@ Commands, that only be used by the owner of the bot, can only be used in a DM wi
 
 ### Classic Method
 
-1. Ensure Python 3.9 is installed. This bot was developed using Python 3.9.7. Download it [here](https://www.python.org/downloads/).
+1. Ensure Python 3.9 is installed. This bot was developed using Python 3.9.13. Download it [here](https://www.python.org/downloads/).
 2. Clone this repository or download the zip file.
 3. Open a terminal in the "DBDStats" folder where you cloned the repository or extracted the zip file.
 4. Run `pip install -r requirements.txt` to install the dependencies.
