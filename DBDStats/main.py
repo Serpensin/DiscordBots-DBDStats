@@ -21,6 +21,7 @@ import socket
 import sys
 import time
 import traceback
+import zlib
 from aiohttp import web
 from bs4 import BeautifulSoup
 from CustomModules.libretrans import LibreTranslateAPI
@@ -234,7 +235,7 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
-db_available = False
+# db_available = False
 libretrans_url = libretransURL
 translator = LibreTranslateAPI(libretransAPIkey, libretrans_url)
 translate_available = False
@@ -1023,21 +1024,68 @@ class Functions():
 
 
     async def translate(interaction, text):
-        if not translate_available:
+        async def get_lang():
+            role_names = [role.name for role in interaction.user.roles]
+            for lang in languages:
+                if lang in role_names:
+                    dest_lang = await Functions.get_language_code(lang)
+                    return dest_lang
+            else:
+                return None       
+
+        hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
+        print(f'Translation Hash: {hashed}')
+        
+        dest_lang = await get_lang()
+        if dest_lang is None:
             return text
-        print(f'Translation Input:\n\n{text}')
-        role_names = [role.name for role in interaction.user.roles]
-        for lang in languages:
-            if lang in role_names:
-                dest_lang = await Functions.get_language_code(lang)
-                try:
-                    translation_response = await translator.translate(text, dest_lang)
-                    translation = translation_response['data']['translatedText']
-                    print(f'Translation Output:\n\n{translation}')
-                    return translation
-                except:
-                    return text
-        return text
+
+        if not db_available:
+            try:
+                with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                    data = json.load(f)
+            except:
+                data = {}
+        else:
+            data = json.loads(json.dumps(collection.find_one({'_id': 'translations'})))
+            if data is None:
+                data = {}
+        
+        if hashed in data.keys():
+            print(f'Hash {hashed} found in cache.')
+            if dest_lang in data[hashed].keys():
+                print(f'Language {dest_lang} found in cache.')
+                return data[hashed][dest_lang]
+            else:
+                print(f'Language {dest_lang} not found in cache.')
+                translation = await translator.translate(text, dest_lang)
+                data[hashed] = {dest_lang: translation['data']['translatedText']}
+                if db_available:
+                    collection.update_one(
+                        {'_id': 'translations'},
+                        {
+                            '$set': {
+                                f'{hashed}.{dest_lang}': translation['data']['translatedText']
+                            }
+                        }
+                    )
+                else:
+                    with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                        old_data = json.load(f)
+                    data = Functions.merge_dictionaries(old_data, data)
+                    with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+                        json.dump(data, f, indent=4)
+                return translation['data']['translatedText']
+        else:
+            print(f'Hash {hashed} not found in cache.')
+            translation = await translator.translate(text, dest_lang)
+            data[hashed] = {dest_lang: translation['data']['translatedText']}
+            if db_available:
+                collection.update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
+            else:
+                with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=4)
+            return translation['data']['translatedText']
 
 
     async def perk_load():
@@ -1326,6 +1374,18 @@ class Functions():
         else:
             data = json.loads(json.dumps(collection.find_one({'_id': 'version_info'})))
         return data
+    
+
+    def merge_dictionaries(json1, json2):
+        # Merging json2 into json1
+        for key, value in json2.items():
+            if key in json1:
+                # Merge dictionaries from both jsons for the same key
+                json1[key].update(value)
+            else:
+                # Add new key-value pair from json2 to json1
+                json1[key] = value
+        return json1
 
 
 
