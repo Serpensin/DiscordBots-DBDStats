@@ -32,7 +32,7 @@ from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
-from typing import List
+from typing import List, Literal
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
@@ -50,6 +50,7 @@ bot_version = "1.6.1"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
+api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl']
 
 
 ##Init
@@ -479,7 +480,7 @@ class update_cache():
             manlogger.warning("Perks couldn't be updated.")
             print("Perks couldn't be updated.")
             return 1
-        char = await Functions.char_load()
+        char = await Functions.data_load('chars')
         if char == 1:
             return 1
         if db_available:
@@ -556,16 +557,16 @@ class update_cache():
             print("Characters couldn't be updated.")
             return 1
         if db_available:
-            data['_id'] = 'character_info'
-            collection.update_one({'_id': 'character_info'}, {'$set': data}, upsert=True)
+            data['_id'] = 'char_info'
+            collection.update_one({'_id': 'char_info'}, {'$set': data}, upsert=True)
         else:
-            with open(f"{buffer_folder}character_info.json", 'w', encoding='utf8') as f:
+            with open(f"{buffer_folder}char_info.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
         tb.clear()
         tb.field_names = ['ID', 'Name', 'Role']
         with open(f"{buffer_folder}characters.txt", 'w', encoding='utf8') as f:
             for key in data:
-                if str(data[key]) == 'character_info':
+                if str(data[key]) == 'char_info':
                     continue
                 tb.add_row([data[key]['id'], data[key]['name'].replace('The ', ''), data[key]['role']])
             tb.sortby = 'Name'
@@ -611,7 +612,7 @@ class update_cache():
 
 
     async def __update_addon():
-        char = await Functions.char_load()
+        char = await Functions.data_load('chars')
         if char == 1:
             manlogger.warning("Addons couldn't be updated.")
             print("Addons couldn't be updated.")
@@ -628,12 +629,12 @@ class update_cache():
 
         tb.clear()
         tb.field_names = ['Name', 'Role', 'Origin']
-        with open(buffer_folder+'addons.txt', 'w', encoding='utf8') as f:
+        with open(f'{buffer_folder}addons.txt', 'w', encoding='utf8') as f:
             for key in data.keys():
                 if str(data[key]) == 'addon_info':
                     continue
                 for i in char.keys():
-                    if str(char[i]) == 'character_info':
+                    if str(char[i]) == 'char_info':
                         continue
                     elif str(data[key]['parents']).replace('[', '').replace('\'', '').replace(']', '') == str(char[i]['item']).replace('[', '').replace('\'', '').replace(']', ''):
                         tb.add_row([data[key]['name'], data[key]['role'], str(char[i]['name']).replace('The', '')])
@@ -703,20 +704,20 @@ class update_cache():
                 os.remove(filename)
 
 
-    async def __name_lists():
-        async def load_and_set_names(loader_func, target_var_name):
-            data = await loader_func()
-            new_names = [data[key]['name'] for key in data.keys() if str(key) != '_id']
-            globals()[target_var_name] = new_names
-            print(f'\n{new_names}')
+    # async def __name_lists():
+    #     async def load_and_set_names(loader_func, target_var_name):
+    #         data = await loader_func()
+    #         new_names = [data[key]['name'] for key in data.keys() if str(key) != '_id']
+    #         globals()[target_var_name] = new_names
+    #         print(f'\n{new_names}')
     
-        await load_and_set_names(Functions.addon_load, 'addon_names')
-        await load_and_set_names(Functions.char_load, 'char_names')
-        await load_and_set_names(Functions.dlc_load, 'dlc_names')
-        await load_and_set_names(Functions.item_load, 'item_names')
-        await load_and_set_names(Functions.map_load, 'map_names')
-        await load_and_set_names(Functions.offering_load, 'offering_names')
-        await load_and_set_names(Functions.perk_load, 'perk_names')
+    #     await load_and_set_names(Functions.data_load('addons'), 'addon_names')
+    #     await load_and_set_names(Functions.data_load('chars'), 'char_names')
+    #     await load_and_set_names(Functions.data_load('dlcs'), 'dlc_names')
+    #     await load_and_set_names(Functions.data_load('items'), 'item_names')
+    #     await load_and_set_names(Functions.data_load('maps'), 'map_names')
+    #     await load_and_set_names(Functions.data_load('offerings'), 'offering_names')
+    #     await load_and_set_names(Functions.data_load('perks'), 'perk_names')
       
 
 
@@ -734,8 +735,7 @@ class update_cache():
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
                    update_cache.__update_version(),
-                   update_cache.__clear_playerstats(),
-                   update_cache.__name_lists()]
+                   update_cache.__clear_playerstats()]
 
         for update in updates:
             await update
@@ -1022,22 +1022,23 @@ class Functions():
             except discord.HTTPException:
                 continue
         return "Could not create invite. There is either no text-channel, or I don't have the rights to create an invite."
+        
+
+    async def get_lang(interaction: discord.Interaction):
+        role_names = [role.name for role in interaction.user.roles]
+        for lang in languages:
+            if lang in role_names:
+                dest_lang = await Functions.get_language_code(lang)
+                return dest_lang
+        else:
+            return None 
 
 
     async def translate(interaction, text):
-        async def get_lang():
-            role_names = [role.name for role in interaction.user.roles]
-            for lang in languages:
-                if lang in role_names:
-                    dest_lang = await Functions.get_language_code(lang)
-                    return dest_lang
-            else:
-                return None       
-
         hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
         print(f'Translation Hash: {hashed}')
         
-        dest_lang = await get_lang()
+        dest_lang = await Functions.get_lang(interaction)
         if dest_lang is None:
             return text
 
@@ -1089,19 +1090,20 @@ class Functions():
             return translation['data']['translatedText']
 
 
-    async def perk_load():
+    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions']):
+        requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
         if not db_available:
-            with open(f"{buffer_folder}perk_info.json", "r", encoding="utf8") as f:
+            with open(f"{buffer_folder}{requested}_info.json", "r", encoding="utf8") as f:
                 data = json.load(f)
         else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'perk_info'})))
+            data = json.loads(json.dumps(collection.find_one({'_id': f'{requested}_info'})))
         return data
 
-
+    
     async def perk_send(data, perk, interaction, shrine=False, random=False):
         async def check():
             embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
-            character = await Functions.char_load()
+            character = await Functions.data_load('chars')
             for i in character.keys():
                 if str(i) == str(data[key]['character']):
                     embed.set_author(name=f"{character[i]['name']}", icon_url=f"{bot_base}{character[i]['image']}")
@@ -1129,78 +1131,13 @@ class Functions():
                 if str(key) == '_id':
                     continue
                 if data[key]['name'].lower() == perk.lower():
-                    embed = discord.Embed(title=f"Perk-Description for '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
+                    embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
                     await check()
                     if random:
                         return embed
                     await interaction.followup.send(embed=embed, ephemeral=True)
                     return
         return 1
-
-
-    async def shrine_load():
-        if not db_available:
-            with open(f"{buffer_folder}shrine_info.json", "r", encoding="utf8") as f:
-                data = json.load(f)
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'shrine_info'})))
-            print(data)
-            print(type(data))
-        return data
-
-
-    async def offering_load():
-        if not db_available:
-            with open(f"{buffer_folder}offering_info.json", "r", encoding="utf8") as f:
-                data = json.load(f)
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'offering_info'})))
-        return data
-
-
-    async def char_load():
-        if not db_available:
-            with open(f'{buffer_folder}character_info.json', 'r', encoding='utf8') as f:
-                data = json.loads(f.read())
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'character_info'})))
-        return data
-
-
-    async def dlc_load():
-        if not db_available:
-            with open(f"{buffer_folder}dlc_info.json", "r", encoding="utf8") as f:
-                data = json.load(f)
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'dlc_info'})))
-        return data
-
-
-    async def item_load():
-        if not db_available:
-            with open(f"{buffer_folder}item_info.json", "r", encoding="utf8") as f:
-                data = json.load(f)
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'item_info'})))
-        return data
-
-
-    async def addon_load():
-        if not db_available:
-            with open(f"{buffer_folder}addon_info.json", "r", encoding="utf8") as f:
-                data = json.load(f)
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'addon_info'})))
-        return data
-
-
-    async def map_load():
-        if not db_available:
-            with open(f"{buffer_folder}maps_info.json", "r", encoding="utf8") as f:
-                data = json.loads(f.read())
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'map_info'})))
-        return data
 
 
     async def addon_send(data, addon, interaction: discord.Interaction, random: bool = False):
@@ -1215,7 +1152,7 @@ class Functions():
                 embed.add_field(name='Rarity', value=data[i]['rarity'], inline=True)
                 embed.add_field(name='Role', value=data[i]['role'], inline=True)
                 if data[i]['item_type'] is None:
-                    char = await Functions.char_load()
+                    char = await Functions.data_load('chars')
                     for key in char.keys():
                         if str(key) == '_id':
                             continue
@@ -1340,7 +1277,7 @@ class Functions():
     async def find_killer_item(killer, chars):
         killer_data = None
         for char_data in chars.values():
-            if char_data == 'character_info':
+            if char_data == 'char_info':
                 continue
             if str(char_data['id']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip() or str(char_data['name']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip():
                 killer_data = char_data
@@ -1352,30 +1289,12 @@ class Functions():
 
     async def find_killer_by_item(item_name: str, killers_data) -> str:
         for killer in killers_data.values():
-            if killer == 'character_info':
+            if killer == 'char_info':
                 continue
             if killer.get('item') == item_name:
                 return killer['id']
         return 1
 
-
-    async def event_load():
-        if not db_available:
-            with open(f'{buffer_folder}event_info.json', 'r', encoding='utf8') as f:
-                data = json.loads(f.read())
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'event_info'})))
-        return data
-
-
-    async def version_load():
-        if not db_available:
-            with open(f'{buffer_folder}version_info.json', 'r', encoding='utf8') as f:
-                data = json.loads(f.read())
-        else:
-            data = json.loads(json.dumps(collection.find_one({'_id': 'version_info'})))
-        return data
-    
 
     def merge_dictionaries(json1, json2):
         # Merging json2 into json1
@@ -1403,7 +1322,7 @@ class Info():
     async def event(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
 
-        data = await Functions.event_load()
+        data = await Functions.data_load('events')
         current_event = None
         upcoming_event = None
 
@@ -1682,11 +1601,11 @@ class Info():
 
     async def character(interaction: discord.Interaction, char: str):
         await interaction.response.defer(thinking = True)
-        data = await Functions.char_load()
+        data = await Functions.data_load('chars')
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
             return
-        dlc_data = await Functions.dlc_load()
+        dlc_data = await Functions.data_load('dlcs')
         if dlc_data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
             return
@@ -1697,7 +1616,7 @@ class Info():
 
     async def dlc(interaction: discord.Interaction, name: str = ''):
         await interaction.response.defer(thinking=True)
-        data = await Functions.dlc_load()
+        data = await Functions.data_load('dlcs')
         if not name:
             data.pop('_id', None)
             data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
@@ -1746,7 +1665,7 @@ class Info():
 
 
     async def item(interaction: discord.Interaction, name: str):
-        data = await Functions.item_load()
+        data = await Functions.data_load('items')
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the item data."))
             return
@@ -1767,7 +1686,7 @@ class Info():
             await interaction.followup.send(file=discord.File(os.path.join(buffer_folder, 'maps.txt')))
             return
         else:
-            data = await Functions.map_load()
+            data = await Functions.data_load('maps')
             if data == 1:
                 await interaction.followup.send(await Functions.translate(interaction, "Error while loading map-data. Please try again later."))
                 return
@@ -1784,7 +1703,7 @@ class Info():
 
     async def offering(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
-        data = await Functions.offering_load()
+        data = await Functions.data_load('offerings')
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the perk data."), ephemeral=True)
             return
@@ -1797,7 +1716,7 @@ class Info():
 
     async def perk(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
-        data = await Functions.perk_load()
+        data = await Functions.data_load('perks')
         if data == 1:
             await interaction.followup.send("Error while loading the perk data.")
             return
@@ -1860,10 +1779,10 @@ class Info():
 
     async def shrine(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        data = await Functions.shrine_load()
+        data = await Functions.data_load('shrine')
         if data == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the shrine data."))
-        perks = await Functions.perk_load()
+        perks = await Functions.data_load('perks')
         if perks == 1:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the perk data."))
             return
@@ -1882,7 +1801,7 @@ class Info():
 
     async def version(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        data = await Functions.version_load()
+        data = await Functions.data_load('versions')
 
         embed1 = discord.Embed(title='DB Version (1/2)', color=0x42a32e)
         embed1.add_field(name=await Functions.translate(interaction, 'Name'), value='\u200b', inline=True)
@@ -1985,7 +1904,7 @@ class Info():
         if name == '':
             await interaction.followup.send(content = 'Here are the addons:' , file=discord.File(r''+buffer_folder+'addons.txt'))
         else:
-            data = await Functions.addon_load()
+            data = await Functions.data_load('addons')
             if data == 1:
                 await interaction.followup.send("Error while loading the addon data.")
                 return
@@ -2047,7 +1966,7 @@ class Random():
     async def perk(interaction: discord.Interaction, amount, role, loadout: bool = False):
         if not loadout:
             await interaction.response.send_message(f'Selecting {amount} perks for {role}...\nThis will take a while. Especially when the translation is activated.', ephemeral=True)
-        perks = await Functions.perk_load()
+        perks = await Functions.data_load('perks')
         if perks == 1:
             await interaction.followup.send("Error while loading the perk data.")
             return
@@ -2075,7 +1994,7 @@ class Random():
     async def offering(interaction: discord.Interaction, role, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        offerings = await Functions.offering_load()
+        offerings = await Functions.data_load('offerings')
         if offerings == 1:
             await interaction.followup.send("Error while loading the offering data.", ephemeral = True)
             return
@@ -2099,7 +2018,7 @@ class Random():
     async def item(interaction: discord.Interaction, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        items = await Functions.item_load()
+        items = await Functions.data_load('items')
         if items == 1:
             await interaction.followup.send("Error while loading the item data.")
             return
@@ -2123,11 +2042,11 @@ class Random():
     async def char(interaction: discord.Interaction, role, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        dlc_data = await Functions.dlc_load()
+        dlc_data = await Functions.data_load('dlcs')
         if dlc_data == 1:
             await interaction.followup.send("Error while loading the dlc data.", ephemeral = True)
             return
-        chars = await Functions.char_load()
+        chars = await Functions.data_load('chars')
         if chars == 1:
             await interaction.followup.send("Error while loading the char data.", ephemeral = True)
             return
@@ -2153,8 +2072,8 @@ class Random():
             await interaction.response.defer(thinking=True, ephemeral=True)
 
         try:
-            item = await Functions.item_load()
-            addons = await Functions.addon_load()
+            item = await Functions.data_load('items')
+            addons = await Functions.data_load('addons')
         except Exception as e:
             await interaction.followup.send(f"Error while loading the data: {str(e)}", ephemeral = True)
             return
@@ -2193,11 +2112,11 @@ class Random():
     async def adfk(interaction: discord.Interaction, killer, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        addons = await Functions.addon_load()
+        addons = await Functions.data_load('addons')
         if addons == 1:
             await interaction.followup.send("Error while loading the addon data.", ephemeral = True)
             return
-        chars = await Functions.char_load()
+        chars = await Functions.data_load('chars')
         if chars == 1:
             await interaction.followup.send("Error while loading the char data.", ephemeral = True)
             return
@@ -2227,7 +2146,7 @@ class Random():
 
     async def loadout(interaction: discord.Interaction, role):
         await interaction.response.send_message(f'Generating loadout for {role}...', ephemeral=True)
-        chars = await Functions.char_load()
+        chars = await Functions.data_load('chars')
         if chars == 1:
             await interaction.followup.send("Error while loading the char data.")
             return
