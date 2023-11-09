@@ -475,36 +475,21 @@ tree.on_error = bot.on_app_command_error
 #Update cache/db (Every ~4h)
 class update_cache():
     async def __update_perks():
-        data = await Functions.check_api_rate_limit(f"{api_base}perks")
-        if data == 1:
-            manlogger.warning("Perks couldn't be updated.")
-            print("Perks couldn't be updated.")
-            return 1
-        char = await Functions.data_load('chars')
-        if char == 1:
-            return 1
-        if db_available:
-            data['_id'] = 'perk_info'
-            collection.update_one({'_id': 'perk_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f"{buffer_folder}perk_info.json", "w", encoding="utf8") as f:
-                json.dump(data, f, indent=2)
-        tb.clear()
-        tb.field_names = ['Name', 'Category', 'Origin']
-        with open(f"{buffer_folder}perks.txt", "w", encoding="utf8") as f:
-            for key in data.keys():
-                if str(data[key]) == 'perk_info':
-                    continue
-                origin = ''
-                for i in char.keys():
-                    if str(data[key]['character']) == str(i):
-                        origin = char[i]['name']
-                        break
-                if data[key]['character'] is None:
-                    origin = ''
-                tb.add_row([data[key]['name'], str(data[key]['categories']).replace('[', '').replace('\'', '').replace(']', '').replace('None', ''), origin])
-            tb.sortby = 'Name'
-            f.write(str(tb))
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f"{api_base}perks?locale={lang}")
+            if data == 1:
+                manlogger.warning("Perks couldn't be updated.")
+                print("Perks couldn't be updated.")
+                return 1
+            char = await Functions.data_load('chars', lang)
+            if char is None:
+                return 1
+            if db_available:
+                data['_id'] = f'perk_info_{lang}'
+                collection.update_one({'_id': f'perk_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f"{buffer_folder}perk_info_{lang}.json", "w", encoding="utf8") as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_shrine():
@@ -522,166 +507,114 @@ class update_cache():
 
 
     async def __update_offerings():
-        data = await Functions.check_api_rate_limit(f'{api_base}offerings')
-        if data == 1:
-            manlogger.warning("Offerings couldn't be updated.")
-            print("Offerings couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'offering_info'
-            collection.update_one({'_id': 'offering_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f'{buffer_folder}offering_info.json', 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
-        tb.clear()
-        tb.field_names = ['ID', 'Name', 'Role']
-        with open(f'{buffer_folder}offerings.txt', 'w', encoding='utf8') as f:
-            for key in data.keys():
-                if str(data[key]) == 'offering_info':
-                    continue
-                role = data[key]['role']
-                if not role:
-                    role = 'killer, survivor'
-                if data[key]['name'] == '' or data[key]['name'] is None:
-                    tb.add_row([key, '', role])
-                else:
-                    tb.add_row([key, data[key]['name'], role])
-            tb.sortby = 'ID'
-            f.write(str(tb))
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f'{api_base}offerings?locale={lang}')
+            if data == 1:
+                manlogger.warning("Offerings couldn't be updated.")
+                print("Offerings couldn't be updated.")
+                return 1
+            if db_available:
+                data['_id'] = f'offering_info_{lang}'
+                collection.update_one({'_id': f'offering_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f'{buffer_folder}offering_info_{lang}.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_chars():
-        data = await Functions.check_api_rate_limit(f'{api_base}characters')
-        if data == 1:
-            manlogger.warning("Characters couldn't be updated.")
-            print("Characters couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'char_info'
-            collection.update_one({'_id': 'char_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f"{buffer_folder}char_info.json", 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
-        tb.clear()
-        tb.field_names = ['ID', 'Name', 'Role']
-        with open(f"{buffer_folder}characters.txt", 'w', encoding='utf8') as f:
-            for key in data:
-                if str(data[key]) == 'char_info':
-                    continue
-                tb.add_row([data[key]['id'], data[key]['name'].replace('The ', ''), data[key]['role']])
-            tb.sortby = 'Name'
-            f.write(str(tb))
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f'{api_base}characters?locale={lang}')
+            if data == 1:
+                manlogger.warning("Characters couldn't be updated.")
+                print("Characters couldn't be updated.")
+                return 1
+            if db_available:
+                data['_id'] = f'char_info_{lang}'
+                collection.update_one({'_id': f'char_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f"{buffer_folder}char_info_{lang}.json", 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_dlc():
-        data = await Functions.check_api_rate_limit(f'{api_base}dlc')
-        if data == 1:
-            manlogger.warning("DLC couldn't be updated.")
-            print("DLC couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'dlc_info'
-            collection.update_many({'_id': 'dlc_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f"{buffer_folder}dlc_info.json", "w", encoding="utf8") as f:
-                json.dump(data, f, indent=2)
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f'{api_base}dlc?locale={lang}')
+            if data == 1:
+                manlogger.warning("DLC couldn't be updated.")
+                print("DLC couldn't be updated.")
+                return 1
+            if db_available:
+                data['_id'] = f'dlc_info_{lang}'
+                collection.update_many({'_id': f'dlc_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f"{buffer_folder}dlc_info_{lang}.json", "w", encoding="utf8") as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_item():
-        data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor')
-        if data == 1:
-            manlogger.warning("Items couldn't be updated.")
-            print("Items couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'item_info'
-            collection.update_one({'_id': 'item_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f"{buffer_folder}item_info.json", "w", encoding="utf8") as f:
-                json.dump(data, f, indent=2)
-        tb.clear()
-        tb.field_names = ['ID', 'Name', 'Type', 'Rarity']
-        with open(f'{buffer_folder}items.txt', 'w', encoding='utf8') as f:
-            for key, item in data.items():
-                if str(data[key]) == 'item_info':
-                    continue
-                item_type = item.get('item_type', '')
-                tb.add_row([key, str(item['name']), str(item_type), str(item['rarity'])])
-            tb.sortby = 'Type'
-            f.write(str(tb))
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
+            if data == 1:
+                manlogger.warning("Items couldn't be updated.")
+                print("Items couldn't be updated.")
+                return 1
+            if db_available:
+                data['_id'] = f'item_info_{lang}'
+                collection.update_one({'_id': f'item_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f"{buffer_folder}item_info_{lang}.json", "w", encoding="utf8") as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_addon():
-        char = await Functions.data_load('chars')
-        if char == 1:
-            manlogger.warning("Addons couldn't be updated.")
-            print("Addons couldn't be updated.")
-            return 1
-        data = await Functions.check_api_rate_limit(f'{api_base}addons')
-        if data == 1:
-            return 1
-        if db_available:
-            data['_id'] = 'addon_info'
-            collection.update_one({'_id': 'addon_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f'{buffer_folder}addon_info.json', 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
-
-        tb.clear()
-        tb.field_names = ['Name', 'Role', 'Origin']
-        with open(f'{buffer_folder}addons.txt', 'w', encoding='utf8') as f:
-            for key in data.keys():
-                if str(data[key]) == 'addon_info':
-                    continue
-                for i in char.keys():
-                    if str(char[i]) == 'char_info':
-                        continue
-                    elif str(data[key]['parents']).replace('[', '').replace('\'', '').replace(']', '') == str(char[i]['item']).replace('[', '').replace('\'', '').replace(']', ''):
-                        tb.add_row([data[key]['name'], data[key]['role'], str(char[i]['name']).replace('The', '')])
-                        break
-                    elif not data[key]['parents']:
-                        tb.add_row([data[key]['name'], data[key]['role'], str(data[key]['item_type']).replace('None', '')])
-                        break
-
-        tb.sortby = 'Origin'
-        with open(f'{buffer_folder}addons.txt', 'w', encoding='utf8') as f:
-            f.write(str(tb))
+        for lang in api_langs:
+            char = await Functions.data_load('chars', lang)
+            if char is None:
+                manlogger.warning("Addons couldn't be updated.")
+                print("Addons couldn't be updated.")
+                return 1
+            data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
+            if data == 1:
+                return 1
+            if db_available:
+                data['_id'] = f'addon_info_{lang}'
+                collection.update_one({'_id': f'addon_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f'{buffer_folder}addon_info_{lang}.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_map():
-        data = await Functions.check_api_rate_limit(f'{api_base}maps')
-        if data == 1:
-            manlogger.warning("Maps couldn't be updated.")
-            print("Maps couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'map_info'
-            collection.update_one({'_id': 'map_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f'{buffer_folder}maps_info.json', 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
-        with open(f'{buffer_folder}maps.txt', 'w', encoding='utf8') as f:
-            for key, value in data.items():
-                if key == 'Swp_Mound' or str(value) == 'map_info':
-                    continue
-                f.write(f"Name: {value['name']}\n")
+        for lang in api_langs:
+            data = await Functions.check_api_rate_limit(f'{api_base}maps?locale={lang}')
+            if data == 1:
+                manlogger.warning("Maps couldn't be updated.")
+                print("Maps couldn't be updated.")
+                return 1
+            if db_available:
+                data['_id'] = f'map_info_{lang}'
+                collection.update_one({'_id': f'map_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f'{buffer_folder}maps_info_{lang}.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_event():
-        data_list = await Functions.check_api_rate_limit(f'{api_base}events')
-        if data_list == 1:
-            manlogger.warning("Events couldn't be updated.")
-            print("Events couldn't be updated.")
-            return 1
-        data = {}
-        for i in range(len(data_list)):
-            data[str(i)] = data_list[i]
-        if db_available:
-            data['_id'] = 'event_info'
-            collection.update_one({'_id': 'event_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f'{buffer_folder}event_info.json', 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
+        for lang in api_langs:
+            data_list = await Functions.check_api_rate_limit(f'{api_base}events?locale={lang}')
+            if data_list == 1:
+                manlogger.warning("Events couldn't be updated.")
+                print("Events couldn't be updated.")
+                return 1
+            data = {}
+            for i in range(len(data_list)):
+                data[str(i)] = data_list[i]
+            if db_available:
+                data['_id'] = f'event_info_{lang}'
+                collection.update_one({'_id': f'event_info_{lang}'}, {'$set': data}, upsert=True)
+            else:
+                with open(f'{buffer_folder}event_info_{lang}.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=2)
 
 
     async def __update_version():
@@ -704,20 +637,29 @@ class update_cache():
                 os.remove(filename)
 
 
-    # async def __name_lists():
-    #     async def load_and_set_names(loader_func, target_var_name):
-    #         data = await loader_func()
-    #         new_names = [data[key]['name'] for key in data.keys() if str(key) != '_id']
-    #         globals()[target_var_name] = new_names
-    #         print(f'\n{new_names}')
+    async def __name_lists():
+        async def load_and_set_names(request_data, target_var_name):
+            data = await Functions.data_load(request_data, 'en')
+            if data is None:
+                print(f'{request_data} couldn\'t be updated for namelist.')
+                manlogger.fatal(f'{request_data} couldn\'t be updated for namelist.')
+                sentry_sdk.capture_message(f'{request_data} couldn\'t be updated for namelist.')
+                return
+            new_names = []
+            for key in data.keys():
+                if str(key) != '_id':
+                    name = data[key]['name']
+                    new_names.append(name)
+            globals()[target_var_name] = new_names
+            print(f'\n{new_names}')
     
-    #     await load_and_set_names(Functions.data_load('addons'), 'addon_names')
-    #     await load_and_set_names(Functions.data_load('chars'), 'char_names')
-    #     await load_and_set_names(Functions.data_load('dlcs'), 'dlc_names')
-    #     await load_and_set_names(Functions.data_load('items'), 'item_names')
-    #     await load_and_set_names(Functions.data_load('maps'), 'map_names')
-    #     await load_and_set_names(Functions.data_load('offerings'), 'offering_names')
-    #     await load_and_set_names(Functions.data_load('perks'), 'perk_names')
+        await load_and_set_names('addons', 'addon_names')
+        await load_and_set_names('chars', 'char_names')
+        await load_and_set_names('dlcs', 'dlc_names')
+        await load_and_set_names('items', 'item_names')
+        await load_and_set_names('maps', 'map_names')
+        await load_and_set_names('offerings', 'offering_names')
+        await load_and_set_names('perks', 'perk_names')
       
 
 
@@ -735,7 +677,8 @@ class update_cache():
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
                    update_cache.__update_version(),
-                   update_cache.__clear_playerstats()]
+                   update_cache.__clear_playerstats(),
+                   update_cache.__name_lists()]
 
         for update in updates:
             await update
@@ -901,15 +844,15 @@ class Functions():
         try:
             return pycountry.languages.get(alpha_2=lang_code).name
         except:
-            return lang_code
+            return None
 
 
     async def get_language_code(lang_name):
         try:
             return pycountry.languages.get(name=lang_name).alpha_2
         except:
-            manlogger.warning(f'Language {lang_name} not found.')
-            return None
+            manlogger.warning(f'Language {lang_name} not found. Reverting to \'en\'.')
+            return 'en'
 
 
     async def convert_time(timestamp, request='full'):
@@ -1028,10 +971,9 @@ class Functions():
         role_names = [role.name for role in interaction.user.roles]
         for lang in languages:
             if lang in role_names:
-                dest_lang = await Functions.get_language_code(lang)
-                return dest_lang
+                return lang
         else:
-            return None 
+            return None
 
 
     async def translate(interaction, text):
@@ -1040,6 +982,9 @@ class Functions():
         
         dest_lang = await Functions.get_lang(interaction)
         if dest_lang is None:
+            return text
+        dest_langcode = await Functions.get_language_code(dest_lang)
+        if dest_langcode in api_langs:
             return text
 
         if not db_available:
@@ -1090,20 +1035,22 @@ class Functions():
             return translation['data']['translatedText']
 
 
-    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions']):
+    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl'] = ''):
         requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
         if not db_available:
-            with open(f"{buffer_folder}{requested}_info.json", "r", encoding="utf8") as f:
+            with open(f"{buffer_folder}{requested}_info_{lang}.json", "r", encoding="utf8") as f:
                 data = json.load(f)
         else:
-            data = json.loads(json.dumps(collection.find_one({'_id': f'{requested}_info'})))
+            data = json.loads(json.dumps(collection.find_one({'_id': f'{requested}_info_{lang}'})))
         return data
 
     
-    async def perk_send(data, perk, interaction, shrine=False, random=False):
+    async def perk_send(data, perk, lang, interaction, shrine=False, random=False):
         async def check():
             embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
-            character = await Functions.data_load('chars')
+            character = await Functions.data_load('chars', lang)
+            if character is None:
+                return
             for i in character.keys():
                 if str(i) == str(data[key]['character']):
                     embed.set_author(name=f"{character[i]['name']}", icon_url=f"{bot_base}{character[i]['image']}")
@@ -1122,7 +1069,10 @@ class Functions():
                 return f"{data[key]['tunables'][position][0]}/{data[key]['tunables'][position][1]}/{data[key]['tunables'][position][2]}"
 
         if shrine:
-            embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
+            if lang in api_langs:
+                embed = discord.Embed(title=f"{data[perk]['name']}", description=str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2)), color=0xb19325)
+            else:
+                embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
             key = perk
             await check()
             return embed
@@ -1131,7 +1081,10 @@ class Functions():
                 if str(key) == '_id':
                     continue
                 if data[key]['name'].lower() == perk.lower():
-                    embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
+                    if lang in api_langs:
+                        embed = discord.Embed(title=f"{data[key]['name']}", description=str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2)), color=0xb19325)
+                    else:
+                        embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[key]['name']}'", description=await Functions.translate(interaction, str(data[key]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
                     await check()
                     if random:
                         return embed
@@ -1140,19 +1093,26 @@ class Functions():
         return 1
 
 
-    async def addon_send(data, addon, interaction: discord.Interaction, random: bool = False):
+    async def addon_send(data, addon, lang, interaction: discord.Interaction, random: bool = False):
         for i in data.keys():
             if str(i) == '_id':
                 continue
             if str(data[i]['name']).lower() == addon.lower():
-                embed = discord.Embed(title=data[i]['name'],
+                if lang in api_langs:
+                    embed = discord.Embed(title=data[i]['name'],
+                                      description = str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('<i>','').replace('</i>','').replace('.', '. ').replace('&nbsp;', ' ').replace('&nbsp;', ' '),
+                                      color=0x0400ff)
+                else:
+                    embed = discord.Embed(title=data[i]['name'],
                                       description = await Functions.translate(interaction, str(data[i]['description']).replace('<br>', '').replace('<b>', '').replace('</b>', '').replace('<i>','').replace('</i>','').replace('.', '. ').replace('&nbsp;', ' ').replace('&nbsp;', ' ')), color=0x0400ff)
                 embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}")
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name='Rarity', value=data[i]['rarity'], inline=True)
                 embed.add_field(name='Role', value=data[i]['role'], inline=True)
                 if data[i]['item_type'] is None:
-                    char = await Functions.data_load('chars')
+                    char = await Functions.data_load('chars', lang)
+                    if char is None:
+                        return
                     for key in char.keys():
                         if str(key) == '_id':
                             continue
@@ -1166,15 +1126,20 @@ class Functions():
                 else:
                     await interaction.followup.send(embed=embed, ephemeral = True)
                     return
-        return 1
+        return None
 
 
-    async def offering_send(interaction, data, name, loadout: bool = False):
+    async def offering_send(interaction, data, name, lang, loadout: bool = False):
         for item in data.keys():
             if item == '_id':
                 continue
             if str(data[item]['name']).lower() == name.lower() or str(item).lower() == name.lower():
-                embed = discord.Embed(title = data[item]['name'],
+                if lang in api_langs:
+                    embed = discord.Embed(title = data[item]['name'],
+                                      description = str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. '),
+                                      color = 0x00ff00)
+                else:
+                    embed = discord.Embed(title = data[item]['name'],
                                       description = await Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
                 embed.set_thumbnail(url=f"{bot_base}{data[item]['image']}")
@@ -1192,7 +1157,7 @@ class Functions():
         await interaction.followup.send(await Functions.translate(interaction, f"The offering {name} doesn't exist."), ephemeral = True)
 
 
-    async def item_send(interaction, data, name, loadout: bool = False):
+    async def item_send(interaction, data, name, lang, loadout: bool = False):
         for i in data.keys():
             if i == '_id':
                 continue
@@ -1201,7 +1166,12 @@ class Functions():
                     title = i
                 else:
                     title = data[i]['name']
-                embed = discord.Embed(title = title,
+                if lang in api_langs:
+                    embed = discord.Embed(title = title,
+                                      description = str(data[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. '),
+                                      color = 0x00ff00)
+                else:
+                    embed = discord.Embed(title = title,
                                       description = await Functions.translate(interaction, str(data[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
                 embed.set_thumbnail(url=f"{bot_base}{data[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
@@ -1219,7 +1189,7 @@ class Functions():
             await interaction.followup.send(await Functions.translate(interaction, f"The item {name} doesn't exist."), ephemeral = True)
 
 
-    async def char_send(interaction, data, char, dlc_data, loadout: bool = False):
+    async def char_send(interaction, data, char, dlc_data, lang, loadout: bool = False):
         for key in data.keys():
             if str(key) == '_id':
                 continue
@@ -1237,7 +1207,10 @@ class Functions():
                     embed.add_field(name=await Functions.translate(interaction, "Walkspeed"), value=f"{int(data[key]['tunables']['MaxWalkSpeed']) / 100}m/s", inline=True)
                     embed.add_field(name=await Functions.translate(interaction, "Terror Radius"), value=f"{int(data[key]['tunables']['TerrorRadius']) / 100}m", inline=True)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Bio", value=await Functions.translate(interaction, str(data[key]['bio']).replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
+                if lang in api_langs:
+                    embed.add_field(name="Bio", value=str(data[key]['bio']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. '), inline=False)
+                else:
+                    embed.add_field(name="Bio", value=await Functions.translate(interaction, str(data[key]['bio']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
                 if loadout:
                     return embed
                 if len(data[key]['story']) > 4096:
@@ -1245,17 +1218,26 @@ class Functions():
                     if os.path.exists(story):
                         story = f"{buffer_folder}character_story{random.randrange(1, 999)}.txt"
                     with open(story, 'w', encoding='utf8') as f:
-                        f.write(await Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')))
+                        if lang in api_langs:
+                            f.write(str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. '))
+                        else:
+                            f.write(await Functions.translate(interaction, str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')))
                     await interaction.followup.send(embed=embed, ephemeral = True)
                     await interaction.followup.send(f"Story of {data[key]['name']}", file=discord.File(f"{story}"), ephemeral=True)
                     os.remove(story)
                     return
                 elif 1024 < len(data[key]['story']) < 4096:
-                    embed2 = discord.Embed(title='Story', description=await Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('&nbsp;', ' ').replace('.', '. ')), color=0xb19325)
+                    if lang in api_langs:
+                        embed.add_field(name="Story", value=str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('.', '. '), inline=False)
+                    else:
+                        embed2 = discord.Embed(title='Story', description=await Functions.translate(interaction, str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('&nbsp;', ' ').replace('.', '. ')), color=0xb19325)
                     await interaction.followup.send(embeds=[embed, embed2], ephemeral = True)
                     return
                 else:
-                    embed.add_field(name="Story", value=await Functions.translate(interaction, str(data[key]['story']).replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
+                    if lang in api_langs:
+                        embed.add_field(name="Story", value=str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('.', '. '), inline=False)
+                    else:
+                        embed.add_field(name="Story", value=await Functions.translate(interaction, str(data[key]['story']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
                 await interaction.followup.send(embed=embed, ephemeral = True)
                 return
         embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=await Functions.translate(interaction, f"I couldn't find a character named {char}."), color=0xb19325)
@@ -1277,7 +1259,7 @@ class Functions():
     async def find_killer_item(killer, chars):
         killer_data = None
         for char_data in chars.values():
-            if char_data == 'char_info':
+            if 'char_info' in char_data:
                 continue
             if str(char_data['id']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip() or str(char_data['name']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip():
                 killer_data = char_data
@@ -1289,7 +1271,7 @@ class Functions():
 
     async def find_killer_by_item(item_name: str, killers_data) -> str:
         for killer in killers_data.values():
-            if killer == 'char_info':
+            if 'char_info' in killer:
                 continue
             if killer.get('item') == item_name:
                 return killer['id']
@@ -1321,8 +1303,13 @@ class Info():
 
     async def event(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
+        
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
 
-        data = await Functions.data_load('events')
+        data = await Functions.data_load('events', lang)
+        if data is None:
+            await interaction.followup.send(await Functions.translate(interaction, 'The event data could not be loaded.'), ephemeral=True)
+            return
         current_event = None
         upcoming_event = None
 
@@ -1601,22 +1588,27 @@ class Info():
 
     async def character(interaction: discord.Interaction, char: str):
         await interaction.response.defer(thinking = True)
-        data = await Functions.data_load('chars')
-        if data == 1:
-            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('chars', lang)
+        if data is None:
+            await interaction.followup.send(await Functions.translate(interaction, "Error. Try again later."))
             return
-        dlc_data = await Functions.data_load('dlcs')
-        if dlc_data == 1:
-            await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later."))
+        dlc_data = await Functions.data_load('dlcs', lang)
+        if dlc_data is None:
+            await interaction.followup.send(await Functions.translate(interaction, "Error. Try again later."))
             return
         else:
-            await Functions.char_send(interaction, data, char, dlc_data)
+            await Functions.char_send(interaction, data, char, dlc_data, lang)
             return
 
 
     async def dlc(interaction: discord.Interaction, name: str = ''):
         await interaction.response.defer(thinking=True)
-        data = await Functions.data_load('dlcs')
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('dlcs', lang)
+        if data is None:   
+            await interaction.followup.send(await Functions.translate(interaction, "Error. Try again later."))
+            return
         if not name:
             data.pop('_id', None)
             data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
@@ -1665,69 +1657,52 @@ class Info():
 
 
     async def item(interaction: discord.Interaction, name: str):
-        data = await Functions.data_load('items')
-        if data == 1:
+        await interaction.response.defer(thinking=True)
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('items', lang)
+        if data is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the item data."))
             return
 
-        await interaction.response.defer(thinking=True)
-
-        if name == '':
-            await interaction.followup.send(content='Here is a list of all items. You can use the command again with one of the items to get more info about it.', file=discord.File(f'{buffer_folder}items.txt'))
-            return
-
-        await Functions.item_send(interaction, data, name)
+        await Functions.item_send(interaction, data, name, lang)
         return
 
 
-    async def maps(interaction: discord.Interaction, name: str = ''):
+    async def maps(interaction: discord.Interaction, name):
         await interaction.response.defer(thinking=True)
-        if not name:
-            await interaction.followup.send(file=discord.File(os.path.join(buffer_folder, 'maps.txt')))
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+
+        data = await Functions.data_load('maps', lang)
+        if data is None:
+            await interaction.followup.send(await Functions.translate(interaction, "Error while loading map-data. Please try again later."))
             return
-        else:
-            data = await Functions.data_load('maps')
-            if data == 1:
-                await interaction.followup.send(await Functions.translate(interaction, "Error while loading map-data. Please try again later."))
-                return
-            for key, value in data.items():
-                if key == 'Swp_Mound' or str(value) == 'map_info':
-                    continue
-                if value['name'].lower() == name.lower():
-                    embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
-                    embed.set_thumbnail(url=f"{map_portraits}{key}.png")
-                    await interaction.followup.send(embed=embed)
-                    return
-            await interaction.followup.send(f"No map with name **{name}** found.")
+        for key, value in data.items():
+            if key == 'Swp_Mound' or str(value) == 'map_info':
+                continue
+            if value['name'].lower() == name.lower():
+                embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
+                embed.set_thumbnail(url=f"{map_portraits}{key}.png")
+                await interaction.followup.send(embed=embed)
 
 
     async def offering(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
-        data = await Functions.data_load('offerings')
-        if data == 1:
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('offerings', lang)
+        if data is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the perk data."), ephemeral=True)
             return
-        if not name:
-            with open(buffer_folder+'offerings.txt', 'rb') as f:
-                await interaction.followup.send(content='Here is a list of all offerings. You can use the command again with one of the offerings to get more info about it.', file=discord.File(f))
-            return
-        await Functions.offering_send(interaction, data, name)
+        await Functions.offering_send(interaction, data, name, lang)
 
 
     async def perk(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
-        data = await Functions.data_load('perks')
-        if data == 1:
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('perks', lang)
+        if data is None:
             await interaction.followup.send("Error while loading the perk data.")
             return
-        if not name:
-            await interaction.followup.send(content='Here are the perks:', file=discord.File(r''+buffer_folder+'perks.txt'))
-            return
-        else:
-            test = await Functions.perk_send(data, name, interaction)
-            if test == 1:
-                await interaction.followup.send(f"There is no perk named {name}.", ephemeral=True)
-            return
+        await Functions.perk_send(data, name, lang, interaction)
 
 
     async def killswitch(interaction: discord.Interaction):
@@ -1779,11 +1754,13 @@ class Info():
 
     async def shrine(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        data = await Functions.data_load('shrine')
-        if data == 1:
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('shrine', lang)
+        if data is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the shrine data."))
-        perks = await Functions.data_load('perks')
-        if perks == 1:
+            return
+        perks = await Functions.data_load('perks', lang)
+        if perks is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the perk data."))
             return
         embeds = []
@@ -1793,7 +1770,7 @@ class Info():
                 if perk_key == '_id' or perk_value == 'perk_info':
                     continue
                 elif perk_value['name'] == shrine['name']:
-                    shrine_embed = await Functions.perk_send(perks, perk_key, interaction, True)
+                    shrine_embed = await Functions.perk_send(perks, perk_key, lang, interaction, True)
                     shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
                     embeds.append(shrine_embed)
         await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 4h.", embeds=embeds)
@@ -1901,17 +1878,15 @@ class Info():
 
     async def addon(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
-        if name == '':
-            await interaction.followup.send(content = 'Here are the addons:' , file=discord.File(r''+buffer_folder+'addons.txt'))
-        else:
-            data = await Functions.data_load('addons')
-            if data == 1:
-                await interaction.followup.send("Error while loading the addon data.")
-                return
-            test = await Functions.addon_send(data, name, interaction)
-            if test == 1:
-                await interaction.followup.send(f"There is no addon named {name}.")
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        data = await Functions.data_load('addons', lang)
+        if data is None:
+            await interaction.followup.send("Error while loading the addon data.")
             return
+        embed = await Functions.addon_send(data, name, lang, interaction)
+        if embed is None:
+            await interaction.followup.send(f"There is no addon named {name}.")
+        return
 
 
     async def twitch_info(interaction: discord.Interaction):
@@ -1963,11 +1938,11 @@ class Info():
 
 #Random
 class Random():
-    async def perk(interaction: discord.Interaction, amount, role, loadout: bool = False):
+    async def perk(interaction: discord.Interaction, amount, role, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.send_message(f'Selecting {amount} perks for {role}...\nThis will take a while. Especially when the translation is activated.', ephemeral=True)
-        perks = await Functions.data_load('perks')
-        if perks == 1:
+        perks = await Functions.data_load('perks', lang)
+        if perks is None:
             await interaction.followup.send("Error while loading the perk data.")
             return
         keys = list(perks.keys())
@@ -1981,7 +1956,7 @@ class Random():
                 break
             entry = perks[key]
             print(entry['name'])
-            embed = await Functions.perk_send(perks, entry['name'], interaction, False, True)
+            embed = await Functions.perk_send(perks, entry['name'], lang, interaction, False, True)
             embeds.append(embed)
         if not embeds:
             await interaction.followup.send(f"No perks found for {role}.", ephemeral=True)
@@ -1991,11 +1966,11 @@ class Random():
         await interaction.followup.send(embeds=embeds, ephemeral=True)
 
 
-    async def offering(interaction: discord.Interaction, role, loadout: bool = False):
+    async def offering(interaction: discord.Interaction, role, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        offerings = await Functions.data_load('offerings')
-        if offerings == 1:
+        offerings = await Functions.data_load('offerings', lang)
+        if offerings is None:
             await interaction.followup.send("Error while loading the offering data.", ephemeral = True)
             return
         else:
@@ -2010,16 +1985,16 @@ class Random():
             key = valid_keys[0]
             entry = offerings[key]
             if loadout:
-                return await Functions.offering_send(interaction, offerings, entry['name'], True)
-            await Functions.offering_send(interaction, offerings, entry['name'])
+                return await Functions.offering_send(interaction, offerings, entry['name'], lang, True)
+            await Functions.offering_send(interaction, offerings, entry['name'], lang)
             return
 
 
-    async def item(interaction: discord.Interaction, loadout: bool = False):
+    async def item(interaction: discord.Interaction, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        items = await Functions.data_load('items')
-        if items == 1:
+        items = await Functions.data_load('items', lang)
+        if items is None:
             await interaction.followup.send("Error while loading the item data.")
             return
         keys = list(items.keys())
@@ -2033,21 +2008,21 @@ class Random():
         key = valid_keys[0]
         entry = items[key]
         if loadout:
-            temp = await Functions.item_send(interaction, items, entry['name'], True)
+            temp = await Functions.item_send(interaction, items, entry['name'], lang, True)
             return temp[0], temp[1]
-        await Functions.item_send(interaction, items, entry['name'])
+        await Functions.item_send(interaction, items, entry['name'], lang)
         return
 
 
-    async def char(interaction: discord.Interaction, role, loadout: bool = False):
+    async def char(interaction: discord.Interaction, role, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        dlc_data = await Functions.data_load('dlcs')
-        if dlc_data == 1:
+        dlc_data = await Functions.data_load('dlcs', lang)
+        if dlc_data is None:
             await interaction.followup.send("Error while loading the dlc data.", ephemeral = True)
             return
-        chars = await Functions.data_load('chars')
-        if chars == 1:
+        chars = await Functions.data_load('chars', lang)
+        if chars is None:
             await interaction.followup.send("Error while loading the char data.", ephemeral = True)
             return
         else:
@@ -2062,18 +2037,20 @@ class Random():
             key = valid_keys[0]
             entry = chars[key]
             if loadout:
-                return await Functions.char_send(interaction, chars, entry['name'], dlc_data, True), entry['id'], entry['role']
-            await Functions.char_send(interaction, chars, entry['name'], dlc_data)
+                return await Functions.char_send(interaction, chars, entry['name'], dlc_data, lang, True), entry['id'], entry['role']
+            await Functions.char_send(interaction, chars, entry['name'], dlc_data, lang)
             return
 
 
-    async def addon(interaction: discord.Interaction, parent, loadout: bool = False):
+    async def addon(interaction: discord.Interaction, parent, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-
         try:
-            item = await Functions.data_load('items')
-            addons = await Functions.data_load('addons')
+            item = await Functions.data_load('items', lang)
+            addons = await Functions.data_load('addons', lang)
+            if item is None or addons is None:
+                await interaction.followup.send("Error while loading the addon/item data.", ephemeral = True)
+                return
         except Exception as e:
             await interaction.followup.send(f"Error while loading the data: {str(e)}", ephemeral = True)
             return
@@ -2099,7 +2076,7 @@ class Random():
             if entry['item_type'] is None or entry['item_type'] != parent_type:
                 continue
 
-            embed = await Functions.addon_send(addons, entry['name'], interaction, True)
+            embed = await Functions.addon_send(addons, entry['name'], lang, interaction, True)
             embeds.append(embed)
             selected_keys.append(key)
 
@@ -2109,15 +2086,15 @@ class Random():
         return
 
 
-    async def adfk(interaction: discord.Interaction, killer, loadout: bool = False):
+    async def adfk(interaction: discord.Interaction, killer, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
-        addons = await Functions.data_load('addons')
-        if addons == 1:
+        addons = await Functions.data_load('addons', lang)
+        if addons is None:
             await interaction.followup.send("Error while loading the addon data.", ephemeral = True)
             return
-        chars = await Functions.data_load('chars')
-        if chars == 1:
+        chars = await Functions.data_load('chars', lang)
+        if chars is None:
             await interaction.followup.send("Error while loading the char data.", ephemeral = True)
             return
         killer_item = await Functions.find_killer_item(killer, chars)
@@ -2136,7 +2113,7 @@ class Random():
         for i in range(2):
             key = valid_keys[i]
             entry = addons[key]
-            embed = await Functions.addon_send(addons, entry['name'], interaction, True)
+            embed = await Functions.addon_send(addons, entry['name'], lang, interaction, True)
             embeds.append(embed)
         if loadout:
             return embeds
@@ -2145,31 +2122,32 @@ class Random():
 
 
     async def loadout(interaction: discord.Interaction, role):
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
         await interaction.response.send_message(f'Generating loadout for {role}...', ephemeral=True)
-        chars = await Functions.data_load('chars')
-        if chars == 1:
+        chars = await Functions.data_load('chars', lang)
+        if chars is None:
             await interaction.followup.send("Error while loading the char data.")
             return
         embeds = []
-        char = await Random.char(interaction, role, True)
+        char = await Random.char(interaction, role, lang, True)
         embeds.append(char[0])
 
         if char[2] == 'survivor':
-            item = await Random.item(interaction, True)
+            item = await Random.item(interaction, lang, True)
             embeds.append(item[0])
-            addon = await Random.addon(interaction, item[1], True)
+            addon = await Random.addon(interaction, item[1], lang, True)
             if addon is not None:
                 embeds.extend(addon)
         elif char[2] == 'killer':
             killer_item = await Functions.find_killer_item(char[1], chars)
             killer = await Functions.find_killer_by_item(killer_item, chars)
-            addon = await Random.adfk(interaction, killer, True)
+            addon = await Random.adfk(interaction, killer, lang, True)
             if addon is not None:
                 embeds.extend(addon)
 
-        perks = await Random.perk(interaction, 4, char[2], True)
+        perks = await Random.perk(interaction, 4, char[2], lang, True)
         embeds.extend(perks)
-        offering = await Random.offering(interaction, char[2],True)
+        offering = await Random.offering(interaction, char[2], lang, True)
         embeds.append(offering)
 
         await interaction.followup.send(embeds=embeds)
@@ -2659,6 +2637,7 @@ async def randomize(interaction: discord.Interaction, category: str):
             async def on_submit(self, interaction: discord.Interaction):
                 x = self.answer.value
                 y = self.role.value.lower()
+                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
 
                 if not x.isdigit():
                     await interaction.response.send_message(content='Invalid input: the amount of perks must be a number.', ephemeral=True)
@@ -2673,7 +2652,7 @@ async def randomize(interaction: discord.Interaction, category: str):
                     await interaction.response.send_message(content='Invalid input: the role must be either Survivor or Killer.', ephemeral=True)
                     return
 
-                await Random.perk(interaction, x, y)
+                await Random.perk(interaction, x, y, lang)
 
         await interaction.response.send_modal(Input())
 
@@ -2688,13 +2667,15 @@ async def randomize(interaction: discord.Interaction, category: str):
                 if role != 'survivor' and role != 'killer':
                     await interaction.response.send_message(content='Invalid input: the role must be either Survivor or Killer.', ephemeral=True)
                     return
+                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
 
-                await Random.offering(interaction, role)
+                await Random.offering(interaction, role, lang)
 
         await interaction.response.send_modal(Input())
 
     elif category == 'item':
-        await Random.item(interaction)
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        await Random.item(interaction, lang)
 
     elif category == 'char':
         class Input(discord.ui.Modal, title='Char for whom? Timeout in 30 seconds.'):
@@ -2707,8 +2688,10 @@ async def randomize(interaction: discord.Interaction, category: str):
                 if role != 'survivor' and role != 'killer':
                     await interaction.response.send_message(content='Invalid input: the role must be either Survivor or Killer.', ephemeral=True)
                     return
+                
+                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
 
-                await Random.char(interaction, role)
+                await Random.char(interaction, role, lang)
 
         await interaction.response.send_modal(Input())
 
@@ -2717,7 +2700,8 @@ async def randomize(interaction: discord.Interaction, category: str):
             self.timeout = 30
             answer = discord.ui.TextInput(label = 'Item you want Addons for.', style = discord.TextStyle.short, required = True)
             async def on_submit(self, interaction: discord.Interaction):
-                await Random.addon(interaction, self.answer.value.strip())
+                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+                await Random.addon(interaction, self.answer.value.strip(), lang)
         await interaction.response.send_modal(Input())
 
     elif category == 'adfk':
@@ -2725,7 +2709,8 @@ async def randomize(interaction: discord.Interaction, category: str):
             self.timeout = 30
             answer = discord.ui.TextInput(label = 'Killer you want Addons for.', max_length = 20, style = discord.TextStyle.short, required = True)
             async def on_submit(self, interaction: discord.Interaction):
-                await Random.adfk(interaction, self.answer.value.lower().replace('the', '').strip())
+                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+                await Random.adfk(interaction, self.answer.value.lower().replace('the', '').strip(), lang)
         await interaction.response.send_modal(Input())
 
     elif category == 'loadout':
