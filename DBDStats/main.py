@@ -46,7 +46,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.6.0"
+bot_version = "1.6.1"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -413,6 +413,7 @@ class aclient(discord.AutoShardedClient):
             finally:
                 traceback.print_exception(type(error), error, error.__traceback__)
                 manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id})")
+                sentry_sdk.capture_exception(error)
 
 
     async def on_ready(self):
@@ -1119,7 +1120,7 @@ class Functions():
                 return f"{data[key]['tunables'][position][0]}/{data[key]['tunables'][position][1]}/{data[key]['tunables'][position][2]}"
 
         if shrine:
-            embed = discord.Embed(title=f"Perk-Description for '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
+            embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[perk]['name']}'", description=await Functions.translate(interaction, str(data[perk]['description']).replace('<br><br>', ' ').replace('<i>', '**').replace('</i>', '**').replace('<li>', '*').replace('</li>', '*').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('{0}', get_tunables_value(0)).replace('{1}', get_tunables_value(1)).replace('{2}', get_tunables_value(2))), color=0xb19325)
             key = perk
             await check()
             return embed
@@ -1870,9 +1871,11 @@ class Info():
         for shrine in data['data']['perks']:
             print(shrine)
             for perk_key, perk_value in perks.items():
-                if perk_value['name'] == shrine['name']:
+                if perk_key == '_id' or perk_value == 'perk_info':
+                    continue
+                elif perk_value['name'] == shrine['name']:
                     shrine_embed = await Functions.perk_send(perks, perk_key, interaction, True)
-                    shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}")
+                    shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
                     embeds.append(shrine_embed)
         await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 4h.", embeds=embeds)
 
