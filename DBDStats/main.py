@@ -50,7 +50,7 @@ bot_version = "1.6.1"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
-api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl']
+api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 
 
 ##Init
@@ -639,6 +639,10 @@ class update_cache():
 
     async def __name_lists():
         async def load_and_set_names(request_data, target_var_name):
+            killer = False
+            if request_data == 'killers':
+                request_data = 'chars'
+                killer = True
             data = await Functions.data_load(request_data, 'en')
             if data is None:
                 print(f'{request_data} couldn\'t be updated for namelist.')
@@ -648,13 +652,18 @@ class update_cache():
             new_names = []
             for key in data.keys():
                 if str(key) != '_id':
-                    name = data[key]['name']
-                    new_names.append(name)
+                    if killer:
+                        if data[key]['role'] == 'killer':
+                            name = data[key]['name']
+                            new_names.append(name)
+                    else:
+                        name = data[key]['name']
+                        new_names.append(name)
             globals()[target_var_name] = new_names
-            print(f'\n{new_names}')
     
         await load_and_set_names('addons', 'addon_names')
         await load_and_set_names('chars', 'char_names')
+        await load_and_set_names('killers', 'killer_names')
         await load_and_set_names('dlcs', 'dlc_names')
         await load_and_set_names('items', 'item_names')
         await load_and_set_names('maps', 'map_names')
@@ -667,17 +676,17 @@ class update_cache():
         print('Updating cache...')
         manlogger.info('Updating cache...')
 
-        updates = [update_cache.__update_chars(),
-                   update_cache.__update_perks(),
-                   update_cache.__update_shrine(),
-                   update_cache.__update_offerings(),
-                   update_cache.__update_dlc(),
-                   update_cache.__update_item(),
-                   update_cache.__update_map(),
-                   update_cache.__update_addon(),
-                   update_cache.__update_event(),
-                   update_cache.__update_version(),
-                   update_cache.__clear_playerstats(),
+        updates = [#update_cache.__update_chars(),
+                   #update_cache.__update_perks(),
+                   #update_cache.__update_shrine(),
+                   #update_cache.__update_offerings(),
+                   #update_cache.__update_dlc(),
+                   #update_cache.__update_item(),
+                   #update_cache.__update_map(),
+                   #update_cache.__update_addon(),
+                   #update_cache.__update_event(),
+                   #update_cache.__update_version(),
+                   #update_cache.__clear_playerstats(),
                    update_cache.__name_lists()]
 
         for update in updates:
@@ -841,6 +850,10 @@ class Functions():
 
 
     async def get_language_name(lang_code):
+        if lang_code == 'pt-BR':
+            return 'Portuguese'
+        elif lang_code == 'zh-TW':
+            return 'Chinese'
         try:
             return pycountry.languages.get(alpha_2=lang_code).name
         except:
@@ -1000,19 +1013,19 @@ class Functions():
         
         if hashed in data.keys():
             print(f'Hash {hashed} found in cache.')
-            if dest_lang in data[hashed].keys():
-                print(f'Language {dest_lang} found in cache.')
-                return data[hashed][dest_lang]
+            if dest_langcode in data[hashed].keys():
+                print(f'Language {dest_langcode} found in cache.')
+                return data[hashed][dest_langcode]
             else:
-                print(f'Language {dest_lang} not found in cache.')
-                translation = await translator.translate(text, dest_lang)
-                data[hashed] = {dest_lang: translation['data']['translatedText']}
+                print(f'Language {dest_langcode} not found in cache.')
+                translation = await translator.translate(text, dest_langcode)
+                data[hashed] = {dest_langcode: translation['data']['translatedText']}
                 if db_available:
                     collection.update_one(
                         {'_id': 'translations'},
                         {
                             '$set': {
-                                f'{hashed}.{dest_lang}': translation['data']['translatedText']
+                                f'{hashed}.{dest_langcode}': translation['data']['translatedText']
                             }
                         }
                     )
@@ -1025,8 +1038,8 @@ class Functions():
                 return translation['data']['translatedText']
         else:
             print(f'Hash {hashed} not found in cache.')
-            translation = await translator.translate(text, dest_lang)
-            data[hashed] = {dest_lang: translation['data']['translatedText']}
+            translation = await translator.translate(text, dest_langcode)
+            data[hashed] = {dest_langcode: translation['data']['translatedText']}
             if db_available:
                 collection.update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
             else:
@@ -1035,8 +1048,10 @@ class Functions():
             return translation['data']['translatedText']
 
 
-    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl'] = ''):
+    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = ''):
         requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
+        if lang not in api_langs:
+            lang = 'en'
         if not db_available:
             with open(f"{buffer_folder}{requested}_info_{lang}.json", "r", encoding="utf8") as f:
                 data = json.load(f)
@@ -2404,7 +2419,13 @@ if support_available:
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
     lang_str = ", ".join(languages)
-    language = discord.Embed(title="Setup - Language", description=f"Most outputs will be translated using our Instance of [LibreTranslate](https://translate.bloodygang.com/). However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 29 Languages/Roles, you have to setup the roles you need on your own.\n**Keep in mind that these translation can be a bit strange.**\n\n{lang_str}", color=0x004cff)
+    api_lang_str = ""
+    for lang in api_langs:
+        language = await Functions.get_language_name(lang)
+        if api_lang_str:
+            api_lang_str += ", "
+        api_lang_str += language
+    language = discord.Embed(title="Setup - Language", description=f"Most outputs will be translated using our Instance of [LibreTranslate](https://translate.bloodygang.com/). However the default will be English. Every user can have there own language the bot will use on reply. To use this feature, you must have roles that are named **exactly** like following. Because there are 29 Languages/Roles, you have to setup the roles you need on your own.\n**Keep in mind that these translation can be a bit strange.**\n\n{lang_str}\n\nThe following languages have prober translations:\n{api_lang_str}", color=0x004cff)
     await interaction.response.send_message(embeds=[language])
 
 
@@ -2425,6 +2446,7 @@ async def self(interaction: discord.Interaction):
 #Info about Stuff
 addon_names = ['Bot is starting...',]
 char_names = ['Bot is starting...',]
+killer_names = ['Bot is starting...',]
 dlc_names = ['Bot is starting...',]
 item_names = ['Bot is starting...',]
 map_names = ['Bot is starting...',]
@@ -2442,6 +2464,12 @@ async def autocomplete_character(interaction: discord.Interaction, current: str 
     if current == '':
         return [discord.app_commands.Choice(name=name, value=name) for name in char_names[:25]]
     matching_names = [name for name in char_names if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+
+async def autocomplete_killer(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=name, value=name) for name in killer_names[:25]]
+    matching_names = [name for name in killer_names if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
 async def autocomplete_dlcs(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
@@ -2613,7 +2641,11 @@ async def self(interaction: discord.Interaction,
 #Randomize
 @tree.command(name = 'random', description = 'Get a random perk, offering, map, item, char or full loadout.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
-@discord.app_commands.describe(category = 'What do you want to randomize?')
+@discord.app_commands.describe(category = 'What do you want to randomize?',
+                               item = 'Only used if "Addon" is selected.',
+                               killer = 'Only used if "Addon for Killer" is selected. Start writing to search...'
+                               )
+@discord.app_commands.autocomplete(killer=autocomplete_killer)
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addon', value = 'addon'),
     discord.app_commands.Choice(name = 'Addon for Killer', value = 'adfk'),
@@ -2622,8 +2654,18 @@ async def self(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Loadout', value = 'loadout'),
     discord.app_commands.Choice(name = 'Offering', value = 'offering'),
     discord.app_commands.Choice(name = 'Perk', value = 'perk')
+    ],
+    item = [
+    discord.app_commands.Choice(name = 'Medikit', value = 'medkit'),
+    discord.app_commands.Choice(name = 'Flashlight', value = 'flashlight'),
+    discord.app_commands.Choice(name = 'Toolbox', value = 'toolbox'),
+    discord.app_commands.Choice(name = 'Map', value = 'map'),
+    discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def randomize(interaction: discord.Interaction, category: str):
+async def randomize(interaction: discord.Interaction,
+                    category: str,
+                    item: str = None,
+                    killer: str = None):
     if interaction.guild is None:
         await interaction.response.send_message(content = 'You must use this command in a server.', ephemeral = True)
         return
@@ -2696,22 +2738,12 @@ async def randomize(interaction: discord.Interaction, category: str):
         await interaction.response.send_modal(Input())
 
     elif category == 'addon':
-        class Input(discord.ui.Modal, title = 'Enter Addon. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Item you want Addons for.', style = discord.TextStyle.short, required = True)
-            async def on_submit(self, interaction: discord.Interaction):
-                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
-                await Random.addon(interaction, self.answer.value.strip(), lang)
-        await interaction.response.send_modal(Input())
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        await Random.addon(interaction, item, lang)
 
     elif category == 'adfk':
-        class Input(discord.ui.Modal, title = 'Enter Killer. Timeout in 30 seconds.'):
-            self.timeout = 30
-            answer = discord.ui.TextInput(label = 'Killer you want Addons for.', max_length = 20, style = discord.TextStyle.short, required = True)
-            async def on_submit(self, interaction: discord.Interaction):
-                lang = await Functions.get_language_code(await Functions.get_lang(interaction))
-                await Random.adfk(interaction, self.answer.value.lower().replace('the', '').strip(), lang)
-        await interaction.response.send_modal(Input())
+        lang = await Functions.get_language_code(await Functions.get_lang(interaction))
+        await Random.adfk(interaction, killer, lang)
 
     elif category == 'loadout':
         class Input(discord.ui.Modal, title='Loadout for whom? Timeout in 30 seconds.'):
