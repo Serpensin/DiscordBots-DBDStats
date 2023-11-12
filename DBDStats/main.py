@@ -694,27 +694,30 @@ class update_cache():
     async def __start_cache_update():
         print('Updating cache...')
         manlogger.info('Updating cache...')
-
-        updates = [#update_cache.__update_chars(),
-                   #update_cache.__update_perks(),
-                   #update_cache.__update_offerings(),
-                   #update_cache.__update_dlc(),
-                   #update_cache.__update_item(),
-                   #update_cache.__update_map(),
-                   #update_cache.__update_addon(),
-                   #update_cache.__update_event(),
-                   #update_cache.__update_version(),
-                   #update_cache.__clear_playerstats(),
+    
+        updates = [update_cache.__update_chars(),
+                   update_cache.__update_perks(),
+                   update_cache.__update_offerings(),
+                   update_cache.__update_dlc(),
+                   update_cache.__update_item(),
+                   update_cache.__update_map(),
+                   update_cache.__update_addon(),
+                   update_cache.__update_event(),
+                   update_cache.__update_version(),
+                   update_cache.__clear_playerstats(),
                    update_cache.__name_lists()]
-
-        for update in updates:
-            await update
+    
+        tasks = [asyncio.create_task(update) for update in updates]
+    
+        for task in tasks:
+            await task 
+    
         bot.cache_updated = True
-
+    
         print('Cache updated.')
         manlogger.info('Cache updated.')
-
-
+    
+    
     async def task():
         while not shutdown:
             await update_cache.__start_cache_update()
@@ -2622,7 +2625,6 @@ class Owner():
         conn.commit()
         await reply.edit(content = f'Published to `{published_success}/{published_total}` channels.')
         
-
 
     async def shutdown(message):
         global shutdown
