@@ -19,6 +19,7 @@ import random
 import re
 import sentry_sdk
 import socket
+import sqlite3
 import sys
 import time
 import traceback
@@ -33,7 +34,8 @@ from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
-from typing import List, Literal
+from typing import Any, List, Literal, Optional
+from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
@@ -78,6 +80,7 @@ log_folder = f'{app_folder_name}//Logs//'
 buffer_folder = f'{app_folder_name}//Buffer//'
 stats_folder = os.path.abspath(f'{app_folder_name}//Buffer//Stats//')
 activity_file = os.path.join(app_folder_name, 'activity.json')
+sql_file = os.path.join(app_folder_name, f'{app_folder_name}.db')
 
 #Set-up logging
 logger = logging.getLogger('discord')
@@ -311,6 +314,23 @@ class aclient(discord.AutoShardedClient):
                 return discord.Status.dnd
             elif status == 'invisible':
                 return discord.Status.invisible
+            
+
+    async def setup_database(self):
+        c.executescript('''
+        CREATE TABLE IF NOT EXISTS "changelogs" (
+	        "id"	        INTEGER,
+            "guild_id"      INTEGER,            
+	        "channel_id"	INTEGER,
+	        PRIMARY KEY("id" AUTOINCREMENT)
+        );
+        CREATE TABLE IF NOT EXISTS "shrine" (
+	        "id"	        INTEGER,
+            "guild_id"      INTEGER,             
+	        "channel_id"	INTEGER,
+	        PRIMARY KEY("id" AUTOINCREMENT)
+        )                                       
+        ''')
 
 
     async def on_guild_remove(self, guild):
@@ -346,17 +366,20 @@ class aclient(discord.AutoShardedClient):
         async def __wrong_selection():
             await message.channel.send('```'
                                        'Commands:\n'
+                                       'activity - Set the activity of the bot\n'
+                                       'changelog - Upload a txt, or md, that is send to the changelog channels\n'
                                        'help - Shows this message\n'
                                        'log - Get the log\n'
-                                       'activity - Set the activity of the bot\n'
-                                       'status - Set the status of the bot\n'
                                        'shutdown - Shutdown the bot\n'
+                                       'status - Set the status of the bot\n'
                                        '```')
 
         if message.guild is None and message.author.id == int(ownerID):
             args = message.content.split(' ')
-            print(args)
             command, *args = args
+            file = message.attachments
+            print(command)
+
             if command == 'help':
                 await __wrong_selection()
                 return
@@ -375,6 +398,10 @@ class aclient(discord.AutoShardedClient):
 
             elif command == 'shutdown':
                 await Owner.shutdown(message)
+                return
+
+            elif command == 'changelog':
+                await Owner.changelog(message, file)
                 return
 
             else:
@@ -419,6 +446,7 @@ class aclient(discord.AutoShardedClient):
 
 
     async def on_ready(self):
+        global owner, start_time, shutdown, conn, c
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
             manlogger.info('Syncing...')
@@ -427,7 +455,9 @@ class aclient(discord.AutoShardedClient):
             manlogger.info('Synced.')
             print('Commands synced.')
             self.synced = True
-        global owner, start_time, shutdown
+        conn = sqlite3.connect(sql_file)
+        c = conn.cursor()
+        await self.setup_database()
         shutdown = False
         try:
             owner = await bot.fetch_user(ownerID)
@@ -452,6 +482,7 @@ class aclient(discord.AutoShardedClient):
 
         while not self.cache_updated:
             await asyncio.sleep(1)
+        bot.loop.create_task(Functions.subscribe_task())
         if not docker:
             clear()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -491,20 +522,6 @@ class update_cache():
             else:
                 with open(f"{buffer_folder}perk_info_{lang}.json", "w", encoding="utf8") as f:
                     json.dump(data, f, indent=2)
-
-
-    async def __update_shrine():
-        data = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
-        if data == 1:
-            manlogger.warning("Shrine couldn't be updated.")
-            print("Shrine couldn't be updated.")
-            return 1
-        if db_available:
-            data['_id'] = 'shrine_info'
-            collection.update_one({'_id': 'shrine_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
-                json.dump(data, f, indent=2)
 
 
     async def __update_offerings():
@@ -678,17 +695,16 @@ class update_cache():
         print('Updating cache...')
         manlogger.info('Updating cache...')
 
-        updates = [update_cache.__update_chars(),
-                   update_cache.__update_perks(),
-                   update_cache.__update_shrine(),
-                   update_cache.__update_offerings(),
-                   update_cache.__update_dlc(),
-                   update_cache.__update_item(),
-                   update_cache.__update_map(),
-                   update_cache.__update_addon(),
-                   update_cache.__update_event(),
-                   update_cache.__update_version(),
-                   update_cache.__clear_playerstats(),
+        updates = [#update_cache.__update_chars(),
+                   #update_cache.__update_perks(),
+                   #update_cache.__update_offerings(),
+                   #update_cache.__update_dlc(),
+                   #update_cache.__update_item(),
+                   #update_cache.__update_map(),
+                   #update_cache.__update_addon(),
+                   #update_cache.__update_event(),
+                   #update_cache.__update_version(),
+                   #update_cache.__clear_playerstats(),
                    update_cache.__name_lists()]
 
         for update in updates:
@@ -976,8 +992,11 @@ class Functions():
         return "Could not create invite. There is either no text-channel, or I don't have the rights to create an invite."
         
 
-    async def get_language_code(interaction: discord.Interaction):
-        lang_code = interaction.locale[1]
+    async def get_language_code(interaction: discord.Interaction, lang_type: Literal['server', 'client'] = 'client'):
+        if lang_type == 'server':
+            lang_code = interaction.guild_locale[1]
+        else:    
+            lang_code = interaction.locale[1]
         lang_name = await Functions.get_language_name(lang_code)
         if lang_name in languages:
             return lang_code
@@ -986,9 +1005,14 @@ class Functions():
 
 
     async def translate(interaction: discord.Interaction, text):
-        lang = await Functions.get_language_code(interaction)
-        if lang in api_langs:
-            return text
+        if type(interaction) == discord.app_commands.transformers.NoneType:
+            lang = 'en'
+        elif type(interaction) != str:
+            lang = await Functions.get_language_code(interaction)
+            if lang in api_langs:
+                return text
+        else:
+            lang = interaction
         
         hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
         print(f'Translation Hash: {hashed}')
@@ -1087,12 +1111,19 @@ class Functions():
     
         data_en = await Functions.data_load('perks', 'en')
         if data_en is None:
-            await interaction.followup.send('Perks couldn\'t be loaded.', ephemeral=True)
-            return
+            if type(interaction) == discord.Interaction:
+                await interaction.followup.send('Perks couldn\'t be loaded.', ephemeral=True)
+                return
+            else:
+                return {}
+  
         data_loc = await Functions.data_load('perks', lang)
         if data_loc is None:
-            await interaction.followup.send('Perks couldn\'t be loaded.', ephemeral=True)
-            return
+            if type(interaction) == discord.Interaction:
+                await interaction.followup.send('Perks couldn\'t be loaded.', ephemeral=True)
+                return
+            else:
+                return {}
         
         perk = Functions.find_key_by_name(perk, data_en)
         
@@ -1116,11 +1147,19 @@ class Functions():
         .replace('</li>', '')
         print(description)
         
-        if shrine:
+        if shrine and type(interaction) == discord.Interaction:
             if lang in api_langs:
                 embed = discord.Embed(title=f"{data_loc[perk]['name']}", description=description, color=0xb19325)
             else:
                 embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data_loc[perk]['name']}'", description=await Functions.translate(interaction, description), color=0xb19325)
+            key = perk
+            await check()
+            return embed
+        elif shrine and type(interaction) != discord.Interaction:
+            if lang in api_langs:
+                embed = discord.Embed(title=f"{data_loc[perk]['name']}", description=description, color=0xb19325)
+            else:
+                embed = discord.Embed(title=f"{await Functions.translate(lang, 'Perk-Description for')} '{data_loc[perk]['name']}'", description=await Functions.translate(lang, description), color=0xb19325)
             key = perk
             await check()
             return embed
@@ -1307,9 +1346,7 @@ class Functions():
                 print(f"Story length: {len(story_text)}")
                 if len(story_text) > 4096:
                     story_text = Functions.insert_newlines(story_text)
-                    story_file = f'{buffer_folder}character_story.txt'
-                    if os.path.exists(story_file):
-                        story_file = f"{buffer_folder}character_story{random.randrange(1, 999)}.txt"
+                    story_file = f'{buffer_folder}character_story{uuid4}.txt'
                     with open(story_file, 'w', encoding='utf8') as f:
                         if lang in api_langs and lang != 'en':
                             f.write(story_text)
@@ -1460,6 +1497,65 @@ class Functions():
                     word_count = 0
     
         return processed_text.strip()
+
+
+    async def subscribe_task():
+        async def function():
+            shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
+            if shrine_new == 1:
+                manlogger.warning("Shrine couldn't be updated.")
+                print("Shrine couldn't be updated.")
+                return 1
+            shrine_old = await Functions.data_load('shrine')
+            if shrine_old is None:
+                shrine_old['data']['week'] = 0
+                
+            if shrine_new['data']['week'] > shrine_old['data']['week']:
+                c.execute('SELECT * FROM shrine')
+                for row in c.fetchall():
+                    await Info.shrine(channel_id=(row[1], row[2]))
+            
+            if db_available:
+                shrine_new['_id'] = 'shrine_info'
+                collection.update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
+            else:
+                with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
+                    json.dump(shrine_new, f, indent=4)
+              
+        while not shutdown:
+            await function()
+            try:
+                await asyncio.sleep(60*15)
+            except asyncio.CancelledError:
+                pass
+                
+
+    async def get_or_fetch(item: str, item_id: int) -> Optional[Any]:
+        """
+        Attempts to retrieve an object using the 'get_<item>' method of the bot class, and
+        if not found, attempts to retrieve it using the 'fetch_<item>' method.
+    
+        :param item: Name of the object to retrieve
+        :param item_id: ID of the object to retrieve
+        :return: Object if found, else None
+        :raises AttributeError: If the required methods are not found in the bot class
+        """
+        get_method_name = f'get_{item}'
+        fetch_method_name = f'fetch_{item}'
+    
+        get_method = getattr(bot, get_method_name, None)
+        fetch_method = getattr(bot, fetch_method_name, None)
+    
+        if get_method is None or fetch_method is None:
+            raise AttributeError(f"Methods {get_method_name} or {fetch_method_name} not found on bot object.")
+    
+        item_object = get_method(item_id)
+        if item_object is None:
+            try:
+                item_object = await fetch_method(item_id)
+            except discord.NotFound:
+                pass
+        return item_object
 
 
 
@@ -1920,20 +2016,45 @@ class Info():
             json.dump(data_to_save, f, indent=4)
 
 
-    async def shrine(interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True)
-        lang = await Functions.get_language_code(interaction)
-        data = await Functions.data_load('shrine')
-        if data is None:
-            await interaction.followup.send(await Functions.translate(interaction, "Error while loading the shrine data."))
+    async def shrine(interaction: discord.Interaction = None, channel_id: tuple = ''):
+        if channel_id != '':
+            channel = await Functions.get_or_fetch('channel', channel_id[1])
+            if channel is None:
+                manlogger.info(f"Channel <#{channel_id[1]}> not found. Removing from db.")
+                c.execute(f"DELETE FROM shrine WHERE channel_id = {channel_id[1]}")
+                conn.commit()
+                return
+            guild: discord.Guild = await Functions.get_or_fetch('guild', channel_id[0])
+            if guild is None:
+                manlogger.info(f"Guild {channel_id[0]} not found. Removing from db.")
+                c.execute(f"DELETE FROM shrine WHERE guild_id = {channel_id[0]}")
+                conn.commit()
+                return
+            data = await Functions.data_load('shrine')
+            if data is None:
+                return            
+            embeds = []
+            for shrine in data['data']['perks']:
+                print(shrine)
+                shrine_embed = await Functions.perk_send(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
+                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
+                embeds.append(shrine_embed)
+            await channel.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
             return
-        embeds = []
-        for shrine in data['data']['perks']:
-            print(shrine)
-            shrine_embed = await Functions.perk_send(shrine['name'], lang, interaction, True)
-            shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
-            embeds.append(shrine_embed)
-        await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 4h.", embeds=embeds)
+        else:
+            await interaction.response.defer(thinking=True)
+            lang = await Functions.get_language_code(interaction)
+            data = await Functions.data_load('shrine')
+            if data is None:
+                await interaction.followup.send(await Functions.translate(interaction, "Error while loading the shrine data."))
+                return
+            embeds = []
+            for shrine in data['data']['perks']:
+                print(shrine)
+                shrine_embed = await Functions.perk_send(shrine['name'], lang, interaction, True)
+                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
+                embeds.append(shrine_embed)
+            await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
 
 
     async def version(interaction: discord.Interaction):
@@ -2093,7 +2214,6 @@ class Info():
             with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf-8') as f:
                 f.write(data)
             await interaction.followup.send(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
-
 
 
 #Random
@@ -2313,8 +2433,7 @@ class Random():
         embeds.append(offering)
 
         await interaction.followup.send(embeds=embeds)
-
-
+        
 
 ##Owner Commands
 class Owner():
@@ -2429,7 +2548,7 @@ class Owner():
     async def status(message, args):
         async def __wrong_selection():
             await message.channel.send('```'
-                                       'status [online/idle/dnd/invisible] - Set the status of the bot\n'
+                                       'status [online/idle/dnd/invisible] - Set the status of the bot'
                                        '```')
 
         if args == []:
@@ -2453,6 +2572,56 @@ class Owner():
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
+
+
+    async def changelog(message, file):
+        async def __wrong_selection():
+            await message.channel.send('```'
+                                       'changelog [file] - Upload a txt, or md, that is send to the changelog channels.'
+                                       '```')
+        if file == []:
+            await __wrong_selection()
+            return
+        try:
+            await file[0].save(f'{buffer_folder}changelog')
+            with open(f'{buffer_folder}changelog', 'rb') as f:
+                text = f.read().decode('utf-8')
+        except:
+            traceback.print_exc()
+            manlogger.warning(f'Error while reading the changelog file.')
+            await message.channel.send('Error while reading the changelog file.')
+            os.remove(f'{buffer_folder}changelog')
+            return
+        
+        reply = await message.reply('Publishing...')
+        
+        c.execute("SELECT * FROM changelogs")
+        data = c.fetchall()
+        if data == []:
+            await message.channel.send('There are no changelog channels set.')
+            return
+        published_success = 0
+        published_total = 0
+        for entry in data:
+            channel = await Functions.get_or_fetch('channel', entry[2])
+            if channel is None:
+                manlogger.info(f'Channel {entry[2]} not found. Removing from db.')
+            try:
+                await channel.send(text)
+                published_success += 1
+                published_total += 1
+            except discord.HTTPException:
+                try:
+                    await channel.send(file=discord.File(f'{buffer_folder}changelog'))
+                    published_success += 1
+                    published_total += 1
+                except:
+                    manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                    c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
+                    published_total += 1
+        conn.commit()
+        await reply.edit(content = f'Published to `{published_success}/{published_total}` channels.')
+        
 
 
     async def shutdown(message):
@@ -2633,6 +2802,7 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str = ''
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
 
+#Info
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.user.id))
 @discord.app_commands.describe(category = 'The category you want to get informations about.',
@@ -2792,7 +2962,7 @@ async def self(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Map', value = 'map'),
     discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def randomize(interaction: discord.Interaction,
+async def self(interaction: discord.Interaction,
                     category: str,
                     item: str = None,
                     killer: str = None):
@@ -2900,6 +3070,62 @@ async def randomize(interaction: discord.Interaction,
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)
 
+
+#Subscribe
+@tree.command(name = 'subscribe', description = 'Subscribe to a specific category for automatic posts.')
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+@discord.app_commands.describe(channel = 'The channel you want to post messages to.',
+                               shrine = 'Subscribe to the shrine.',
+                               changelogs = 'Subscribe to the changelogs of this bot.'
+                               )
+async def self(interaction: discord.Interaction,
+               channel: discord.TextChannel,
+               shrine: bool,
+               changelogs: bool
+               ):
+    if interaction.guild is None:
+        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        return
+
+    permissions = channel.permissions_for(interaction.guild.me)
+    if not (permissions.send_messages and permissions.attach_files and permissions.embed_links):
+        await interaction.response.send_message('I\'m missing one of the following persmissions in the specified channel:\n• `SEND_MESSAGES`\n• `ATTACH_FILES`\n• `EMBED_LINKS`', ephemeral=True)
+        return
+
+    message = ''
+    if shrine:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO shrine (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the shrine on channel <#{channel.id}>.\n'
+        else:
+            message += f'You are already subscribed to the shrine on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the shrine on channel <#{channel.id}>.\n'
+        else:
+            c.execute('DELETE FROM shrine WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the shrine on channel <#{channel.id}>.\n'
+
+    if changelogs:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO changelogs (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            message += f'You are already subscribed to the changelogs on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            c.execute('DELETE FROM changelogs WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the changelogs on channel <#{channel.id}>.\n'
+            
+    conn.commit()
+    await interaction.response.send_message(message, ephemeral=True)
 
 
 
