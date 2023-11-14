@@ -29,11 +29,11 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev l
 
 EXPOSE 5000
 
-LABEL maintainer="Discord: the_devil_of_the_rhine (863687441809801246)" \
-      commit=$COMMIT \
-      description="Discord bot for DBD for Steam stats." \
-      release=$BUILD_DATE \
+LABEL MAINTAINER="Discord: the_devil_of_the_rhine (863687441809801246)" \
+      COMMIT=$COMMIT \
+      DESCRIPTION="Discord bot for DBD for Steam stats." \
+      RELEASE=$BUILD_DATE \
       VERSION="1.6.1" \
-      url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
+      URL="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]

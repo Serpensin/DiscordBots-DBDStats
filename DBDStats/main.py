@@ -103,24 +103,24 @@ manlogger.info('Engine powering up...')
 
 #Load env
 TOKEN = os.getenv('TOKEN')
-ownerID = os.getenv('OWNER_ID')
-steamAPIkey = os.getenv('steamAPIkey')
-support_id = os.getenv('support_server')
-twitch_client_id = os.getenv('twitch_client_id')
-twitch_client_secret = os.getenv('twitch_client_secret')
-libretransAPIkey = os.getenv('libretransAPIkey')
-libretransURL = os.getenv('libretransURL')
-db_host = os.getenv('MongoDB_host')
-db_port = os.getenv('MongoDB_port')
-db_user = os.getenv('MongoDB_user')
-db_pass = os.getenv('MongoDB_password')
-db_name = os.getenv('MongoDB_database')
-db_collection = os.getenv('MongoDB_collection')
-topgg_token = os.getenv('TOPGG_TOKEN')
-discordbots_token = os.getenv('DISCORDBOTS_TOKEN')
-discordbotlistcom_token = os.getenv('DISCORDBOTLIST_TOKEN')
-discordlist_token = os.getenv('DISCORDLIST_TOKEN')
-discords_token = os.getenv('DISCORDS_TOKEN')
+OWNERID = os.getenv('OWNER_ID')
+STEAMAPIKEY = os.getenv('steamAPIkey')
+SUPPORTID = os.getenv('support_server')
+TWITCH_CLIENT_ID = os.getenv('twitch_client_id')
+TWITCH_CLIENT_SECRET = os.getenv('twitch_client_secret')
+LIBRETRANS_APIKEY = os.getenv('libretransAPIkey')
+LIBRETRANS_URL = os.getenv('libretransURL')
+DB_HOST = os.getenv('MongoDB_host')
+DB_PORT = os.getenv('MongoDB_port')
+DB_USER = os.getenv('MongoDB_user')
+DB_PASS = os.getenv('MongoDB_password')
+DB_NAME = os.getenv('MongoDB_database')
+DB_COLLECTION = os.getenv('MongoDB_collection')
+TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
+DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
+DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
+DISCORDLIST_TOKEN = os.getenv('DISCORDLIST_TOKEN')
+DISCORDS_TOKEN = os.getenv('DISCORDS_TOKEN')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -207,13 +207,13 @@ mongo_port = 27017
 if docker and is_mongo_reachable(mongo_host, mongo_port):
     connection_string = f'mongodb://{mongo_host}:{mongo_port}/DBDStats'
 else:
-    connection_string = f'mongodb://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
+    connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
 db = pymongo.MongoClient(connection_string)
-collection = db[db_name][db_collection]
+collection = db[DB_NAME][DB_COLLECTION]
 
 tb = PrettyTable()
-twitch_api = TwitchAPI(twitch_client_id, twitch_client_secret)
+twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
 
 #Fix error on windows on shutdown.
 if platform.system() == 'Windows':
@@ -241,8 +241,8 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
 # db_available = False
-libretrans_url = libretransURL
-translator = LibreTranslateAPI(libretransAPIkey, libretrans_url)
+libretrans_url = LIBRETRANS_URL
+translator = LibreTranslateAPI(LIBRETRANS_APIKEY, libretrans_url)
 translate_available = False
 retry_count = 10
 while not translate_available and retry_count > 0:
@@ -261,8 +261,8 @@ while not translate_available and retry_count > 0:
             pt('Could not connect to LibreTranslate. | Disabling translation.')
             translate_available = False
 
-twitch_available = bool(twitch_client_secret and twitch_client_id)
-support_available = bool(support_id)
+twitch_available = bool(TWITCH_CLIENT_SECRET and TWITCH_CLIENT_ID)
+support_available = bool(SUPPORTID)
 
 
 
@@ -273,7 +273,7 @@ class aclient(discord.AutoShardedClient):
         intents = discord.Intents.default()
         intents.dm_messages = True
 
-        super().__init__(owner_id = ownerID,
+        super().__init__(owner_id = OWNERID,
                               intents = intents,
                               status = discord.Status.invisible,
                               auto_reconnect = True
@@ -374,7 +374,7 @@ class aclient(discord.AutoShardedClient):
                                        'status - Set the status of the bot\n'
                                        '```')
 
-        if message.guild is None and message.author.id == int(ownerID):
+        if message.guild is None and message.author.id == int(OWNERID):
             args = message.content.split(' ')
             command, *args = args
             file = message.attachments
@@ -460,7 +460,7 @@ class aclient(discord.AutoShardedClient):
         await self.setup_database()
         shutdown = False
         try:
-            owner = await bot.fetch_user(ownerID)
+            owner = await bot.fetch_user(OWNERID)
             print('Owner found.')
         except:
             print('Owner not found.')
@@ -468,15 +468,15 @@ class aclient(discord.AutoShardedClient):
 
         #Start background tasks
         bot.loop.create_task(update_cache.task())
-        if topgg_token:
+        if TOPGG_TOKEN:
             bot.loop.create_task(update_stats.topgg())
-        if discordbots_token:
+        if DISCORDBOTS_TOKEN:
             bot.loop.create_task(update_stats.discordbots())
-        if discordbotlistcom_token:
+        if DISCORDBOTLISTCOM_TOKEN:
             bot.loop.create_task(update_stats.discordbotlist_com())
-        if discordlist_token:
+        if DISCORDLIST_TOKEN:
             bot.loop.create_task(update_stats.discordlist())
-        if discords_token:
+        if DISCORDS_TOKEN:
             bot.loop.create_task(update_stats.discords())
         bot.loop.create_task(Functions.health_server())
 
@@ -732,7 +732,7 @@ class update_cache():
 class update_stats():
     async def topgg():
         headers = {
-            'Authorization': topgg_token,
+            'Authorization': TOPGG_TOKEN,
             'Content-Type': 'application/json'
         }
         while not shutdown:
@@ -748,7 +748,7 @@ class update_stats():
 
     async def discordbots():
         headers = {
-            'Authorization': discordbots_token,
+            'Authorization': DISCORDBOTS_TOKEN,
             'Content-Type': 'application/json'
         }
         while not shutdown:
@@ -764,7 +764,7 @@ class update_stats():
 
     async def discordbotlist_com():
         headers = {
-            'Authorization': discordbotlistcom_token,
+            'Authorization': DISCORDBOTLISTCOM_TOKEN,
             'Content-Type': 'application/json'
         }
         while not shutdown:
@@ -780,7 +780,7 @@ class update_stats():
 
     async def discordlist():
         headers = {
-            'Authorization': f'Bearer {discordlist_token}',
+            'Authorization': f'Bearer {DISCORDLIST_TOKEN}',
             'Content-Type': 'application/json; charset=utf-8'
         }
         while not shutdown:
@@ -796,7 +796,7 @@ class update_stats():
 
     async def discords():
         headers = {
-            'Authorization': discords_token,
+            'Authorization': DISCORDS_TOKEN,
             'Content-Type': 'application/json'
         }
         while not shutdown:
@@ -829,7 +829,7 @@ class Functions():
         vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
         vanity = vanity.replace('https://steamcommunity.com/id/', '')
         vanity = vanity.replace('/', '')
-        api_url = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steamAPIkey}&vanityurl={vanity}'
+        api_url = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={STEAMAPIKEY}&vanityurl={vanity}'
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as resp:
                 data = await resp.json()
@@ -965,7 +965,7 @@ class Functions():
 
     async def create_support_invite(interaction):
         try:
-            guild = bot.get_guild(int(support_id))
+            guild = bot.get_guild(int(SUPPORTID))
         except ValueError:
             return "Could not find support guild."
         if guild is None:
@@ -1621,7 +1621,7 @@ class Info():
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
-        check = await Functions.check_for_dbd(steamid, steamAPIkey)
+        check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         try:
             int(check[0])
         except:
@@ -1668,7 +1668,7 @@ class Info():
                     return
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
-            steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={steamAPIkey}&steamids={check[1]}')
+            steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAMAPIKEY}&steamids={check[1]}')
             if steam_data == 1 or player_stats == 1:
                 await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
@@ -2128,7 +2128,7 @@ class Info():
 
     async def legacycheck(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
-        dbd_check = await Functions.check_for_dbd(steamid, steamAPIkey)
+        dbd_check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         if dbd_check[0] == 1:
             await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))
         elif dbd_check[0] == 2:
@@ -2143,7 +2143,7 @@ class Info():
             await interaction.response.send_message(embed=embed1)
         elif dbd_check[0] == 0:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={steamAPIkey}&steamid={dbd_check[1]}&appid=381210') as resp:
+                async with session.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={STEAMAPIKEY}&steamid={dbd_check[1]}&appid=381210') as resp:
                     data = await resp.json()
             if data['playerstats']['success'] == False:
                 await interaction.followup.send(await Functions.translate(interaction, 'This profile is private.'))
@@ -2668,7 +2668,7 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Version", value=bot_version, inline=True)
     embed.add_field(name="Uptime", value=str(timedelta(seconds=int((datetime.now() - start_time).total_seconds()))), inline=True)
 
-    embed.add_field(name="Owner", value=f"<@!{ownerID}>", inline=True)
+    embed.add_field(name="Owner", value=f"<@!{OWNERID}>", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
@@ -2688,7 +2688,7 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/oauth2/authorize?client_id={bot.user.id}&permissions=67423232&scope=bot)", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
-    if interaction.user.id == int(ownerID):
+    if interaction.user.id == int(OWNERID):
         # Add CPU and RAM usage
         process = psutil.Process(os.getpid())
         cpu_usage = process.cpu_percent()
@@ -2724,7 +2724,7 @@ if support_available:
     @tree.command(name = 'support', description = 'Get invite to our support server.')
     @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
     async def self(interaction: discord.Interaction):
-        if str(interaction.guild.id) != support_id:
+        if str(interaction.guild.id) != SUPPORTID:
             await interaction.response.defer(ephemeral = True)
             await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
         else:
@@ -3147,7 +3147,7 @@ async def self(interaction: discord.Interaction,
 
 
 if __name__ == '__main__':
-    if not TOKEN or not steamAPIkey:
+    if not TOKEN or not STEAMAPIKEY:
         error_message = 'Missing token or steam API key. Please check your .env file.'
         manlogger.critical(error_message)
         sys.exit(error_message)
