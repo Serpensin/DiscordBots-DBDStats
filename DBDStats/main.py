@@ -2636,6 +2636,8 @@ class Owner():
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]
         await asyncio.gather(*tasks, return_exceptions=True)
+        
+        conn.close()
 
         await bot.close()
 
