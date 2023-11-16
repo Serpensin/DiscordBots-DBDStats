@@ -30,8 +30,7 @@ services:
       libretransAPIkey: APIKey_for_libretranslate
       MongoDB_host: mongo           #####################################
       MongoDB_port: 27017           #           Don't change!!!         #
-      MongoDB_database: DBDStats    #                                   #
-      MongoDB_collection: API       #####################################
+      MongoDB_database: DBDStats    #####################################
     image: serpensin/dbdstats
     volumes:
       - dbdstats:/app/DBDStats

@@ -72,10 +72,21 @@ def print(msg):
     if sys.gettrace() is not None:
         pt(msg)
 #Set-up folders
-if not os.path.exists(f'{app_folder_name}//Logs'):
-    os.makedirs(f'{app_folder_name}//Logs')
-if not os.path.exists(f'{app_folder_name}//Buffer//Stats'):
-    os.makedirs(f'{app_folder_name}//Buffer//Stats')
+paths = [
+    f'{app_folder_name}//Logs',
+    f'{app_folder_name}//Buffer//Stats',
+    f'{app_folder_name}//Buffer//addon',
+    f'{app_folder_name}//Buffer//char',
+    f'{app_folder_name}//Buffer//dlc',
+    f'{app_folder_name}//Buffer//event',
+    f'{app_folder_name}//Buffer//item',
+    f'{app_folder_name}//Buffer//killer',
+    f'{app_folder_name}//Buffer//map',
+    f'{app_folder_name}//Buffer//offering',
+    f'{app_folder_name}//Buffer//perk',
+]
+for path in paths:
+    os.makedirs(path, exist_ok=True)
 log_folder = f'{app_folder_name}//Logs//'
 buffer_folder = f'{app_folder_name}//Buffer//'
 stats_folder = os.path.abspath(f'{app_folder_name}//Buffer//Stats//')
@@ -210,7 +221,6 @@ else:
     connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
 db = pymongo.MongoClient(connection_string)
-collection = db[DB_NAME][DB_COLLECTION]
 
 tb = PrettyTable()
 twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
@@ -240,7 +250,7 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
-# db_available = False
+#db_available = False
 libretrans_url = LIBRETRANS_URL
 translator = LibreTranslateAPI(LIBRETRANS_APIKEY, libretrans_url)
 translate_available = False
@@ -479,6 +489,7 @@ class aclient(discord.AutoShardedClient):
         if DISCORDS_TOKEN:
             bot.loop.create_task(update_stats.discords())
         bot.loop.create_task(Functions.health_server())
+        bot.loop.create_task(Functions.check_db_connection_task())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
@@ -513,15 +524,11 @@ class update_cache():
                 manlogger.warning("Perks couldn't be updated.")
                 print("Perks couldn't be updated.")
                 return 1
-            char = await Functions.data_load('chars', lang)
-            if char is None:
-                return 1
             if db_available:
-                data['_id'] = f'perk_info_{lang}'
-                collection.update_one({'_id': f'perk_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f"{buffer_folder}perk_info_{lang}.json", "w", encoding="utf8") as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f"{buffer_folder}perk//{lang}.json", "w", encoding="utf8") as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_offerings():
@@ -532,11 +539,10 @@ class update_cache():
                 print("Offerings couldn't be updated.")
                 return 1
             if db_available:
-                data['_id'] = f'offering_info_{lang}'
-                collection.update_one({'_id': f'offering_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f'{buffer_folder}offering_info_{lang}.json', 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f'{buffer_folder}offering//{lang}.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_chars():
@@ -547,11 +553,10 @@ class update_cache():
                 print("Characters couldn't be updated.")
                 return 1
             if db_available:
-                data['_id'] = f'char_info_{lang}'
-                collection.update_one({'_id': f'char_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f"{buffer_folder}char_info_{lang}.json", 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f"{buffer_folder}char//{lang}.json", 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_dlc():
@@ -562,11 +567,10 @@ class update_cache():
                 print("DLC couldn't be updated.")
                 return 1
             if db_available:
-                data['_id'] = f'dlc_info_{lang}'
-                collection.update_many({'_id': f'dlc_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f"{buffer_folder}dlc_info_{lang}.json", "w", encoding="utf8") as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f"{buffer_folder}dlc//{lang}.json", "w", encoding="utf8") as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_item():
@@ -577,29 +581,22 @@ class update_cache():
                 print("Items couldn't be updated.")
                 return 1
             if db_available:
-                data['_id'] = f'item_info_{lang}'
-                collection.update_one({'_id': f'item_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f"{buffer_folder}item_info_{lang}.json", "w", encoding="utf8") as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f"{buffer_folder}item//{lang}.json", "w", encoding="utf8") as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_addon():
         for lang in api_langs:
-            char = await Functions.data_load('chars', lang)
-            if char is None:
-                manlogger.warning("Addons couldn't be updated.")
-                print("Addons couldn't be updated.")
-                return 1
             data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
             if data == 1:
                 return 1
             if db_available:
-                data['_id'] = f'addon_info_{lang}'
-                collection.update_one({'_id': f'addon_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f'{buffer_folder}addon_info_{lang}.json', 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f'{buffer_folder}addon//{lang}.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_map():
@@ -610,11 +607,10 @@ class update_cache():
                 print("Maps couldn't be updated.")
                 return 1
             if db_available:
-                data['_id'] = f'map_info_{lang}'
-                collection.update_one({'_id': f'map_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f'{buffer_folder}maps_info_{lang}.json', 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f'{buffer_folder}map//{lang}.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_event():
@@ -628,11 +624,10 @@ class update_cache():
             for i in range(len(data_list)):
                 data[str(i)] = data_list[i]
             if db_available:
-                data['_id'] = f'event_info_{lang}'
-                collection.update_one({'_id': f'event_info_{lang}'}, {'$set': data}, upsert=True)
-            else:
-                with open(f'{buffer_folder}event_info_{lang}.json', 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=2)
+                data['_id'] = lang
+                db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+            with open(f'{buffer_folder}event//{lang}.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=2)
 
 
     async def __update_version():
@@ -643,10 +638,9 @@ class update_cache():
             return 1
         if db_available:
             data['_id'] = 'version_info'
-            collection.update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
-        else:
-            with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
-                json.dump(data, f, indent=2)
+            db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
+        with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
+            json.dump(data, f, indent=2)
 
 
     async def __clear_playerstats():
@@ -687,11 +681,11 @@ class update_cache():
         await load_and_set_names('items', 'item_names')
         await load_and_set_names('maps', 'map_names')
         await load_and_set_names('offerings', 'offering_names')
-        await load_and_set_names('perks', 'perk_names')
+        await load_and_set_names('perks', 'perk_names_en')
       
 
 
-    async def __start_cache_update():
+    async def start_cache_update():
         print('Updating cache...')
         manlogger.info('Updating cache...')
     
@@ -704,13 +698,13 @@ class update_cache():
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
                    update_cache.__update_version(),
-                   update_cache.__clear_playerstats(),
-                   update_cache.__name_lists()]
+                   update_cache.__clear_playerstats()]
     
         tasks = [asyncio.create_task(update) for update in updates]
     
         for task in tasks:
             await task 
+        await update_cache.__name_lists()
     
         bot.cache_updated = True
     
@@ -720,7 +714,7 @@ class update_cache():
     
     async def task():
         while not shutdown:
-            await update_cache.__start_cache_update()
+            await update_cache.start_cache_update()
             try:
                 await asyncio.sleep(60*60*4)
             except asyncio.CancelledError:
@@ -1073,18 +1067,25 @@ class Functions():
         if lang not in api_langs:
             lang = 'en'
         
-        file_name = f"{buffer_folder}{requested}_info"
+        file_name = f"{buffer_folder}{requested}//"
         db_id = f"{requested}_info"
         
-        if requested != 'shrine':
-            file_name += f"_{lang}"
-            db_id += f"_{lang}"
+        if requested == 'shrine':
+            file_name = f"{buffer_folder}shrine_info"
+        elif requested == 'version':
+            file_name = f"{buffer_folder}version_info"
+            db_id += f"_info"
+        elif requested != 'shrine':
+            file_name += f"{lang}"
+            db_id = lang
+        else:
+            raise Exception('Invalid request.')
         
         if not db_available:
             with open(f"{file_name}.json", "r", encoding="utf8") as f:
                 data = json.load(f)
         else:
-            data = json.loads(json.dumps(collection.find_one({'_id': db_id})))
+            data = json.loads(json.dumps(db[DB_NAME][requested].find_one({'_id': db_id})))
         
         return data
 
@@ -1421,13 +1422,10 @@ class Functions():
 
 
     def merge_dictionaries(json1, json2):
-        # Merging json2 into json1
         for key, value in json2.items():
             if key in json1:
-                # Merge dictionaries from both jsons for the same key
                 json1[key].update(value)
             else:
-                # Add new key-value pair from json2 to json1
                 json1[key] = value
         return json1
     
@@ -1463,7 +1461,7 @@ class Functions():
             return text
         
 
-    def insert_newlines(text, words_per_line=20):
+    def insert_newlines(text, words_per_line=30):
         """
         Inserts a newline character into a string of text approximately every 'words_per_line' words,
         avoiding splits near punctuation or too close to the end of a sentence.
@@ -1502,37 +1500,6 @@ class Functions():
         return processed_text.strip()
 
 
-    async def subscribe_task():
-        async def function():
-            shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
-            if shrine_new == 1:
-                manlogger.warning("Shrine couldn't be updated.")
-                print("Shrine couldn't be updated.")
-                return 1
-            shrine_old = await Functions.data_load('shrine')
-            if shrine_old is None:
-                shrine_old['data']['week'] = 0
-                
-            if shrine_new['data']['week'] > shrine_old['data']['week']:
-                c.execute('SELECT * FROM shrine')
-                for row in c.fetchall():
-                    await Info.shrine(channel_id=(row[1], row[2]))
-            
-            if db_available:
-                shrine_new['_id'] = 'shrine_info'
-                collection.update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
-            else:
-                with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
-                    json.dump(shrine_new, f, indent=4)
-              
-        while not shutdown:
-            await function()
-            try:
-                await asyncio.sleep(60*15)
-            except asyncio.CancelledError:
-                pass
-                
-
     async def get_or_fetch(item: str, item_id: int) -> Optional[Any]:
         """
         Attempts to retrieve an object using the 'get_<item>' method of the bot class, and
@@ -1559,6 +1526,68 @@ class Functions():
             except discord.NotFound:
                 pass
         return item_object
+                
+
+    async def subscribe_task():
+        async def function():
+            shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
+            if shrine_new == 1:
+                manlogger.warning("Shrine couldn't be updated.")
+                print("Shrine couldn't be updated.")
+                return 1
+            shrine_old = await Functions.data_load('shrine')
+            if shrine_old is None:
+                pass   
+            elif shrine_new['data']['week'] > shrine_old['data']['week']:
+                c.execute('SELECT * FROM shrine')
+                for row in c.fetchall():
+                    await Info.shrine(channel_id=(row[1], row[2]))
+            
+            if db_available:
+                shrine_new['_id'] = 'shrine_info'
+                db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
+            with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
+                json.dump(shrine_new, f, indent=4)
+              
+        while not shutdown:
+            await function()
+            try:
+                await asyncio.sleep(60*15)
+            except asyncio.CancelledError:
+                pass
+            
+
+    async def check_db_connection_task():      
+        async def function():
+            global db_available
+            try:
+                db.server_info()
+                if not db_available:
+                    db_available = True
+                    manlogger.info("Database connection established.")
+                    try:
+                        await owner.send("Database connection established.")
+                    except:
+                        pass
+                    await update_cache.start_cache_update()
+            except Exception as e:
+                if not db_available:
+                    return
+                else:
+                    db_available = False
+                    manlogger.warning(f"Database connection lost. {e} -> Fallback to json.")
+                    try:
+                        await owner.send(f"Database connection lost.\n{e}\n-> Fallback to json.")
+                    except:
+                        pass
+                      
+        if db_available:
+            while not shutdown:
+                try:
+                    await function()
+                    await asyncio.sleep(5)
+                except asyncio.CancelledError:
+                    pass
 
 
 
@@ -1997,7 +2026,7 @@ class Info():
             await interaction.followup.send(str(e), ephemeral = True)
             return
 
-        if data is None:
+        if data.replace('\n', '').strip() == '':
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
             embed.set_footer(text = f'Update every 15 minutes.')
@@ -2638,6 +2667,7 @@ class Owner():
         await asyncio.gather(*tasks, return_exceptions=True)
         
         conn.close()
+        db.close()
 
         await bot.close()
 
@@ -2754,7 +2784,8 @@ dlc_names = ['Bot is starting...',]
 item_names = ['Bot is starting...',]
 map_names = ['Bot is starting...',]
 offering_names = ['Bot is starting...',]
-perk_names = ['Bot is starting...',]
+perk_names_en = ['Bot is starting...',]
+perk_names_de = ['DEUTSCH']
 
 
 async def autocomplete_addons(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
@@ -2800,9 +2831,20 @@ async def autocomplete_offerings(interaction: discord.Interaction, current: str 
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
 async def autocomplete_perks(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    # Get the language code for the interaction
+    lang = await Functions.get_language_code(interaction)
+
+    # Dictionary mapping language codes to their respective perk lists
+    perks_by_language = {
+        'en': perk_names_en,
+        'de': perk_names_de,
+    }
+
+    perk_list = perks_by_language.get(lang, perk_names_en)
+
     if current == '':
-        return [discord.app_commands.Choice(name=name, value=name) for name in perk_names[:25]]
-    matching_names = [name for name in perk_names if current.lower() in name.lower()]
+        return [discord.app_commands.Choice(name=name, value=name) for name in perk_list[:25]]
+    matching_names = [name for name in perk_list if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
 

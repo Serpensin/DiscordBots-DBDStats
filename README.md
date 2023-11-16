@@ -32,7 +32,6 @@ Commands, that only be used by the owner of the bot, can only be used in a DM wi
    - `MongoDB_user`: The MongoDB username.
    - `MongoDB_password`: The MongoDB password.
    - `MongoDB_database`: The MongoDB database name.
-   - `MongoDB_collection`: The MongoDB collection name.
 6. Rename the file ".env.template" to ".env".
 7. Run `python main.py` or `python3 main.py` to start the bot.
 
@@ -97,7 +96,6 @@ docker run -d \
 -e MongoDB_user=USER_OF_MONGODB \
 -e MongoDB_password=PASSWORD_OF_MONGODB \
 -e MongoDB_database=DATABASE_OF_MONGODB \
--e MongoDB_collection=COLLECTION_OF_MONGODB \
 --name DBDStats \
 --restart any \
 --health-cmd="curl -f http://localhost:5000/health || exit 1" \
