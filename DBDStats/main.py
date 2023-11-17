@@ -996,7 +996,9 @@ class Functions():
 
 
     async def get_language_code(interaction: discord.Interaction, lang_type: Literal['server', 'client'] = 'client'):
-        if lang_type == 'server':
+        if type(interaction) == discord.Guild:
+            lang_code = interaction.preferred_locale[1][:2]
+        elif lang_type == 'server':
             lang_code = interaction.guild_locale[1]
         else:
             lang_code = interaction.locale[1]
@@ -1013,7 +1015,8 @@ class Functions():
         elif type(interaction) != str:
             lang = await Functions.get_language_code(interaction)
             if lang in api_langs:
-                return text
+                if type(interaction) != discord.Guild:
+                    return text
         else:
             lang = interaction
 
@@ -1119,7 +1122,10 @@ class Functions():
             elif length == 3:
                 return f"{data[perk]['tunables'][position][0]}/{data[perk]['tunables'][position][1]}/{data[perk]['tunables'][position][2]}"
 
-        data = await Functions.data_load('perks', lang)
+        if shrine:
+            data = await Functions.data_load('perks')
+        else:
+            data = await Functions.data_load('perks', lang)
         if data is None:
             if type(interaction) == discord.Interaction:
                 await interaction.followup.send('Perks couldn\'t be loaded.', ephemeral=True)
@@ -1128,6 +1134,11 @@ class Functions():
                 return {}
 
         perk = Functions.find_key_by_name(perk, data)
+
+        if shrine:
+            data = await Functions.data_load('perks', lang)
+            if data is None:
+                return {}
 
         description = str(Functions.format_complete_text_with_list(str(data[perk]['description']) \
         .replace('<br><br>', ' ') \
@@ -2059,7 +2070,7 @@ class Info():
             for shrine in data['data']['perks']:
                 print(shrine)
                 shrine_embed = await Functions.perk_send(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
-                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
+                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
             await channel.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
             return
@@ -2819,7 +2830,6 @@ async def get_localized_list(interaction: discord.Interaction, list_type: Litera
     return globals()[list_name]
 
 
-
 async def autocomplete_addons(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
     addon_list = await get_localized_list(interaction, 'addon')
     if current == '':
@@ -3204,6 +3214,29 @@ async def self(interaction: discord.Interaction,
     await interaction.response.send_message(message, ephemeral=True)
 
 
+#Translation info
+@tree.command(name = 'translation_info', description = 'Get info about the translation.')
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+async def self(interaction: discord.Interaction):
+    await interaction.response.defer(thinking = True, ephemeral = True)
+
+    if interaction.guild is None:
+        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        return
+    embed = discord.Embed(title = 'Translation', color = 0x00ff00)
+    embed.description = 'This bot is translated into the following languages:'
+    temp = []
+    for lang in api_langs:
+        lang = await Functions.get_language_name(lang)
+        temp.append(lang)
+        embed.description += f'\n• {lang}'
+    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky.'
+    for lang in languages:
+        if lang not in temp:
+            embed.description += f'\n• {lang}'
+    embed.description += '\n\nThe bot will automatically select the language based on the client who invokes a comand.\nIf you sub to the shrine, he will post it in the language of the server (community).\nIf he can\'t translate to that languag, he\'ll default to english.'
+    await interaction.followup.send(embed = embed, ephemeral = True)
 
 
 
