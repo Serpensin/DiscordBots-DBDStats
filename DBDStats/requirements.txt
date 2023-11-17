@@ -14,7 +14,7 @@ h11==0.14.0
 html2text==2020.1.16
 httpcore==1.0.2
 idna==3.4
-jsonschema==4.19.2
+jsonschema==4.20.0
 jsonschema-specifications==2023.11.1
 multidict==6.0.4
 pip==23.3.1
