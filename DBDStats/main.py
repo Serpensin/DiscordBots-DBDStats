@@ -808,7 +808,11 @@ class Functions():
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, '0.0.0.0', 5000)
-        await site.start()
+        try:
+            await site.start()
+        except OSError as e:
+            manlogger.warning(f'Error while starting health server: {e}')
+            print(f'Error while starting health server: {e}')
 
 
     async def steam_link_to_id(vanity):
