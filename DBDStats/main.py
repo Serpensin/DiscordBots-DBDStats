@@ -26,6 +26,7 @@ import traceback
 import zlib
 from aiohttp import web
 from bs4 import BeautifulSoup
+from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
 from CustomModules import killswitch
@@ -349,27 +350,6 @@ class aclient(discord.AutoShardedClient):
 
     async def on_guild_join(self, guild):
         manlogger.info(f'I joined {guild}. (ID: {guild.id})')
-        for channel in guild.text_channels:
-            if channel.permissions_for(guild.me).send_messages:
-                perms = []
-                for roles in guild.roles:
-                    if roles.permissions.manage_guild and roles.permissions.manage_roles or roles.permissions.administrator and not roles.is_bot_managed():
-                        perms.append(f'<@&{roles.id}>')
-                if perms == []:
-                    continue
-                else:
-                    try:
-                        mention_roles = ' '.join(perms)
-                        await channel.send(f'{mention_roles}\nHello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
-                        return
-                    except:
-                        pass
-        try:
-            guild_owner = await bot.fetch_user(guild.owner_id)
-
-            await guild_owner.send('Hello! I\'m DBDStats, a bot for Dead by Daylight stats. Please use /setup_help to get help with the translation setup.')
-        except discord.Forbidden:
-            manlogger.info(f'Failed to send setup message for {guild}.')
 
 
     async def on_message(self, message):
@@ -451,7 +431,10 @@ class aclient(discord.AutoShardedClient):
                     manlogger.warning(f"Unexpected error while sending message: {e}")
             finally:
                 traceback.print_exception(type(error), error, error.__traceback__)
-                manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id})")
+                try:
+                    manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id})")
+                except AttributeError:
+                    manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id})")
                 sentry_sdk.capture_exception(error)
 
 
@@ -461,6 +444,7 @@ class aclient(discord.AutoShardedClient):
         if not self.synced:
             manlogger.info('Syncing...')
             pt('Syncing commands...')
+            await tree.set_translator(CustomTranslator())
             await tree.sync()
             manlogger.info('Synced.')
             print('Commands synced.')
@@ -474,7 +458,6 @@ class aclient(discord.AutoShardedClient):
             print('Owner found.')
         except:
             print('Owner not found.')
-        manlogger.info('Initialization completed...')
 
         #Start background tasks
         bot.loop.create_task(update_cache.task())
@@ -508,6 +491,7 @@ class aclient(discord.AutoShardedClient):
 
         ''')
         start_time = datetime.now()
+        manlogger.info('Initialization completed.')
         pt('READY')
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -2758,23 +2742,6 @@ async def self(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-#Change Nickname
-@tree.command(name = 'change_nickname', description = 'Change the nickname of the bot.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
-@discord.app_commands.checks.has_permissions(manage_nicknames = True)
-@discord.app_commands.describe(nick='New nickname for me.')
-async def self(interaction: discord.Interaction, nick: str):
-    if interaction.guild is None:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
-        return
-    try:
-        await interaction.guild.me.edit(nick=nick)
-    except discord.Forbidden:
-        await interaction.response.send_message('I do not have the permission to change my nickname.', ephemeral=True)
-        return
-    await interaction.response.send_message(await Functions.translate(interaction, f'My new nickname is now **{nick}**.'), ephemeral=True)
-
-
 #Support Invite
 if support_available:
     @tree.command(name = 'support', description = 'Get invite to our support server.')
@@ -2937,7 +2904,7 @@ async def self(interaction: discord.Interaction,
                perk: str = None
                ):
     if interaction.guild is None:
-        await interaction.followup.send("This command can only be used in a server.")
+        await interaction.response.send_message("This command can only be used in a server.")
         return
 
     if category == 'char':
@@ -3231,7 +3198,7 @@ async def self(interaction: discord.Interaction):
         lang = await Functions.get_language_name(lang)
         temp.append(lang)
         embed.description += f'\n• {lang}'
-    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky.'
+    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.'
     for lang in languages:
         if lang not in temp:
             embed.description += f'\n• {lang}'

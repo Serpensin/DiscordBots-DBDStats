@@ -24,6 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CustomModules\app_translation.py" />
     <Compile Include="CustomModules\patchnotes.py" />
     <Compile Include="CustomModules\steamcharts.py" />
     <Compile Include="Dockerfile" />
