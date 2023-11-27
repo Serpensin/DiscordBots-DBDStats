@@ -1559,7 +1559,6 @@ class Functions():
                         await owner.send("Database connection established.")
                     except:
                         pass
-                    await update_cache.start_cache_update()
             except Exception as e:
                 if not db_available:
                     return
