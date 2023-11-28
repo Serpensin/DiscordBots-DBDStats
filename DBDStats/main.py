@@ -291,6 +291,7 @@ class aclient(discord.AutoShardedClient):
                         )
         self.synced = False
         self.cache_updated = False
+        self.initialized = False
 
 
     class Presence():
@@ -439,6 +440,9 @@ class aclient(discord.AutoShardedClient):
 
 
     async def on_ready(self):
+        if self.initialized:
+            await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
+            return
         global owner, start_time, shutdown, conn, c
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
@@ -493,6 +497,7 @@ class aclient(discord.AutoShardedClient):
         start_time = datetime.now()
         manlogger.info('Initialization completed.')
         pt('READY')
+        self.initialized = True
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
 tree.on_error = bot.on_app_command_error
@@ -2745,6 +2750,89 @@ async def self(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+#Subscribe
+@tree.command(name = 'subscribe', description = 'Subscribe to a specific category for automatic posts.')
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+@discord.app_commands.describe(channel = 'The channel you want to post messages to.',
+                               shrine = 'Subscribe to the shrine.',
+                               changelogs = 'Subscribe to the changelogs of this bot.'
+                               )
+async def self(interaction: discord.Interaction,
+               channel: discord.TextChannel,
+               shrine: bool,
+               changelogs: bool
+               ):
+    if interaction.guild is None:
+        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        return
+
+    permissions = channel.permissions_for(interaction.guild.me)
+    if not (permissions.send_messages and permissions.attach_files and permissions.embed_links):
+        await interaction.response.send_message('I\'m missing one of the following persmissions in the specified channel:\n• `SEND_MESSAGES`\n• `ATTACH_FILES`\n• `EMBED_LINKS`', ephemeral=True)
+        return
+
+    message = ''
+    if shrine:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO shrine (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the shrine on channel <#{channel.id}>.\n'
+        else:
+            message += f'You are already subscribed to the shrine on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the shrine on channel <#{channel.id}>.\n'
+        else:
+            c.execute('DELETE FROM shrine WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the shrine on channel <#{channel.id}>.\n'
+
+    if changelogs:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO changelogs (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            message += f'You are already subscribed to the changelogs on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            c.execute('DELETE FROM changelogs WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the changelogs on channel <#{channel.id}>.\n'
+
+    conn.commit()
+    message += '\nYou can subscribe to the shrine and changelogs on multiple channels.\nIf sending a message failed because of missing permissions, this specific sub will be canceled without notice.'
+    await interaction.response.send_message(message, ephemeral=True)
+
+
+#Translation info
+@tree.command(name = 'translation_info', description = 'Get info about the translation.')
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+async def self(interaction: discord.Interaction):
+    await interaction.response.defer(thinking = True, ephemeral = True)
+
+    if interaction.guild is None:
+        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        return
+    embed = discord.Embed(title = 'Translation', color = 0x00ff00)
+    embed.description = 'This bot is translated into the following languages:'
+    temp = []
+    for lang in api_langs:
+        lang = await Functions.get_language_name(lang)
+        temp.append(lang)
+        embed.description += f'\n• {lang}'
+    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.'
+    for lang in languages:
+        if lang not in temp:
+            embed.description += f'\n• {lang}'
+    embed.description += '\n\nThe bot will automatically select the language based on the client who invokes a comand.\nIf you sub to the shrine, he will post it in the language of the server (community).\nIf he can\'t translate to that languag, he\'ll default to english.'
+    await interaction.followup.send(embed = embed, ephemeral = True)
+
+
 #Support Invite
 if support_available:
     @tree.command(name = 'support', description = 'Get invite to our support server.')
@@ -2767,7 +2855,6 @@ async def self(interaction: discord.Interaction):
     else:
         embed = discord.Embed(title="Buy Dead By Daylight", description=await Functions.translate(interaction, "Click the title, to buy the game for a few bucks."), url="https://www.g2a.com/n/dbdstats", color=0x00ff00)
         await interaction.response.send_message(embed=embed)
-
 
 
 #Info about Stuff
@@ -3126,87 +3213,7 @@ async def self(interaction: discord.Interaction,
         await interaction.response.send_message('Invalid category.', ephemeral=True)
 
 
-#Subscribe
-@tree.command(name = 'subscribe', description = 'Subscribe to a specific category for automatic posts.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
-@discord.app_commands.checks.has_permissions(manage_guild = True)
-@discord.app_commands.describe(channel = 'The channel you want to post messages to.',
-                               shrine = 'Subscribe to the shrine.',
-                               changelogs = 'Subscribe to the changelogs of this bot.'
-                               )
-async def self(interaction: discord.Interaction,
-               channel: discord.TextChannel,
-               shrine: bool,
-               changelogs: bool
-               ):
-    if interaction.guild is None:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
-        return
 
-    permissions = channel.permissions_for(interaction.guild.me)
-    if not (permissions.send_messages and permissions.attach_files and permissions.embed_links):
-        await interaction.response.send_message('I\'m missing one of the following persmissions in the specified channel:\n• `SEND_MESSAGES`\n• `ATTACH_FILES`\n• `EMBED_LINKS`', ephemeral=True)
-        return
-
-    message = ''
-    if shrine:
-        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
-        if c.fetchone() is None:
-            c.execute('INSERT INTO shrine (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
-            message += f'Successfully subscribed to the shrine on channel <#{channel.id}>.\n'
-        else:
-            message += f'You are already subscribed to the shrine on channel <#{channel.id}>.\n'
-    else:
-        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
-        if c.fetchone() is None:
-            message += f'You are not subscribed to the shrine on channel <#{channel.id}>.\n'
-        else:
-            c.execute('DELETE FROM shrine WHERE channel_id = ?', (channel.id,))
-            message += f'Successfully unsubscribed from the shrine on channel <#{channel.id}>.\n'
-
-    if changelogs:
-        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
-        if c.fetchone() is None:
-            c.execute('INSERT INTO changelogs (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
-            message += f'Successfully subscribed to the changelogs on channel <#{channel.id}>.\n'
-        else:
-            message += f'You are already subscribed to the changelogs on channel <#{channel.id}>.\n'
-    else:
-        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
-        if c.fetchone() is None:
-            message += f'You are not subscribed to the changelogs on channel <#{channel.id}>.\n'
-        else:
-            c.execute('DELETE FROM changelogs WHERE channel_id = ?', (channel.id,))
-            message += f'Successfully unsubscribed from the changelogs on channel <#{channel.id}>.\n'
-
-    conn.commit()
-    message += '\nYou can subscribe to the shrine and changelogs on multiple channels.\nIf sending a message failed because of missing permissions, this specific sub will be canceled without notice.'
-    await interaction.response.send_message(message, ephemeral=True)
-
-
-#Translation info
-@tree.command(name = 'translation_info', description = 'Get info about the translation.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
-@discord.app_commands.checks.has_permissions(manage_guild = True)
-async def self(interaction: discord.Interaction):
-    await interaction.response.defer(thinking = True, ephemeral = True)
-
-    if interaction.guild is None:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
-        return
-    embed = discord.Embed(title = 'Translation', color = 0x00ff00)
-    embed.description = 'This bot is translated into the following languages:'
-    temp = []
-    for lang in api_langs:
-        lang = await Functions.get_language_name(lang)
-        temp.append(lang)
-        embed.description += f'\n• {lang}'
-    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.'
-    for lang in languages:
-        if lang not in temp:
-            embed.description += f'\n• {lang}'
-    embed.description += '\n\nThe bot will automatically select the language based on the client who invokes a comand.\nIf you sub to the shrine, he will post it in the language of the server (community).\nIf he can\'t translate to that languag, he\'ll default to english.'
-    await interaction.followup.send(embed = embed, ephemeral = True)
 
 
 
