@@ -2613,7 +2613,7 @@ class Owner():
             if file[0].size > 8388608:
                 await message.channel.send('The file is too big. Max. 8MB.')
                 return
-            filetype = {file[0].filename.split('.')[-1]}
+            filetype = str({file[0].filename.split('.')[-1]})
             changelog = f'{buffer_folder}changelog.{filetype}'
             await file[0].save(changelog)
             with open(changelog, 'rb') as f:
