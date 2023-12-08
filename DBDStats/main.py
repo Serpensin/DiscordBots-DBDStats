@@ -1126,7 +1126,7 @@ class Functions():
             else:
                 return {}
 
-        perk = Functions.find_key_by_name(perk, data)
+        perk = str(Functions.find_key_by_name(perk, data)).replace(' ', '')
 
         if shrine:
             data = await Functions.data_load('perks', lang)
