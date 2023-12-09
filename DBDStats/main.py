@@ -2637,7 +2637,7 @@ class Owner():
         c.execute("SELECT * FROM changelogs")
         data = c.fetchall()
         if data == []:
-            await message.channel.send('There are no changelog channels set.')
+            await reply.edit(content = 'There are no changelog channels set.')
             return
         published_success = 0
         published_total = 0
