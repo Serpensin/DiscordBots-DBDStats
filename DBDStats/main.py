@@ -1533,9 +1533,7 @@ class Functions():
                 print("Shrine couldn't be updated.")
                 return 1
             shrine_old = await Functions.data_load('shrine')
-            if shrine_old is None:
-                pass
-            elif shrine_new['data']['week'] > shrine_old['data']['week']:
+            if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
                 c.execute('SELECT * FROM shrine')
                 for row in c.fetchall():
                     await Info.shrine(channel_id=(row[1], row[2]))
