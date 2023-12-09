@@ -2645,6 +2645,7 @@ class Owner():
             channel = await Functions.get_or_fetch('channel', entry[2])
             if channel is None:
                 manlogger.info(f'Channel {entry[2]} not found. Removing from db.')
+                continue
             if not send_as_file:
                 await channel.send(text)
                 published_success += 1
