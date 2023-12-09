@@ -2645,7 +2645,6 @@ class Owner():
             channel = await Functions.get_or_fetch('channel', entry[2])
             if channel is None:
                 manlogger.info(f'Channel {entry[2]} not found. Removing from db.')
-                continue
             if not send_as_file:
                 await channel.send(text)
                 published_success += 1
@@ -2654,6 +2653,10 @@ class Owner():
                 try:
                     await channel.send(file=discord.File(changelog))
                     published_success += 1
+                    published_total += 1
+                except AttributeError:
+                    manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                    c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except discord.errors.NotFound:
                     manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
