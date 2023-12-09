@@ -1520,6 +1520,8 @@ class Functions():
                 item_object = await fetch_method(item_id)
             except discord.NotFound:
                 pass
+            except discord.Forbidden:
+                pass
         return item_object
 
 
