@@ -50,7 +50,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.7.1"
+bot_version = "1.7.2"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -2168,7 +2168,7 @@ class Info():
         elif dbd_check[0] == 5:
             embed1 = discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our") + f" [Support-Server]({str(await Functions.create_support_invite(interaction))})" + await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
             embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.response.send_message(embed=embed1)
+            await interaction.followup.send(embed=embed1)
         elif dbd_check[0] == 0:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={STEAMAPIKEY}&steamid={dbd_check[1]}&appid=381210') as resp:
