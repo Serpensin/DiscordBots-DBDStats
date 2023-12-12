@@ -1533,16 +1533,16 @@ class Functions():
                 print("Shrine couldn't be updated.")
                 return 1
             shrine_old = await Functions.data_load('shrine')
+            if shrine_old is None or shrine_new['data']['week'] != shrine_old['data']['week']:
+                if db_available:
+                    shrine_new['_id'] = 'shrine_info'
+                    db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
+                with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
+                    json.dump(shrine_new, f, indent=4)
             if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
                 c.execute('SELECT * FROM shrine')
                 for row in c.fetchall():
                     await Info.shrine(channel_id=(row[1], row[2]))
-
-            if db_available:
-                shrine_new['_id'] = 'shrine_info'
-                db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
-            with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
-                json.dump(shrine_new, f, indent=4)
 
         while not shutdown:
             await function()
