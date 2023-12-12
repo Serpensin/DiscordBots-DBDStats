@@ -50,7 +50,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.7.2"
+bot_version = "1.7.3"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -221,7 +221,7 @@ if docker and is_mongo_reachable(mongo_host, mongo_port):
 else:
     connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
-db = pymongo.MongoClient(connection_string)
+db = pymongo.MongoClient(connection_string, serverSelectionTimeoutMS=10000)
 
 tb = PrettyTable()
 twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
@@ -1553,12 +1553,28 @@ class Functions():
 
 
     async def check_db_connection_task():
+        async def __upload_json_to_db():
+            for entry in os.scandir(buffer_folder):
+                if entry.is_dir():
+                    if entry.name in ['Stats']:
+                        continue
+                    for filename in os.scandir(entry):
+                        if filename.is_file() and filename.path.endswith('.json'):
+                            with open(filename.path, 'r', encoding='utf8') as file:
+                                data = json.load(file)
+                                db[DB_NAME][str(entry.name)].update_one({'_id': data['_id']}, {'$set': data}, upsert=True)
+                if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json']:
+                    with open(entry.path, 'r', encoding='utf8') as file:
+                        data = json.load(file)
+                        db[DB_NAME][str(entry.name).replace('shrine_info.json', 'shrine').replace('version_info.json', 'version')].update_one({'_id': str(entry.name).replace('shrine_info.json', 'shrine_info').replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
+
         async def function():
             global db_available
             try:
                 db.server_info()
                 if not db_available:
                     db_available = True
+                    await __upload_json_to_db()
                     manlogger.info("Database connection established.")
                     try:
                         await owner.send("Database connection established.")
