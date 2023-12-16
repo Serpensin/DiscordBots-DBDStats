@@ -36,6 +36,7 @@ from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from prettytable import PrettyTable
 from typing import Any, List, Literal, Optional
+from urllib.parse import urlparse
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -50,7 +51,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.7.3"
+bot_version = "1.7.4"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -2549,16 +2550,25 @@ class Owner():
             await message.channel.send('```'
                                        'activity [playing/streaming/listening/watching/competing] [title] (url) - Set the activity of the bot\n'
                                        '```')
+        def isURL(zeichenkette):
+            try:
+                ergebnis = urlparse(zeichenkette)
+                return all([ergebnis.scheme, ergebnis.netloc])
+            except:
+                return False
+
+        def remove_and_save(liste):
+            if liste and isURL(liste[-1]):
+                return liste.pop()
+            else:
+                return None
 
         if args == []:
             await __wrong_selection()
             return
         action = args[0].lower()
-        title = args[1]
-        try:
-            url = args[2]
-        except IndexError:
-            url = ''
+        url = remove_and_save(args[1:])
+        title = ' '.join(args[1:])
         print(title)
         print(url)
         with open(activity_file, 'r', encoding='utf8') as f:
