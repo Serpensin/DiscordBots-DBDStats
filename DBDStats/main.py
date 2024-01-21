@@ -51,7 +51,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.7.6"
+bot_version = "1.7.7"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -2677,9 +2677,22 @@ class Owner():
                 published_total += 1
                 continue
             if not send_as_file:
-                await channel.send(text)
-                published_success += 1
-                published_total += 1
+                try:
+                    await channel.send(text)
+                    published_success += 1
+                    published_total += 1
+                except discord.errors.NotFound:
+                    manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                    c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
+                    published_total += 1
+                except discord.errors.Forbidden:
+                    manlogger.info(f"Missing permissions in channel {entry[2]}. Removing from db.")
+                    c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
+                    published_total += 1
+                except:
+                    traceback.print_exc()
+                    manlogger.warning(f'Error while publishing the changelog to {entry[2]}.')
+                    published_total += 1
             else:
                 try:
                     await channel.send(file=discord.File(changelog))
