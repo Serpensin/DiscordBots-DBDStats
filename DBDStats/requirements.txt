@@ -22,7 +22,7 @@ prettytable==3.9.0
 psutil==5.9.8
 pycountry==23.12.11
 pymongo==4.6.1
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 pytz==2023.3.post1
 referencing==0.32.1
 requests==2.31.0

@@ -51,7 +51,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.7.7"
+bot_version = "1.8.0"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -248,7 +248,7 @@ except mongoerr.OperationFailure as e:
 	db_available = False
 except mongoerr.ServerSelectionTimeoutError as e:
 	error_message = e.args[0]
-	error_content = (error_message.split("error=")[1]).replace(">]>","")
+	error_content = error_message.replace(">]>","")
 	manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
@@ -478,12 +478,14 @@ class aclient(discord.AutoShardedClient):
             bot.loop.create_task(update_stats.discordlist())
         if DISCORDS_TOKEN:
             bot.loop.create_task(update_stats.discords())
+        if twitch_available:
+            bot.loop.create_task(Functions.update_twitchinfo_task())
         bot.loop.create_task(Functions.health_server())
         bot.loop.create_task(Functions.check_db_connection_task())
 
         while not self.cache_updated:
             await asyncio.sleep(1)
-        bot.loop.create_task(Functions.subscribe_task())
+        bot.loop.create_task(Functions.subscribe_shrine_task())
         if not docker:
             clear()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -912,8 +914,11 @@ class Functions():
         return unix_timestamp
 
 
-    async def convert_number(number):
-        return f"{int(number):,}"
+    async def convert_number(number, pureInt: bool = False):
+        if pureInt:
+            return int(number)
+        else:
+            return f"{int(number):,}"
 
 
     async def check_api_rate_limit(url):
@@ -1067,7 +1072,7 @@ class Functions():
             return translation['data']['translatedText']
 
 
-    async def data_load(requested: Literal['perks', 'shrine', 'offerings', 'chars', 'dlcs', 'items', 'addons', 'maps', 'events', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = ''):
+    async def data_load(requested: Literal['addons', 'chars', 'dlcs', 'events', 'items', 'maps', 'offerings', 'perks', 'shrine', 'twitch', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = ''):
         requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
         if lang not in api_langs:
             lang = 'en'
@@ -1079,7 +1084,8 @@ class Functions():
             file_name = f"{buffer_folder}shrine_info"
         elif requested == 'version':
             file_name = f"{buffer_folder}version_info"
-            db_id += f"_info"
+        elif requested == 'twitch':
+            file_name = f"{buffer_folder}twitch_info"
         elif requested != 'shrine':
             file_name += f"{lang}"
             db_id = lang
@@ -1528,7 +1534,7 @@ class Functions():
         return item_object
 
 
-    async def subscribe_task():
+    async def subscribe_shrine_task():
         async def function():
             shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
             if shrine_new == 1:
@@ -1601,6 +1607,58 @@ class Functions():
                     await asyncio.sleep(5)
                 except asyncio.CancelledError:
                     pass
+
+
+    async def update_twitchinfo_task():
+        async def function():
+            if not twitch_available:
+                return
+            game_id = await twitch_api.get_game_id("Dead by Daylight")
+            if game_id is None:
+                return
+            stats = await twitch_api.get_category_stats(game_id)
+            if not isinstance(stats, dict):
+                return
+            top = await twitch_api.get_top_streamers(game_id)
+            image = await twitch_api.get_category_image(game_id)
+            if image is None:
+                image = ''
+            # Create json from data - Stats
+            data = {
+                '_id': 'twitch_info',
+                'viewer_count': await Functions.convert_number(stats['viewer_count'], True),
+                'stream_count': await Functions.convert_number(stats['stream_count'], True),
+                'average_viewer_count': await Functions.convert_number(stats['average_viewer_count'], True),
+                'category_rank': await Functions.convert_number(stats['category_rank'], True),
+                'image': image,
+                'updated_at': await Functions.convert_number(time.time(), True)
+            }
+            # Create json from data - Top Streamers
+            data['top_streamers'] = {}
+            for entry in top:
+                data['top_streamers'][str(entry)] = {
+                    'streamer': top[entry]['streamer'],
+                    'viewer_count': await Functions.convert_number(top[entry]['viewer_count'], True),
+                    'follower_count': await Functions.convert_number(top[entry]['follower_count'], True),
+                    'link': top[entry]['link'],
+                    'title': top[entry]['title'],
+                    'language': top[entry]['language'],
+                    'thumbnail': top[entry]['thumbnail'],
+                    'started_at': top[entry]['started_at']
+                }
+            # Update database
+            if db_available:
+                db[DB_NAME]['twitch'].update_one({'_id': 'twitch_info'}, {'$set': data}, upsert=True)
+            # Update json
+            with open(f"{buffer_folder}twitch_info.json", "w", encoding="utf8") as f:
+                json.dump(data, f, indent=4)
+
+        while not shutdown:
+            await function()
+            try:
+                await asyncio.sleep(60*5)
+            except asyncio.CancelledError:
+                pass
 
 
 #Info
@@ -2224,23 +2282,20 @@ class Info():
         if not twitch_available:
             await interaction.response.send_message("Twitch API is currently not available.\nAsk the owner of this instance to enable it.", ephemeral=True)
             return
-        await interaction.response.defer(thinking=True)
+
+        data = await Functions.data_load('twitch')
+
         embeds = []
-        game_id = await twitch_api.get_game_id("Dead by Daylight")
-        stats = await twitch_api.get_category_stats(game_id)
-        if not isinstance(stats, dict):
-            await interaction.followup.send("Twitch API is currently not available.\nTry again in a few minutes.", ephemeral=True)
-            return
-        top = await twitch_api.get_top_streamers(game_id)
-        image = await twitch_api.get_category_image(game_id)
-        embed = discord.Embed(title="Twitch Info", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xff00ff)
-        embed.set_thumbnail(url=image)
-        embed.add_field(name="Total Viewers", value=await Functions.convert_number(stats['viewer_count']), inline=True)
-        embed.add_field(name="Total Streams", value=await Functions.convert_number(stats['stream_count']), inline=True)
-        embed.add_field(name="\u00D8 Viewer/Stream", value=await Functions.convert_number(stats['average_viewer_count']), inline=True)
-        embed.add_field(name="Current Rank", value=await Functions.convert_number(stats['category_rank']), inline=False)
+
+        embed = discord.Embed(title=f"Twitch Info - <t:{data['updated_at']}>", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xff00ff)
+        embed.set_thumbnail(url=data['image'])
+        embed.set_footer(text=f"Update every 5 minutes.")
+        embed.add_field(name="Total Viewers", value=await Functions.convert_number(data['viewer_count']), inline=True)
+        embed.add_field(name="Total Streams", value=await Functions.convert_number(data['stream_count']), inline=True)
+        embed.add_field(name="\u00D8 Viewer/Stream", value=await Functions.convert_number(data['average_viewer_count']), inline=True)
+        embed.add_field(name="Current Rank", value=await Functions.convert_number(data['category_rank']), inline=False)
         embeds.append(embed)
-        for streamer in top.values():
+        for streamer in data['top_streamers'].values():
             embed = discord.Embed(title=streamer['streamer'], description=streamer['title'], color=0xffb8ff)
             embed.set_thumbnail(url=streamer['thumbnail'])
             embed.add_field(name="Viewer", value=await Functions.convert_number(streamer['viewer_count']), inline=True)
@@ -2249,7 +2304,8 @@ class Info():
             embed.add_field(name="Language", value=await Functions.get_language_name(streamer['language']), inline=True)
             embed.set_footer(text=f"Started at: {streamer['started_at']}")
             embeds.append(embed)
-        await interaction.followup.send(embeds=embeds)
+
+        await interaction.response.send_message(embeds=embeds)
 
 
     async def patch(interaction: discord.Interaction):
