@@ -1419,8 +1419,8 @@ class Functions():
         for key, value in data.items():
             if key == '_id':
                 continue
-            key_name = str(value.get('name')).replace('&nbsp;', ' ')
-            if key_name == input_name:
+            key_name = str(value.get('name')).replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', '')
+            if key_name == input_name.replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', ''):
                 return key
         return input_name
 
