@@ -522,7 +522,6 @@ class update_cache():
             with open(f"{buffer_folder}perk//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
-
     async def __update_offerings():
         for lang in api_langs:
             data = await Functions.check_api_rate_limit(f'{api_base}offerings?locale={lang}')
@@ -535,7 +534,6 @@ class update_cache():
                 db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}offering//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-
 
     async def __update_chars():
         for lang in api_langs:
@@ -550,7 +548,6 @@ class update_cache():
             with open(f"{buffer_folder}char//{lang}.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
-
     async def __update_dlc():
         for lang in api_langs:
             data = await Functions.check_api_rate_limit(f'{api_base}dlc?locale={lang}')
@@ -563,7 +560,6 @@ class update_cache():
                 db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}dlc//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
-
 
     async def __update_item():
         for lang in api_langs:
@@ -578,7 +574,6 @@ class update_cache():
             with open(f"{buffer_folder}item//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
-
     async def __update_addon():
         for lang in api_langs:
             data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
@@ -589,7 +584,6 @@ class update_cache():
                 db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}addon//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-
 
     async def __update_map():
         for lang in api_langs:
@@ -603,7 +597,6 @@ class update_cache():
                 db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}map//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
-
 
     async def __update_event():
         for lang in api_langs:
@@ -621,7 +614,6 @@ class update_cache():
             with open(f'{buffer_folder}event//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
-
     async def __update_version():
         data = await Functions.check_api_rate_limit(f'{api_base}versions')
         if data == 1:
@@ -634,12 +626,10 @@ class update_cache():
         with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
 
-
     async def __clear_playerstats():
         for filename in os.scandir(stats_folder):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
                 os.remove(filename)
-
 
     async def __name_lists():
         async def load_and_set_names(request_data, target_var_name):
@@ -683,8 +673,6 @@ class update_cache():
         for task in tasks:
             await task
 
-
-
     async def start_cache_update():
         print('Updating cache...')
         manlogger.info('Updating cache...')
@@ -712,7 +700,6 @@ class update_cache():
         print('Cache updated.')
         manlogger.info('Cache updated.')
 
-
     async def task():
         while not shutdown:
             await update_cache.start_cache_update()
@@ -739,7 +726,6 @@ class update_stats():
             except asyncio.CancelledError:
                 pass
 
-
     async def discordbots():
         headers = {
             'Authorization': DISCORDBOTS_TOKEN,
@@ -754,7 +740,6 @@ class update_stats():
                 await asyncio.sleep(60*30)
             except asyncio.CancelledError:
                 pass
-
 
     async def discordbotlist_com():
         headers = {
@@ -771,7 +756,6 @@ class update_stats():
             except asyncio.CancelledError:
                 pass
 
-
     async def discordlist():
         headers = {
             'Authorization': f'Bearer {DISCORDLIST_TOKEN}',
@@ -786,7 +770,6 @@ class update_stats():
                 await asyncio.sleep(60*30)
             except asyncio.CancelledError:
                 pass
-
 
     async def discords():
         headers = {
@@ -822,7 +805,6 @@ class Functions():
             manlogger.warning(f'Error while starting health server: {e}')
             print(f'Error while starting health server: {e}')
 
-
     async def steam_link_to_id(vanity):
         vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
         vanity = vanity.replace('https://steamcommunity.com/id/', '')
@@ -838,7 +820,6 @@ class Functions():
                         return vanity
                 except:
                     return None
-
 
     async def check_for_dbd(id, steamAPIkey):
         id = await Functions.steam_link_to_id(id)
@@ -867,7 +848,6 @@ class Functions():
         except:
             return(5, 5)
 
-
     async def get_language_name(lang_code):
         if lang_code == 'pt-BR':
             return 'Portuguese'
@@ -880,7 +860,6 @@ class Functions():
             print(e)
             return None
 
-
     async def convert_time(timestamp, request='full'):
         if request == 'full':
             return(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp)))
@@ -888,7 +867,6 @@ class Functions():
             return(time.strftime('%Y-%m-%d', time.gmtime(timestamp)))
         elif request == 'time':
             return(time.strftime('%H:%M:%S', time.gmtime(timestamp)))
-
 
     def convert_to_unix_timestamp(iso_time: str, local_tz: str = 'Europe/Berlin') -> int:
         """
@@ -911,13 +889,11 @@ class Functions():
 
         return unix_timestamp
 
-
     async def convert_number(number, pureInt: bool = False):
         if pureInt:
             return int(number)
         else:
             return f"{int(number):,}"
-
 
     async def check_api_rate_limit(url):
         # Check the 429 status code and return 1 when this appearance
@@ -928,7 +904,6 @@ class Functions():
                     return 1
                 else:
                     return await response.json()
-
 
     async def check_if_removed(id):
         try:
@@ -961,7 +936,6 @@ class Functions():
             manlogger.warning(f'Error while querying API: {e}')
             return 1
 
-
     async def create_support_invite(interaction):
         try:
             guild = bot.get_guild(int(SUPPORTID))
@@ -993,7 +967,6 @@ class Functions():
                 continue
         return "Could not create invite. There is either no text-channel, or I don't have the rights to create an invite."
 
-
     async def get_language_code(interaction: discord.Interaction, lang_type: Literal['server', 'client'] = 'client'):
         if type(interaction) == discord.Guild:
             lang_code = interaction.preferred_locale[1][:2]
@@ -1006,7 +979,6 @@ class Functions():
             return lang_code
         else:
             return 'en'
-
 
     async def translate(interaction: discord.Interaction, text):
         if type(interaction) == discord.app_commands.transformers.NoneType:
@@ -1069,7 +1041,6 @@ class Functions():
                     json.dump(data, f, indent=4)
             return translation['data']['translatedText']
 
-
     async def data_load(requested: Literal['addons', 'chars', 'dlcs', 'events', 'items', 'maps', 'offerings', 'perks', 'shrine', 'twitch', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = ''):
         requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
         if lang not in api_langs:
@@ -1097,7 +1068,6 @@ class Functions():
             data = json.loads(json.dumps(db[DB_NAME][requested].find_one({'_id': db_id})))
 
         return data
-
 
     async def perk_send(perk, lang, interaction, shrine=False, random=False):
         async def check():
@@ -1192,7 +1162,6 @@ class Functions():
                     return
         await interaction.followup.send(await Functions.translate(interaction, f"The perk {perk} doesn't exist."), ephemeral=True)
 
-
     async def addon_send(addon, lang, interaction: discord.Interaction, random: bool = False):
         data = await Functions.data_load('addons', lang)
         if data is None:
@@ -1244,7 +1213,6 @@ class Functions():
                     return not None
         return None
 
-
     async def offering_send(interaction, offering, lang, loadout: bool = False):
         data = await Functions.data_load('offerings', lang)
         if data is None:
@@ -1277,7 +1245,6 @@ class Functions():
                 await interaction.followup.send(embed = embed, ephemeral = True)
                 return
         await interaction.followup.send(await Functions.translate(interaction, f"The offering {offering} doesn't exist."), ephemeral = True)
-
 
     async def item_send(interaction, item, lang, loadout: bool = False):
         data_en = await Functions.data_load('items', lang)
@@ -1319,7 +1286,6 @@ class Functions():
                 return
         else:
             await interaction.followup.send(await Functions.translate(interaction, f"The item {item} doesn't exist."), ephemeral = True)
-
 
     async def char_send(interaction, data, char, dlc_data, lang, loadout: bool = False):
         for key in data.keys():
@@ -1378,7 +1344,6 @@ class Functions():
         embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=await Functions.translate(interaction, f"I couldn't find a character named {char}."), color=0xb19325)
         await interaction.followup.send(embed=embed, ephemeral = True)
 
-
     async def get_item_type(item, data):
         types = ['map', 'key', 'toolbox', 'medkit', 'flashlight', 'firecracker', 'rainbow_map']
         if item in types:
@@ -1389,7 +1354,6 @@ class Functions():
             if item.lower() == key.lower() or item.lower() == value["name"].lower():
                 return value["item_type"]
         return 1
-
 
     async def find_killer_item(killer, chars):
         killer_data = None
@@ -1403,7 +1367,6 @@ class Functions():
             return 1
         return killer_data['item']
 
-
     async def find_killer_by_item(item_name: str, killers_data) -> str:
         for killer in killers_data.values():
             if killer in api_langs:
@@ -1411,7 +1374,6 @@ class Functions():
             if killer.get('item') == item_name:
                 return killer['id']
         return 1
-
 
     def find_key_by_name(input_name, data):
         for key, value in data.items():
@@ -1422,7 +1384,6 @@ class Functions():
                 return key
         return input_name
 
-
     def merge_dictionaries(json1, json2):
         for key, value in json2.items():
             if key in json1:
@@ -1430,7 +1391,6 @@ class Functions():
             else:
                 json1[key] = value
         return json1
-
 
     def format_complete_text_with_list(text):
         """
@@ -1461,7 +1421,6 @@ class Functions():
         else:
             # If no list is found, return the original text
             return text
-
 
     def insert_newlines(text, words_per_line=30):
         """
@@ -1501,7 +1460,6 @@ class Functions():
 
         return processed_text.strip()
 
-
     async def get_or_fetch(item: str, item_id: int) -> Optional[Any]:
         """
         Attempts to retrieve an object using the 'get_<item>' method of the bot class, and
@@ -1531,7 +1489,6 @@ class Functions():
                 pass
         return item_object
 
-
     async def subscribe_shrine_task():
         async def function():
             shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
@@ -1557,7 +1514,6 @@ class Functions():
                 await asyncio.sleep(60*15)
             except asyncio.CancelledError:
                 pass
-
 
     async def check_db_connection_task():
         async def __upload_json_to_db():
@@ -1605,7 +1561,6 @@ class Functions():
                     await asyncio.sleep(5)
                 except asyncio.CancelledError:
                     pass
-
 
     async def update_twitchinfo_task():
         async def function():
@@ -1668,7 +1623,6 @@ class Info():
         embed = discord.Embed(description=f"{await Functions.translate(interaction, 'The next rank reset will take place on the following date: ')}\n<t:{data['rankreset']}>.", color=0x0400ff)
         await interaction.response.send_message(embed=embed)
 
-
     async def event(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
 
@@ -1714,7 +1668,6 @@ class Info():
         else:
             embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "Currently there is no event in DeadByDaylight.\nAnd none are planned.")+" <:pepe_sad:1032389746284056646>", color=0x922f2f)
             await interaction.followup.send(embed=embed)
-
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
@@ -1824,6 +1777,7 @@ class Info():
             embed2.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=await Functions.convert_number(player_stats['vaultsinchase']), inline=True)
             embed2.add_field(name=await Functions.translate(interaction, "Dodge attack before vaulting"), value=await Functions.convert_number(player_stats['vaultsinchase_missed']), inline=True)
             embed2.add_field(name=await Functions.translate(interaction, "Wiggled from killers grasp"), value=await Functions.convert_number(player_stats['wiggledfromkillersgrasp']), inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Killers blinded with a flashlight"), value=await Functions.convert_number(player_stats['killerblinded_flashlight']), inline=True)
             #Embed3 - Healing/Saves
             embed3.add_field(name="\u200b", value="\u200b", inline=False)
             embed3.add_field(name=await Functions.translate(interaction, "Survivors healed"), value=await Functions.convert_number(player_stats['survivorshealed']), inline=True)
@@ -1836,6 +1790,7 @@ class Info():
             embed3.add_field(name=await Functions.translate(interaction, "Survivors saved during endgame"), value=await Functions.convert_number(player_stats['saved_endgame']), inline=True)
             embed3.add_field(name=await Functions.translate(interaction, "Killers pallet stunned while carrying a survivor"), value=await Functions.convert_number(player_stats['killerstunnedpalletcarrying']), inline=True)
             embed3.add_field(name="Kobed", value=await Functions.convert_number(player_stats['unhookedself']), inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while in the basement"), value=await Functions.convert_number(player_stats['survivorshealed_basement']), inline=True)
             #Embed4 - Escaped
             embed4.add_field(name="\u200b", value="\u200b", inline=False)
             embed4.add_field(name=await Functions.translate(interaction, "While healthy/injured"), value=await Functions.convert_number(player_stats['escaped']), inline=True)
@@ -1873,6 +1828,7 @@ class Info():
             embed5.add_field(name="Shelter Woods", value=await Functions.convert_number(player_stats['secondfloorgen_shelterwoods']), inline=True)
             embed5.add_field(name="Toba Landing", value=await Functions.convert_number(player_stats['secondfloorgen_tobalanding']), inline=True)
             embed5.add_field(name="Nostromo Wreckage", value=await Functions.convert_number(player_stats['secondfloorgen_messhall']), inline=True)
+            embed5.add_field(name="Greenville Square", value=await Functions.convert_number(player_stats['secondfloorgen_greenvillesquare']), inline=True)
             #Embed6 - Killer Stats
             embed6.add_field(name=await Functions.translate(interaction, "Rank"), value=player_stats['killer_rank'], inline=True)
             embed6.add_field(name="\u200b", value="\u200b", inline=False)
@@ -1894,6 +1850,7 @@ class Info():
             embed6.add_field(name=await Functions.translate(interaction, "Interrupted cleansing"), value=await Functions.convert_number(player_stats['survivorsinterruptedcleansingtotem']), inline=True)
             embed6.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=await Functions.convert_number(player_stats['vaultsinchase_askiller']), inline=True)
             embed6.add_field(name=await Functions.translate(interaction, "Survivors made scream"), value=await Functions.convert_number(player_stats['survivorscreams']), inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Survivors injured while in basement"), value=await Functions.convert_number(player_stats['survivorsinjured_basement']), inline=True)
             #Embed7 - Hooked
             embed7.add_field(name="\u200b", value="\u200b", inline=False)
             embed7.add_field(name=await Functions.translate(interaction, "Suvivors hooked before a generator is repaired"), value=await Functions.convert_number(player_stats['survivorshookedbeforegenrepaired']), inline=True)
@@ -1950,9 +1907,9 @@ class Info():
             embed10.add_field(name=await Functions.translate(interaction, "Downed while using Dire Crows"), value=await Functions.convert_number(player_stats['survivorsdowned_direcrows']), inline=True)
             embed10.add_field(name=await Functions.translate(interaction, "Downed while exposed by Lock On"), value=await Functions.convert_number(player_stats['survivorsdowned_lockon']), inline=True)
             embed10.add_field(name=await Functions.translate(interaction, "Downed during nightfall"), value=await Functions.convert_number(player_stats['survivorsdowned_nightfall']), inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed using UVX"), value=await Functions.convert_number(player_stats['survivorsdowned_uvx']), inline=True)
             #Send Statistics
             await interaction.edit_original_response(embeds=[embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10])
-
 
     async def character(interaction: discord.Interaction, char: str):
         await interaction.response.defer(thinking = True)
@@ -1968,7 +1925,6 @@ class Info():
         else:
             await Functions.char_send(interaction, data, char, dlc_data, lang)
             return
-
 
     async def dlc(interaction: discord.Interaction, name: str = ''):
         await interaction.response.defer(thinking=True)
@@ -2023,7 +1979,6 @@ class Info():
                     return
             await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
 
-
     async def item(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
         lang = await Functions.get_language_code(interaction)
@@ -2034,7 +1989,6 @@ class Info():
 
         await Functions.item_send(interaction, name, lang)
         return
-
 
     async def maps(interaction: discord.Interaction, name):
         await interaction.response.defer(thinking=True)
@@ -2052,7 +2006,6 @@ class Info():
                 embed.set_thumbnail(url=f"{map_portraits}{key}.png")
                 await interaction.followup.send(embed=embed)
 
-
     async def offering(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
         lang = await Functions.get_language_code(interaction)
@@ -2062,12 +2015,10 @@ class Info():
             return
         await Functions.offering_send(interaction, name, lang)
 
-
     async def perk(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
         lang = await Functions.get_language_code(interaction)
         await Functions.perk_send(name, lang, interaction)
-
 
     async def killswitch(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
@@ -2115,7 +2066,6 @@ class Info():
         with open(f'{buffer_folder}killswitch.json', 'w') as f:
             json.dump(data_to_save, f, indent=4)
 
-
     async def shrine(interaction: discord.Interaction = None, channel_id: tuple = ''):
         if channel_id != '':
             channel = await Functions.get_or_fetch('channel', channel_id[1])
@@ -2162,7 +2112,6 @@ class Info():
                 embeds.append(shrine_embed)
             await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
 
-
     async def version(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         data = await Functions.data_load('versions')
@@ -2190,7 +2139,6 @@ class Info():
                 embed2.add_field(name='\u200b', value=data[key]['version'], inline=True)
                 embed2.add_field(name='\u200b', value=str(await Functions.convert_time(data[key]['lastupdate'])+' UTC'), inline=True)
         await interaction.followup.send(embeds=[embed1, embed2])
-
 
     async def playercount(interaction: discord.Interaction):
         async def selfembed(data):
@@ -2228,7 +2176,6 @@ class Info():
                 return
         await selfembed(await selfget())
 
-
     async def legacycheck(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
         dbd_check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
@@ -2262,7 +2209,6 @@ class Info():
                     await interaction.followup.send(await Functions.translate(interaction, "This player doesn't even have one character prestiged."))
                     return
 
-
     async def addon(interaction: discord.Interaction, name: str):
         await interaction.response.defer(thinking=True)
         lang = await Functions.get_language_code(interaction)
@@ -2274,7 +2220,6 @@ class Info():
         if embed is None:
             await interaction.followup.send(f"There is no addon named {name}.")
         return
-
 
     async def twitch_info(interaction: discord.Interaction):
         if not twitch_available:
@@ -2304,7 +2249,6 @@ class Info():
             embeds.append(embed)
 
         await interaction.response.send_message(embeds=embeds)
-
 
     async def patch(interaction: discord.Interaction):
         # If the patchnotes are older than 2 hours, update them
@@ -2349,7 +2293,6 @@ class Random():
             return embeds
         await interaction.followup.send(embeds=embeds, ephemeral=True)
 
-
     async def offering(interaction: discord.Interaction, role, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
@@ -2372,7 +2315,6 @@ class Random():
                 return await Functions.offering_send(interaction, entry['name'], lang, True)
             await Functions.offering_send(interaction, entry['name'], lang)
             return
-
 
     async def item(interaction: discord.Interaction, lang, loadout: bool = False):
         if not loadout:
@@ -2398,7 +2340,6 @@ class Random():
             return temp[0], temp[1]
         await Functions.item_send(interaction, entry['name'], lang)
         return
-
 
     async def char(interaction: discord.Interaction, role, lang, loadout: bool = False):
         if not loadout:
@@ -2426,7 +2367,6 @@ class Random():
                 return await Functions.char_send(interaction, chars, entry['name'], dlc_data, lang, True), entry['id'], entry['role']
             await Functions.char_send(interaction, chars, entry['name'], dlc_data, lang)
             return
-
 
     async def addon(interaction: discord.Interaction, parent, lang, loadout: bool = False):
         if not loadout:
@@ -2471,7 +2411,6 @@ class Random():
         await interaction.followup.send(embeds=embeds, ephemeral = True)
         return
 
-
     async def adfk(interaction: discord.Interaction, killer, lang, loadout: bool = False):
         if not loadout:
             await interaction.response.defer(thinking=True, ephemeral=True)
@@ -2505,7 +2444,6 @@ class Random():
             return embeds
         await interaction.followup.send(embeds=embeds, ephemeral = True)
         return
-
 
     async def loadout(interaction: discord.Interaction, role):
         lang = await Functions.get_language_code(interaction)
@@ -2600,7 +2538,6 @@ class Owner():
                 os.remove(buffer_folder+'log-lines.txt')
             return
 
-
     async def activity(message, args):
         async def __wrong_selection():
             await message.channel.send('```'
@@ -2657,7 +2594,6 @@ class Owner():
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Activity set to {action} {title}{" " + url if url else ""}.')
 
-
     async def status(message, args):
         async def __wrong_selection():
             await message.channel.send('```'
@@ -2685,7 +2621,6 @@ class Owner():
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
-
 
     async def changelog(message, file):
         async def __wrong_selection():
@@ -2767,7 +2702,6 @@ class Owner():
         os.remove(changelog)
         conn.commit()
         await reply.edit(content = f'Published to `{published_success}/{published_total}` channels.')
-
 
     async def shutdown(message):
         global shutdown
@@ -2983,7 +2917,6 @@ async def get_localized_list(interaction: discord.Interaction, list_type: Litera
         lang = 'en'
     list_name = f'{list_type}_names_{lang}'
     return globals()[list_name]
-
 
 async def autocomplete_addons(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
     addon_list = await get_localized_list(interaction, 'addon')
