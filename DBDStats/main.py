@@ -2255,13 +2255,16 @@ class Info():
         await interaction.response.send_message(embeds=embeds)
 
     async def patch(interaction: discord.Interaction):
-        # If the patchnotes are older than 2 hours, update them
         if os.path.isfile(f'{buffer_folder}patchnotes.md') and time.time() - os.path.getmtime(f'{buffer_folder}patchnotes.md') < 7200:
             await interaction.response.send_message(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
         else:
             await interaction.response.defer(thinking=True)
 
-            data = await patchnotes.get_update_content(return_type = 'md')
+            try:
+                data = await patchnotes.get_update_content(return_type = 'md')
+            except ConnectionError:
+                await interaction.followup.send("Error while loading the patchnotes.")
+                return
             if data is None:
                 interaction.followup.send("Error while loading the patchnotes.")
                 return

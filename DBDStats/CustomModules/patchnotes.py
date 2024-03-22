@@ -16,7 +16,7 @@ async def get_update_content(version: str = None, return_type='html'):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
-                raise ConnectionError(f"Failed to connect to the server with code {response.status}.")
+                raise ConnectionError(response.status)
 
             page_content = await response.text()
             soup = BeautifulSoup(page_content, 'html.parser')
