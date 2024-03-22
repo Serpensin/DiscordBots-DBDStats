@@ -12,16 +12,16 @@ async def get_update_content(version: str = None, return_type='html'):
 
     if version is not None:
         version = __validate_and_format(version)
-        
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
-                return None
-    
+                raise ConnectionError(f"Failed to connect to the server with code {response.status}.")
+
             page_content = await response.text()
             soup = BeautifulSoup(page_content, 'html.parser')
             update_divs = soup.find_all('div', class_='update')
-    
+
             for update_div in update_divs:
                 h1_tags = update_div.find_all('h1')
                 for h1 in h1_tags:
@@ -31,8 +31,8 @@ async def get_update_content(version: str = None, return_type='html'):
 
 
 def __validate_and_format(version):
-    if not re.fullmatch(r'([5-9]|[1-9]\d)\.\d\.\d', version) and not re.fullmatch(r'[5-9]\d{2}|[1-9]\d{3}', version):
-        raise ValueError("Invalid version format. Version needs to be at least 5.0.0 or 500.")
+    if not re.fullmatch(r'([5-9]|[1-9]\d)\.\d\.\d', version) and not re.fullmatch(r'[6-9]\d{2}|[1-9]\d{3}', version):
+        raise ValueError("Invalid version format. Version needs to be at least 6.0.0 or 600.")
     version = version.replace('.', '')
     version = list(version)
     version.insert(-1, '.')
@@ -47,7 +47,7 @@ def __convert_content(update_div, return_type):
     content = update_div.prettify()
     if return_type == 'md':
         content = converter.handle(content)
-    
+
     return content
 
 
@@ -58,10 +58,9 @@ def __convert_content(update_div, return_type):
 
 if __name__ == '__main__':
     import asyncio
-    version = '5.0.0'
+    version = '7.5.0'
     content = asyncio.run(get_update_content(return_type = 'md'))
     print(content)
     with open('Markdown.md', 'w', encoding='utf-8') as f:
         f.write(content)
 
-    

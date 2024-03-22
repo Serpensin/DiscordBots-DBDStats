@@ -981,13 +981,15 @@ class Functions():
             return 'en'
 
     async def translate(interaction: discord.Interaction, text):
+        if interaction.guild is None:
+            return text
         if type(interaction) == discord.app_commands.transformers.NoneType:
             lang = 'en'
         elif type(interaction) != str:
             lang = await Functions.get_language_code(interaction)
-            if lang in api_langs:
-                if type(interaction) != discord.Guild:
-                    return text
+            # if lang in api_langs:
+            #     if interaction.guild is None:
+            #         return text
         else:
             lang = interaction
 
@@ -2045,6 +2047,8 @@ class Info():
             await interaction.followup.send(str(e), ephemeral = True)
             return
 
+        data = data.replace('\n\n', '[TEMP_NL]').replace('\n', ' ').replace('[TEMP_NL]', '\n\n').strip()
+
         if data.replace('\n', '').strip() == '':
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
@@ -2258,10 +2262,99 @@ class Info():
             await interaction.response.defer(thinking=True)
 
             data = await patchnotes.get_update_content(return_type = 'md')
+            if data is None:
+                interaction.followup.send("Error while loading the patchnotes.")
+                return
 
             with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf-8') as f:
                 f.write(data)
             await interaction.followup.send(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
+
+    async def adepts(interaction: discord.Integration, steamid):
+        await interaction.response.defer(thinking=True)
+        check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
+        try:
+            int(check[0])
+        except:
+            embed = discord.Embed(title=await Functions.translate(interaction, 'Try again'), description=await Functions.translate(interaction, check[1]), color=0x004cff)
+            await interaction.followup.send(embed=embed)
+            return
+        if check[0] == 1:
+            await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)
+        elif check[0] == 2:
+            await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
+        elif check[0] == 3:
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+        elif check[0] == 4:
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
+        elif check[0] == 5:
+            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
+            embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+            await interaction.followup.send(embed=embed1, ephemeral=True)
+        elif check[0] == 0:
+            data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={check[1]}')
+            steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAMAPIKEY}&steamids={check[1]}')
+            if steam_data == 1 or data == 1:
+                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
+                return
+            for event in steam_data['response']['players']:
+                personaname = event['personaname']
+                profileurl = event['profileurl']
+                avatar = event['avatarfull']
+
+            updated_at = data['updated_at']
+            entrys_to_remove = ['created_at', 'updated_at', 'steamid']
+            for entry in entrys_to_remove:
+                data.pop(entry, None)
+
+            data_items = list(data.items())
+            data_items.sort()
+            data.clear()
+            for key, value in data_items:
+                data[key] = value
+
+            count = 0
+            embeds = []
+
+            async def create_embed():
+                embed = discord.Embed(title=await Functions.translate(interaction, "Adept"), description=personaname+'\n'+profileurl, color=0xb19325)
+                footer = (await Functions.translate(interaction, "Last update")).replace('.|','. | ')+': '+str(await Functions.convert_time(int(updated_at)))+" UTC"
+                embed.set_thumbnail(url=avatar)
+                embed.set_footer(text=footer)
+                embed.add_field(name="\u200b", value="\u200b", inline=False)
+                return embed
+            embed = await create_embed()
+
+            for i in range(0, len(data), 2):
+                key1, value1 = list(data.items())[i]
+                key2, value2 = list(data.items())[i + 1]
+                print(f"{key1}: {value1}")
+                print(f"{key2}: {value2}")
+                embed.add_field(name=str(key1).replace('_count', '').capitalize(), value=value1, inline=True)
+                embed.add_field(name=await Functions.translate(interaction, "Unlocked at"), value=f'<t:{value2}>', inline=True)
+                embed.add_field(name="\u200b", value="\u200b", inline=True)
+                count += 1
+
+                if count == 8:
+                    embeds.append(embed)
+                    count = 0
+                    embed = await create_embed()
+
+            if count > 0:
+                embeds.append(embed)
+                count = 0
+
+            try:
+                await interaction.edit_original_response(embeds=embeds)
+            except Exception as e:
+                print(e)
+                for i in range(0, len(embeds), 10):
+                    await interaction.followup.send(embeds=embeds[i:i+10])
+
+
+
+
+
 
 
 #Random
@@ -3009,6 +3102,7 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str = ''
     discord.app_commands.Choice(name = 'Perks', value = 'perk'),
     discord.app_commands.Choice(name = 'Playercount', value = 'player'),
     discord.app_commands.Choice(name = 'Playerstats', value = 'stats'),
+    discord.app_commands.Choice(name = 'Player-Adept', value = 'adept'),
     discord.app_commands.Choice(name = 'Rankreset', value = 'reset'),
     discord.app_commands.Choice(name = 'Shrine', value = 'shrine'),
     discord.app_commands.Choice(name = 'Twitch', value = 'twitch'),
@@ -3106,6 +3200,14 @@ async def self(interaction: discord.Interaction,
 
     elif category == 'patch':
         await Info.patch(interaction)
+
+    elif category == 'adept':
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            self.timeout = 30
+            answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want adepts for.', style = discord.TextStyle.short, required = True)
+            async def on_submit(self, interaction: discord.Interaction):
+                await Info.adepts(interaction, steamid = self.answer.value.strip())
+        await interaction.response.send_modal(Input())
 
     else:
         await interaction.response.send_message('Invalid category.', ephemeral=True)

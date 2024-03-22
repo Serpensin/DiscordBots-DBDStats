@@ -17,21 +17,17 @@ async def get_killswitch(return_type='html'):
             page_content = await response.text()
             soup = BeautifulSoup(page_content, 'html.parser')
 
-            # Find the required sections
             kill_switch_section = soup.find('h2', {'data-id': 'kill-switch-(disabled)'})
             known_issues_section = soup.find('h2', {'data-id': 'known-issues-(not-disabled)'})
 
-            # Extract the content between the two sections
             content = []
             current_section = kill_switch_section.find_next_sibling()
             while current_section and current_section != known_issues_section:
-                # Remove any images
                 for img in current_section.find_all('img'):
                     img.decompose()
                 content.append(str(current_section))
                 current_section = current_section.find_next_sibling()
 
-            # Convert the content to the required format
             content = '\n'.join(content)
             if not content:
                 return None

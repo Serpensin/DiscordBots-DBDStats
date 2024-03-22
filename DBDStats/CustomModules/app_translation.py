@@ -6,6 +6,7 @@ class Translator(discord.app_commands.Translator):
     def __init__(self):
         self.translations = {
             discord.Locale.german: {
+                "Player-Adept": "Spieler-Adept",
                 "Test, if the bot is responding.": "Teste, ob der Bot antwortet.",
                 "Get information about the bot.": "Erhalte Informationen über den Bot.",
                 "Get invite to our support server.": "Erhalte eine Einladung zu unserem Support-Server.",
@@ -59,6 +60,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Erhalte Informationen über die Übersetzung.",
             },
             discord.Locale.french: {
+                "Player-Adept": "Joueur-Adepte",
                 "Test, if the bot is responding.": "Teste si le bot répond.",
                 "botinfo": "infos_du_bot",
                 "Get information about the bot.": "Obtenir des informations sur le bot.",
@@ -124,6 +126,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtenir des informations sur la traduction.",
             },
             discord.Locale.spain_spanish: {
+                "Player-Adept": "Jugador-Adepto",
                 "Test, if the bot is responding.": "Prueba si el bot está respondiendo.",
                 "botinfo": "info_del_bot",
                 "Get information about the bot.": "Obtener información sobre el bot.",
@@ -191,6 +194,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtener información sobre la traducción.",
             },
             discord.Locale.russian: {
+                "Player-Adept": "Игрок-Адепт",
                 "ping": "пинг",
                 "Test, if the bot is responding.": "Проверьте, отвечает ли бот.",
                 "botinfo": "инфо_о_боте",
@@ -263,6 +267,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Получить информацию о переводе.",
             },
             discord.Locale.japanese: {
+                "Player-Adept": "プレイヤーアデプト",
                 "ping": "ピング",
                 "Test, if the bot is responding.": "ボットが応答しているかテストします。",
                 "botinfo": "ボット情報",
@@ -335,6 +340,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "翻訳に関する情報を取得します。",
             },
             discord.Locale.korean: {
+                "Player-Adept": "플레이어-숙련자",
                 "ping": "핑",
                 "Test, if the bot is responding.": "봇이 응답하는지 테스트합니다.",
                 "botinfo": "봇정보",
@@ -407,6 +413,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "번역에 관한 정보를 얻습니다.",
             },
             discord.Locale.polish: {
+                "Player-Adept": "Gracz-Adept",
                 "Test, if the bot is responding.": "Test, czy bot odpowiada.",
                 "botinfo": "info_o_bocie",
                 "Get information about the bot.": "Uzyskaj informacje o bocie.",
@@ -476,6 +483,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Uzyskaj informacje o tłumaczeniu.",
             },
             discord.Locale.brazil_portuguese: {
+                "Player-Adept": "Jogador-Adepto",
                 "Test, if the bot is responding.": "Teste se o bot está respondendo.",
                 "botinfo": "info_do_bot",
                 "Get information about the bot.": "Obter informações sobre o bot.",
@@ -541,6 +549,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtenha informações sobre a tradução.",
             },
             discord.Locale.taiwan_chinese: {
+                "Player-Adept": "玩家-熟練者",
                 "Test, if the bot is responding.": "測試機器人是否回應。",
                 "botinfo": "機器人資訊",
                 "Get information about the bot.": "獲取關於機器人的資訊。",
