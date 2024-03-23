@@ -3,6 +3,7 @@ print('Loading...')
 import aiohttp
 import asyncio
 import discord
+import html2text
 import json
 import jsonschema
 import logging
@@ -30,7 +31,6 @@ from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
 from CustomModules import killswitch
-from CustomModules import patchnotes
 from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
@@ -84,6 +84,7 @@ paths = [
     f'{app_folder_name}//Buffer//killer',
     f'{app_folder_name}//Buffer//map',
     f'{app_folder_name}//Buffer//offering',
+    f'{app_folder_name}//Buffer//patchnotes',
     f'{app_folder_name}//Buffer//perk',
 ]
 for path in paths:
@@ -626,6 +627,30 @@ class update_cache():
         with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
 
+    async def __update_patchnotes():
+        # Re-create folder
+        if os.path.exists(f'{buffer_folder}patchnotes'):
+            for filename in os.scandir(f'{buffer_folder}patchnotes'):
+                os.remove(filename)
+        else:
+            os.makedirs(f'{buffer_folder}patchnotes', exist_ok=True)
+        data = await Functions.check_api_rate_limit(f'{api_base}patchnotes')
+        if data == 1:
+            manlogger.warning("Patchnotes couldn't be updated.")
+            print("Patchnotes couldn't be updated.")
+            return 1
+        data.sort(key=lambda x: x["id"], reverse=True)
+        print(data)
+        if db_available:
+            db[DB_NAME]['patchnotes'].drop()
+        for entry in data:
+            notes = {key: value for key, value in entry.items() if key == "notes"}
+            with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace('.', '')}.json', 'w', encoding='utf8') as f:
+                json.dump(notes, f, indent=2)
+            if db_available:
+                db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
+
+
     async def __clear_playerstats():
         for filename in os.scandir(stats_folder):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
@@ -673,6 +698,19 @@ class update_cache():
         for task in tasks:
             await task
 
+        global patch_versions
+        patch_versions = []
+
+        for filename in os.listdir(f'{buffer_folder}patchnotes'):
+            base_name, extension = os.path.splitext(filename)
+            patched_version = ''
+            for i, char in enumerate(base_name):
+                patched_version += char
+                if i < len(base_name) -1 and char.isdigit() and base_name[i +1 ].isdigit():
+                    patched_version += '.'
+            patch_versions.append(patched_version)
+        patch_versions.sort(reverse=True)
+
     async def start_cache_update():
         print('Updating cache...')
         manlogger.info('Updating cache...')
@@ -686,6 +724,7 @@ class update_cache():
                    update_cache.__update_addon(),
                    update_cache.__update_event(),
                    update_cache.__update_version(),
+                   update_cache.__update_patchnotes(),
                    update_cache.__clear_playerstats()
                    ]
 
@@ -896,7 +935,6 @@ class Functions():
             return f"{int(number):,}"
 
     async def check_api_rate_limit(url):
-        # Check the 429 status code and return 1 when this appearance
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 print(response)
@@ -928,7 +966,10 @@ class Functions():
                     return 1
                 else:
                     manlogger.warning(f'SteamID {id} got removed from the leaderboard.')
-                    return 1
+                    return 3
+            elif e.status == 429:
+                manlogger.warning(f'Rate limit exceeded while checking SteamID {id}.')
+                return 2
             else:
                 manlogger.warning(f'Unexpected response from API: {e}')
                 return 1
@@ -981,8 +1022,6 @@ class Functions():
             return 'en'
 
     async def translate(interaction: discord.Interaction, text):
-        if interaction.guild is None:
-            return text
         if type(interaction) == discord.app_commands.transformers.NoneType:
             lang = 'en'
         elif type(interaction) != str:
@@ -992,17 +1031,18 @@ class Functions():
             #         return text
         else:
             lang = interaction
+        if interaction.guild is None or lang == 'en':
+            return text
 
         hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
         print(f'Translation Hash: {hashed}')
 
-        if not db_available:
-            try:
-                with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
-                    data = json.load(f)
-            except:
-                data = {}
-        else:
+        try:
+            with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                data = json.load(f)
+        except:
+            data = {}
+        if db_available:
             data = json.loads(json.dumps(db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
             if data is None:
                 data = {}
@@ -1043,8 +1083,8 @@ class Functions():
                     json.dump(data, f, indent=4)
             return translation['data']['translatedText']
 
-    async def data_load(requested: Literal['addons', 'chars', 'dlcs', 'events', 'items', 'maps', 'offerings', 'perks', 'shrine', 'twitch', 'versions'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = ''):
-        requested = (lambda s: s[:-1] if s.endswith('s') else s)(requested)
+    async def data_load(requested: Literal['addons', 'chars', 'dlcs', 'events', 'items', 'maps', 'offerings', 'perks', 'shrine', 'twitch', 'versions', 'patchnotes'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = '', version: str = ''):
+        requested = (lambda s: s[:-1] if s.endswith('s') and s != "patchnotes" else s)(requested)
         if lang not in api_langs:
             lang = 'en'
 
@@ -1057,6 +1097,9 @@ class Functions():
             file_name = f"{buffer_folder}version_info"
         elif requested == 'twitch':
             file_name = f"{buffer_folder}twitch_info"
+        elif requested == 'patchnotes':
+            db_id = version
+            file_name += f"{version.replace('.', '')}"
         elif requested != 'shrine':
             file_name += f"{lang}"
             db_id = lang
@@ -1697,7 +1740,10 @@ class Info():
             removed = await Functions.check_if_removed(check[1])
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
             file_path = os.path.join(stats_folder, clean_filename)
-            if removed == 1:
+            if removed == 2:
+                await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
+                return
+            elif removed == 3:
                 embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
                 await interaction.followup.send(embed=embed1)
                 return
@@ -2254,24 +2300,17 @@ class Info():
 
         await interaction.response.send_message(embeds=embeds)
 
-    async def patch(interaction: discord.Interaction):
-        if os.path.isfile(f'{buffer_folder}patchnotes.md') and time.time() - os.path.getmtime(f'{buffer_folder}patchnotes.md') < 7200:
-            await interaction.response.send_message(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
+    async def patch(interaction: discord.Interaction, version: str):
+        await interaction.response.defer(thinking=True)
+        data = await Functions.data_load('patchnotes', version=version)
+        if data is None:
+            await interaction.followup.send(await Functions.translate(interaction, "Error while loading the patchnotes."))
         else:
-            await interaction.response.defer(thinking=True)
-
-            try:
-                data = await patchnotes.get_update_content(return_type = 'md')
-            except ConnectionError:
-                await interaction.followup.send("Error while loading the patchnotes.")
-                return
-            if data is None:
-                interaction.followup.send("Error while loading the patchnotes.")
-                return
-
-            with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf-8') as f:
-                f.write(data)
-            await interaction.followup.send(content = 'Here are the current patchnotes.\nThey get updated at least every 2 hours.', file = discord.File(f'{buffer_folder}patchnotes.md'))
+            data = data['notes']
+            converter = html2text.HTML2Text()
+            converter.ignore_links = True
+            content = converter.handle(data)
+            await interaction.followup.send(await Functions.translate(interaction, content))
 
     async def adepts(interaction: discord.Integration, steamid):
         await interaction.response.defer(thinking=True)
@@ -3070,6 +3109,11 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str = ''
     matching_names = [name for name in perk_list if current.lower() in name.lower()]
     return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
+async def autocomplete_patchversions(interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
+    if current == '':
+        return [discord.app_commands.Choice(name=version, value=version) for version in patch_versions[:25]]
+    matching_names = [name for name in patch_versions if current.lower() in name.lower()]
+    return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
 
 #Info
 @tree.command(name = 'info', description = 'Get info about DBD related stuff.')
@@ -3081,7 +3125,8 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str = ''
                                item = 'Only used if "Items" is selected. Start writing to search...',
                                map = 'Only used if "Maps" is selected. Start writing to search...',
                                offering = 'Only used if "Offerings" is selected. Start writing to search...',
-                               perk = 'Only used if "Perks" is selected. Start writing to search...'
+                               perk = 'Only used if "Perks" is selected. Start writing to search...',
+                               patch = 'Only used if "Patchnotes" is selected. Start writing to search...',
                                )
 @discord.app_commands.autocomplete(addon=autocomplete_addons,
                                    character=autocomplete_character,
@@ -3089,7 +3134,8 @@ async def autocomplete_perks(interaction: discord.Interaction, current: str = ''
                                    item=autocomplete_items,
                                    map=autocomplete_maps,
                                    offering=autocomplete_offerings,
-                                   perk=autocomplete_perks
+                                   perk=autocomplete_perks,
+                                   patch=autocomplete_patchversions
                                    )
 @discord.app_commands.choices(category = [
     discord.app_commands.Choice(name = 'Addons', value = 'addon'),
@@ -3119,6 +3165,7 @@ async def self(interaction: discord.Interaction,
                item: str = None,
                map: str = None,
                offering: str = None,
+               patch: str = None,
                perk: str = None
                ):
     if interaction.guild is None:
@@ -3202,7 +3249,10 @@ async def self(interaction: discord.Interaction,
         await Info.twitch_info(interaction)
 
     elif category == 'patch':
-        await Info.patch(interaction)
+        if patch is None:
+            await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a patch version."))
+        else:
+            await Info.patch(interaction, version = patch)
 
     elif category == 'adept':
         class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):

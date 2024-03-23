@@ -6,6 +6,7 @@ class Translator(discord.app_commands.Translator):
     def __init__(self):
         self.translations = {
             discord.Locale.german: {
+                'Only used if "Patchnotes" is selected. Start writing to search...' : 'Nur verwendet, wenn "Patchnotes" ausgewählt ist. Beginne zu schreiben, um zu suchen...',
                 "Player-Adept": "Spieler-Adept",
                 "Test, if the bot is responding.": "Teste, ob der Bot antwortet.",
                 "Get information about the bot.": "Erhalte Informationen über den Bot.",
@@ -60,6 +61,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Erhalte Informationen über die Übersetzung.",
             },
             discord.Locale.french: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Utilisé uniquement si "Notes de mise à jour" est sélectionné. Commencez à écrire pour rechercher...',
                 "Player-Adept": "Joueur-Adepte",
                 "Test, if the bot is responding.": "Teste si le bot répond.",
                 "botinfo": "infos_du_bot",
@@ -126,6 +128,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtenir des informations sur la traduction.",
             },
             discord.Locale.spain_spanish: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Solo se usa si se selecciona "Notas del parche". Comience a escribir para buscar...',
                 "Player-Adept": "Jugador-Adepto",
                 "Test, if the bot is responding.": "Prueba si el bot está respondiendo.",
                 "botinfo": "info_del_bot",
@@ -194,6 +197,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtener información sobre la traducción.",
             },
             discord.Locale.russian: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Используется только если выбрано "Заметки о патчах". Начните писать для поиска...',
                 "Player-Adept": "Игрок-Адепт",
                 "ping": "пинг",
                 "Test, if the bot is responding.": "Проверьте, отвечает ли бот.",
@@ -267,6 +271,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Получить информацию о переводе.",
             },
             discord.Locale.japanese: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': '「パッチノート」が選択されている場合のみ使用します。検索するために書き始めてください...',
                 "Player-Adept": "プレイヤーアデプト",
                 "ping": "ピング",
                 "Test, if the bot is responding.": "ボットが応答しているかテストします。",
@@ -340,6 +345,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "翻訳に関する情報を取得します。",
             },
             discord.Locale.korean: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': '"패치 노트"가 선택된 경우에만 사용됩니다. 검색을 시작하려면 작성하세요...',
                 "Player-Adept": "플레이어-숙련자",
                 "ping": "핑",
                 "Test, if the bot is responding.": "봇이 응답하는지 테스트합니다.",
@@ -413,6 +419,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "번역에 관한 정보를 얻습니다.",
             },
             discord.Locale.polish: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Używane tylko, jeśli wybrano "Notatki z łatki". Zacznij pisać, aby szukać...',
                 "Player-Adept": "Gracz-Adept",
                 "Test, if the bot is responding.": "Test, czy bot odpowiada.",
                 "botinfo": "info_o_bocie",
@@ -483,6 +490,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Uzyskaj informacje o tłumaczeniu.",
             },
             discord.Locale.brazil_portuguese: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Usado apenas se "Notas de atualização" estiver selecionado. Comece a escrever para pesquisar...',
                 "Player-Adept": "Jogador-Adepto",
                 "Test, if the bot is responding.": "Teste se o bot está respondendo.",
                 "botinfo": "info_do_bot",
@@ -549,6 +557,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtenha informações sobre a tradução.",
             },
             discord.Locale.taiwan_chinese: {
+                'Only used if "Patchnotes" is selected. Start writing to search...': '僅當選擇“補丁說明”時使用。開始寫作以進行搜索...',
                 "Player-Adept": "玩家-熟練者",
                 "Test, if the bot is responding.": "測試機器人是否回應。",
                 "botinfo": "機器人資訊",
