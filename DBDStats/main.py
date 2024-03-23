@@ -50,7 +50,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.9.0"
+bot_version = "1.10.0"
 languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
              'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
              'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
@@ -628,7 +628,6 @@ class update_cache():
             json.dump(data, f, indent=2)
 
     async def __update_patchnotes():
-        # Re-create folder
         if os.path.exists(f'{buffer_folder}patchnotes'):
             for filename in os.scandir(f'{buffer_folder}patchnotes'):
                 os.remove(filename)
@@ -1037,15 +1036,15 @@ class Functions():
         hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
         print(f'Translation Hash: {hashed}')
 
-        try:
-            with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
-                data = json.load(f)
-        except:
-            data = {}
         if db_available:
             data = json.loads(json.dumps(db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
             if data is None:
                 data = {}
+        else:
+            with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                data = json.load(f)
+                if data is None:
+                    data = {}
 
         if hashed in data.keys():
             print(f'Hash {hashed} found in cache.')
@@ -1075,6 +1074,13 @@ class Functions():
         else:
             print(f'Hash {hashed} not found in cache.')
             translation = await translator.translate(text, lang)
+            if translation['status'] == 500:
+                with open(f'{buffer_folder}temp_translation.txt', 'w', encoding='utf8') as f:
+                    f.write(text)
+                translation = await translator.translate_file(f'{buffer_folder}temp_translation.txt', lang)
+                if translation['status'] == 500:
+                    os.remove(f'{buffer_folder}temp_translation.txt')
+                    return text
             data[hashed] = {lang: translation['data']['translatedText']}
             if db_available:
                 db[DB_NAME]['translations'].update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
@@ -2310,7 +2316,13 @@ class Info():
             converter = html2text.HTML2Text()
             converter.ignore_links = True
             content = converter.handle(data)
-            await interaction.followup.send(await Functions.translate(interaction, content))
+            try:
+                await interaction.followup.send(content)
+            except discord.errors.HTTPException:
+                with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf8') as f:
+                    f.write(content)
+                await interaction.followup.send(file=discord.File(f'{buffer_folder}patchnotes.md'))
+                os.remove(f'{buffer_folder}patchnotes.md')
 
     async def adepts(interaction: discord.Integration, steamid):
         await interaction.response.defer(thinking=True)
