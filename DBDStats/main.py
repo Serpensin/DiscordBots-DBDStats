@@ -1,5 +1,7 @@
 #Import
 print('Loading...')
+import time
+startupTime_start = time.time()
 import aiohttp
 import asyncio
 import datetime
@@ -23,7 +25,6 @@ import sentry_sdk
 import socket
 import sqlite3
 import sys
-import time
 import traceback
 import zlib
 from aiohttp import web
@@ -31,6 +32,7 @@ from bs4 import BeautifulSoup
 from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
+from CustomModules import bot_directory
 from CustomModules import killswitch
 from CustomModules import steamcharts
 from dotenv import load_dotenv
@@ -133,7 +135,6 @@ TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
 DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
 DISCORDLIST_TOKEN = os.getenv('DISCORDLIST_TOKEN')
-DISCORDS_TOKEN = os.getenv('DISCORDS_TOKEN')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -439,7 +440,7 @@ class aclient(discord.AutoShardedClient):
         if self.initialized:
             await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
             return
-        global owner, start_time, shutdown, conn, c
+        global owner, start_time, conn, c
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
             manlogger.info('Syncing...')
@@ -452,7 +453,6 @@ class aclient(discord.AutoShardedClient):
         conn = sqlite3.connect(sql_file)
         c = conn.cursor()
         await self.setup_database()
-        shutdown = False
         try:
             owner = await bot.fetch_user(OWNERID)
             print('Owner found.')
@@ -460,8 +460,15 @@ class aclient(discord.AutoShardedClient):
             print('Owner not found.')
 
         #Start background tasks
+        stats = bot_directory.Stats(bot=bot,
+                                    logger=manlogger,
+                                    TOPGG_TOKEN=TOPGG_TOKEN,
+                                    DISCORDBOTS_TOKEN=DISCORDBOTS_TOKEN,
+                                    DISCORDBOTLISTCOM_TOKEN=DISCORDBOTLISTCOM_TOKEN,
+                                    DISCORDLIST_TOKEN=DISCORDLIST_TOKEN,
+                                    )
+        bot.loop.create_task(stats.task())
         bot.loop.create_task(Cache.task())
-        bot.loop.create_task(Stats.task())
         bot.loop.create_task(Background.health_server())
         bot.loop.create_task(Background.check_db_connection_task())
         if twitch_available:
@@ -484,7 +491,9 @@ class aclient(discord.AutoShardedClient):
 
         ''')
         start_time = datetime.datetime.now()
-        manlogger.info('Initialization completed.')
+        startupTime_total = int(time.time() - startupTime_start)
+        pt(f'Startup time: {startupTime_total} seconds.')
+        manlogger.info(f'Initialization completed in {startupTime_total} seconds.')
         pt('READY')
         self.initialized = True
 bot = aclient()
@@ -723,121 +732,12 @@ class Cache():
         manlogger.info('Cache updated.')
 
     async def task():
-        while not shutdown:
+        while True:
             await Cache.start_cache_update()
             try:
                 await asyncio.sleep(60*60*4)
             except asyncio.CancelledError:
-                pass
-
-
-#Update botstats on websites
-class Stats():
-    async def _topgg():
-        if not TOPGG_TOKEN:
-            return
-        headers = {
-            'Authorization': TOPGG_TOKEN,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://top.gg/api/bots/{bot.user.id}/stats', headers=headers, json={'server_count': len(bot.guilds), 'shard_count': len(bot.shards)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update top.gg: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-    async def _discordbots():
-        if not DISCORDBOTS_TOKEN:
-            return
-        headers = {
-            'Authorization': DISCORDBOTS_TOKEN,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://discord.bots.gg/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guildCount': len(bot.guilds), 'shardCount': len(bot.shards)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discord.bots.gg: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-    async def _discordbotlist_com():
-        if not DISCORDBOTLISTCOM_TOKEN:
-            return
-        headers = {
-            'Authorization': DISCORDBOTLISTCOM_TOKEN,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://discordbotlist.com/api/v1/bots/{bot.user.id}/stats', headers=headers, json={'guilds': len(bot.guilds), 'users': sum(guild.member_count for guild in bot.guilds)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discordbotlist.com: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-    async def _discordlist():
-        if not DISCORDLIST_TOKEN:
-            return
-        headers = {
-            'Authorization': f'Bearer {DISCORDLIST_TOKEN}',
-            'Content-Type': 'application/json; charset=utf-8'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://api.discordlist.gg/v0/bots/{bot.user.id}/guilds', headers=headers, json={"count": len(bot.guilds)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discordlist.gg: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-    async def _discords():
-        if not DISCORDS_TOKEN:
-            return
-        headers = {
-            'Authorization': DISCORDS_TOKEN,
-            'Content-Type': 'application/json'
-        }
-        while not shutdown:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(f'https://discords.com/bots/api/bot/{bot.user.id}', headers=headers, json={"server_count": len(bot.guilds)}) as resp:
-                    if resp.status != 200:
-                        manlogger.error(f'Failed to update discords.com: {resp.status} {resp.reason}')
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
-
-    async def start_stats_update():
-        updates = [Stats._topgg(),
-                   Stats._discordbots(),
-                   Stats._discordbotlist_com(),
-                   Stats._discordlist(),
-                   Stats._discords()
-                   ]
-
-        tasks = [asyncio.create_task(update) for update in updates]
-
-        for task in tasks:
-            await task
-
-    async def task():
-        while not shutdown:
-            await Stats.start_stats_update()
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                pass
+                break
 
 
 #Background tasks
@@ -881,12 +781,12 @@ class Background():
                     except:
                         pass
 
-        while not shutdown:
+        while True:
             try:
                 await function()
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
-                pass
+                break
 
     async def health_server():
         async def __health_check(request):
@@ -922,12 +822,12 @@ class Background():
                 for row in c.fetchall():
                     await Info.shrine(channel_id=(row[1], row[2]))
 
-        while not shutdown:
+        while True:
             await function()
             try:
                 await asyncio.sleep(60*15)
             except asyncio.CancelledError:
-                pass
+                break
 
     async def update_twitchinfo_task():
         async def function():
@@ -973,12 +873,12 @@ class Background():
             with open(f"{buffer_folder}twitch_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=4)
 
-        while not shutdown:
+        while True:
             await function()
             try:
                 await asyncio.sleep(60*5)
             except asyncio.CancelledError:
-                pass
+                break
 
 
 #Functions
@@ -2838,11 +2738,9 @@ class Owner():
             return
 
     async def shutdown(message):
-        global shutdown
         manlogger.info('Engine powering down...')
         await message.channel.send('Engine powering down...')
         await bot.change_presence(status=discord.Status.invisible)
-        shutdown = True
 
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]
@@ -3458,5 +3356,4 @@ if __name__ == '__main__':
             manlogger.critical(error_message)
             sys.exit(error_message)
         except asyncio.CancelledError:
-            if shutdown:
-                pass
+            pass
