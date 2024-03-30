@@ -502,8 +502,8 @@ class Cache():
                 manlogger.warning("Perks couldn't be updated.")
                 print("Perks couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}perk//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
@@ -515,8 +515,8 @@ class Cache():
                 manlogger.warning("Offerings couldn't be updated.")
                 print("Offerings couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}offering//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
@@ -528,8 +528,8 @@ class Cache():
                 manlogger.warning("Characters couldn't be updated.")
                 print("Characters couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}char//{lang}.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
@@ -541,8 +541,8 @@ class Cache():
                 manlogger.warning("DLC couldn't be updated.")
                 print("DLC couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}dlc//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
@@ -554,8 +554,8 @@ class Cache():
                 manlogger.warning("Items couldn't be updated.")
                 print("Items couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}item//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
@@ -565,8 +565,8 @@ class Cache():
             data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
             if data == 1:
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}addon//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
@@ -578,8 +578,8 @@ class Cache():
                 manlogger.warning("Maps couldn't be updated.")
                 print("Maps couldn't be updated.")
                 return 1
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}map//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
@@ -594,8 +594,8 @@ class Cache():
             data = {}
             for i in range(len(data_list)):
                 data[str(i)] = data_list[i]
+            data['_id'] = lang
             if db_available:
-                data['_id'] = lang
                 db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}event//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
@@ -606,8 +606,8 @@ class Cache():
             manlogger.warning("Version couldn't be updated.")
             print("Version couldn't be updated.")
             return 1
+        data['_id'] = 'version_info'
         if db_available:
-            data['_id'] = 'version_info'
             db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
         with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
@@ -628,6 +628,7 @@ class Cache():
             db[DB_NAME]['patchnotes'].drop()
         for entry in data:
             notes = {key: value for key, value in entry.items() if key == "notes"}
+            notes['_id'] = entry["id"]
             with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace('.', '')}.json', 'w', encoding='utf8') as f:
                 json.dump(notes, f, indent=2)
             if db_available:
@@ -842,7 +843,7 @@ class Stats():
 #Background tasks
 class Background():
     async def check_db_connection_task():
-        async def __upload_json_to_db():
+        async def _upload_json_to_db():
             for entry in os.scandir(buffer_folder):
                 if entry.is_dir():
                     if entry.name in ['Stats']:
@@ -852,7 +853,7 @@ class Background():
                             with open(filename.path, 'r', encoding='utf8') as file:
                                 data = json.load(file)
                                 db[DB_NAME][str(entry.name)].update_one({'_id': data['_id']}, {'$set': data}, upsert=True)
-                if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json']:
+                if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json', 'translations.json', 'twitch_info']:
                     with open(entry.path, 'r', encoding='utf8') as file:
                         data = json.load(file)
                         db[DB_NAME][str(entry.name).replace('shrine_info.json', 'shrine').replace('version_info.json', 'version')].update_one({'_id': str(entry.name).replace('shrine_info.json', 'shrine_info').replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
@@ -863,7 +864,7 @@ class Background():
                 db.server_info()
                 if not db_available:
                     db_available = True
-                    await __upload_json_to_db()
+                    await _upload_json_to_db()
                     manlogger.info("Database connection established.")
                     try:
                         await owner.send("Database connection established.")
@@ -880,13 +881,12 @@ class Background():
                     except:
                         pass
 
-        if db_available:
-            while not shutdown:
-                try:
-                    await function()
-                    await asyncio.sleep(5)
-                except asyncio.CancelledError:
-                    pass
+        while not shutdown:
+            try:
+                await function()
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                pass
 
     async def health_server():
         async def __health_check(request):
