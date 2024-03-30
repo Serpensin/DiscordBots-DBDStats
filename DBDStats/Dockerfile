@@ -3,7 +3,8 @@
 WORKDIR /app
 
 COPY CustomModules ./CustomModules
-COPY *.py .
+COPY main.py .
+COPY __init__.py .
 COPY requirements.txt .
 
 ENV TERM xterm

@@ -4,6 +4,7 @@ import time
 startupTime_start = time.time()
 import aiohttp
 import asyncio
+import concurrent.futures
 import datetime
 import discord
 import html2text
@@ -33,10 +34,11 @@ from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules.libretrans import LibreTranslateAPI
 from CustomModules.twitch import TwitchAPI
 from CustomModules import bot_directory
+from CustomModules import googletrans
 from CustomModules import killswitch
 from CustomModules import steamcharts
 from dotenv import load_dotenv
-from prettytable import PrettyTable
+from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from typing import Any, List, Literal, Optional
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -135,6 +137,7 @@ TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
 DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
 DISCORDLIST_TOKEN = os.getenv('DISCORDLIST_TOKEN')
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -225,7 +228,6 @@ else:
 
 db = pymongo.MongoClient(connection_string, serverSelectionTimeoutMS=10000)
 
-tb = PrettyTable()
 twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
 
 #Fix error on windows on shutdown.
@@ -254,32 +256,33 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
 #db_available = False
-translator = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
-translate_available = False
-retry_count = 10
-while not translate_available and retry_count > 0:
-    if asyncio.run(translator.get_settings()):
-        if asyncio.run(translator.validate_key()):
-            manlogger.info('Connected to LibreTranslate.')
-            pt('Connected to LibreTranslate.')
-            translate_available = True
-        else:
-            manlogger.warning('Invalid LibreTranslate API key. | Disabling translation.')
-            pt('Invalid LibreTranslate API key. | Disabling translation.')
-            translate_available = False
-            break
-    else:
-        retry_count -= 1
-        if retry_count > 0:
-            manlogger.warning(f'Error connecting to LibreTranslate. | Retrying in 5 seconds. | Retries left: {retry_count}')
-            pt(f'Error connecting to LibreTranslate. | Retrying in 5 seconds. | Retries left: {retry_count}')
-            asyncio.run(asyncio.sleep(5))
-        else:
-            manlogger.warning('Could not connect to LibreTranslate. | Disabling translation.')
-            pt('Could not connect to LibreTranslate. | Disabling translation.')
-            translate_available = False
+translator_google = googletrans.Translator(GOOGLE_APPLICATION_CREDENTIALS)
+translator_libre = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
+translator_libre_available = asyncio.run(translator_libre.validate_key())
+if not translator_libre_available:
+    manlogger.warning('LibreTranslate API is not available. | Disabling translation.')
+    pt('LibreTranslate API is not available. | Disabling translation.')
+    translator_libre_available = False
 
-twitch_available = bool(TWITCH_CLIENT_SECRET and TWITCH_CLIENT_ID)
+try:
+    translator_google.check_credentials()
+    manlogger.info('Connected to Google Translate.')
+    pt('Connected to Google Translate.')
+    translator_google_available = True
+except DefaultCredentialsError as e:
+    manlogger.warning(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
+    pt(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
+    translator_google_available = False
+except RefreshError as e:
+    manlogger.warning(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
+    pt(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
+    translator_google_available = False
+except FileNotFoundError as e:
+    manlogger.warning(f'Couldn\'t find `googleauth.json`.: {e}')
+    pt(f'Couldn\'t find `googleauth.json`.: {e}')
+    translator_google_available = False
+
+twitch_available = twitch_api.check_access_token()
 support_available = bool(SUPPORTID)
 
 
@@ -362,6 +365,7 @@ class aclient(discord.AutoShardedClient):
                                        'Commands:\n'
                                        'activity - Set the activity of the bot\n'
                                        'changelog - Upload a txt, or md, that is send to the changelog channels\n'
+                                       'clean - Clean specific parts\n'
                                        'help - Shows this message\n'
                                        'log - Get the log\n'
                                        'shutdown - Shutdown the bot\n'
@@ -377,27 +381,24 @@ class aclient(discord.AutoShardedClient):
             if command == 'help':
                 await __wrong_selection()
                 return
-
             elif command == 'log':
                 await Owner.log(message, args)
                 return
-
             elif command == 'activity':
                 await Owner.activity(message, args)
                 return
-
             elif command == 'status':
                 await Owner.status(message, args)
                 return
-
             elif command == 'shutdown':
                 await Owner.shutdown(message)
                 return
-
             elif command == 'changelog':
                 await Owner.changelog(message, file)
                 return
-
+            elif command == 'clean':
+                await Owner.clean(message, args)
+                return
             else:
                 await __wrong_selection()
 
@@ -497,10 +498,9 @@ class aclient(discord.AutoShardedClient):
 
         ''')
         start_time = datetime.datetime.now()
-        startupTime_total = int(time.time() - startupTime_start)
-        pt(f'Startup time: {startupTime_total} seconds.')
-        manlogger.info(f'Initialization completed in {startupTime_total} seconds.')
-        pt('READY')
+        message = f"Initialization completed in {time.time() - startupTime_start} seconds."
+        pt(message)
+        manlogger.info(message)
         self.initialized = True
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -762,7 +762,13 @@ class Background():
                 if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json', 'translations.json', 'twitch_info']:
                     with open(entry.path, 'r', encoding='utf8') as file:
                         data = json.load(file)
-                        db[DB_NAME][str(entry.name).replace('shrine_info.json', 'shrine').replace('version_info.json', 'version')].update_one({'_id': str(entry.name).replace('shrine_info.json', 'shrine_info').replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
+                        db[DB_NAME][str(entry.name)
+                                    .replace('shrine_info.json', 'shrine')
+                                    .replace('translations.json', 'translations')
+                                    .replace('version_info.json', 'version')].update_one({'_id': str(entry.name)
+                                                                                          .replace('shrine_info.json', 'shrine_info')
+                                                                                          .replace('translations.json', 'translations')
+                                                                                          .replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
 
         async def function():
             global db_available
@@ -852,20 +858,20 @@ class Background():
             # Create json from data - Stats
             data = {
                 '_id': 'twitch_info',
-                'viewer_count': await Functions.convert_number(stats['viewer_count'], True),
-                'stream_count': await Functions.convert_number(stats['stream_count'], True),
-                'average_viewer_count': await Functions.convert_number(stats['average_viewer_count'], True),
-                'category_rank': await Functions.convert_number(stats['category_rank'], True),
+                'viewer_count': int(stats['viewer_count']),
+                'stream_count': int(stats['stream_count']),
+                'average_viewer_count': int(stats['average_viewer_count']),
+                'category_rank': int(stats['category_rank']),
                 'image': image,
-                'updated_at': await Functions.convert_number(time.time(), True)
+                'updated_at': int(time.time())
             }
             # Create json from data - Top Streamers
             data['top_streamers'] = {}
             for entry in top:
                 data['top_streamers'][str(entry)] = {
                     'streamer': top[entry]['streamer'],
-                    'viewer_count': await Functions.convert_number(top[entry]['viewer_count'], True),
-                    'follower_count': await Functions.convert_number(top[entry]['follower_count'], True),
+                    'viewer_count': int(top[entry]['viewer_count']),
+                    'follower_count': int(top[entry]['follower_count']),
                     'link': top[entry]['link'],
                     'title': top[entry]['title'],
                     'language': top[entry]['language'],
@@ -966,12 +972,6 @@ class Functions():
             return(time.strftime('%Y-%m-%d', time.gmtime(timestamp)))
         elif request == 'time':
             return(time.strftime('%H:%M:%S', time.gmtime(timestamp)))
-
-    async def convert_number(number, pureInt: bool = False):
-        if pureInt:
-            return int(number)
-        else:
-            return f"{int(number):,}"
 
     async def create_support_invite(interaction):
         try:
@@ -1137,6 +1137,32 @@ class Functions():
                     return None
 
     async def translate(interaction: discord.Interaction, text):
+        async def _translate(text, target_lang, source_lang='en'):
+            def translate_in_executor(text, target_lang, source_lang):
+                if translator_google_available:
+                    try:
+                        translated_text = translator_google.translate_text(text, target_lang, source_lang)
+                        print("Translated with Google Translator.")
+                        return translated_text
+                    except RefreshError as e:
+                        manlogger.warning(f"Google Translator Refresh Error: {e}")
+                        print(f"Google Translator Refresh Error: {e}")
+                    except FileNotFoundError as e:
+                        manlogger.warning(f"Google Translator FileNotFoundError: {e}")
+                        print(f"Google Translator FileNotFoundError: {e}")
+                try:
+                    translation = translator_libre.translate(text, target_lang, source_lang)
+                    print("Translated with LibreTranslate.")
+                    return translation
+                except Exception as e:
+                    manlogger.warning(f"Error while translating: {e}")
+                    print(f"Error while translating: {e}")
+                    return text
+
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return await loop.run_in_executor(pool, translate_in_executor, text, target_lang, source_lang)
+
         if type(interaction) == discord.app_commands.transformers.NoneType:
             lang = 'en'
         elif type(interaction) != str:
@@ -1158,10 +1184,13 @@ class Functions():
             if data is None:
                 data = {}
         else:
-            with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
-                data = json.load(f)
-                if data is None:
-                    data = {}
+            try:
+                with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                    data = json.load(f)
+                    if data is None:
+                        data = {}
+            except FileNotFoundError:
+                data = {}
 
         if hashed in data.keys():
             print(f'Hash {hashed} found in cache.')
@@ -1170,7 +1199,7 @@ class Functions():
                 return data[hashed][lang]
             else:
                 print(f'Language {lang} not found in cache.')
-                translation = await translator.translate(text, lang)
+                translation = await _translate(text, lang)
                 data[hashed] = {lang: translation['data']['translatedText']}
                 if db_available:
                     db[DB_NAME]['translations'].update_one(
@@ -1181,30 +1210,24 @@ class Functions():
                             }
                         }
                     )
-                else:
+                try:
                     with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
                         old_data = json.load(f)
-                    data = Functions.merge_dictionaries(old_data, data)
-                    with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
-                        json.dump(data, f, indent=4)
+                except FileNotFoundError:
+                    old_data = {}
+                data = Functions.merge_dictionaries(old_data, data)
+                with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+                    json.dump(data, f, indent=4)
                 return translation['data']['translatedText']
         else:
             print(f'Hash {hashed} not found in cache.')
-            translation = await translator.translate(text, lang)
-            if translation['status'] == 500:
-                with open(f'{buffer_folder}temp_translation.txt', 'w', encoding='utf8') as f:
-                    f.write(text)
-                translation = await translator.translate_file(f'{buffer_folder}temp_translation.txt', lang)
-                if translation['status'] == 500:
-                    os.remove(f'{buffer_folder}temp_translation.txt')
-                    return text
-            data[hashed] = {lang: translation['data']['translatedText']}
+            translation = await _translate(text, lang)
+            data[hashed] = {lang: translation}
             if db_available:
                 db[DB_NAME]['translations'].update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
-            else:
-                with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
-                    json.dump(data, f, indent=4)
-            return translation['data']['translatedText']
+            with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+                json.dump(data, f, indent=4)
+            return translation
 
     def convert_to_unix_timestamp(iso_time: str, local_tz: str = 'Europe/Berlin') -> int:
         """
@@ -1345,8 +1368,8 @@ class SendInfo():
                                       description = await Functions.translate(interaction, description), color=0x0400ff)
                 embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name='Rarity', value=data[key]['rarity'], inline=True)
-                embed.add_field(name='Role', value=data[key]['role'], inline=True)
+                embed.add_field(name=await Functions.translate(interaction, 'Rarity'), value=str(await Functions.translate(interaction, data[key]['rarity'])).capitalize(), inline=True)
+                embed.add_field(name=await Functions.translate(interaction, 'Role'), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
                 if data[key]['item_type'] is None:
                     char = await Functions.data_load('chars', lang)
                     if char is None:
@@ -1355,10 +1378,10 @@ class SendInfo():
                         if str(key) == '_id':
                             continue
                         if str(data[addon]['parents']).replace('[', '').replace('\'', '').replace(']', '') == str(char[key]['item']).replace('[', '').replace('\'', '').replace(']', ''):
-                            embed.add_field(name='Origin', value=char[key]['name'], inline=True)
+                            embed.add_field(name=await Functions.translate(interaction, 'Origin'), value=str(await Functions.translate(interaction, char[key]['name'])).capitalize(), inline=True)
                             break
                 else:
-                    embed.add_field(name='Origin', value=data[key]['item_type'], inline=True)
+                    embed.add_field(name=await Functions.translate(interaction, 'Origin'), value=str(await Functions.translate(interaction, data[key]['item_type'])).capitalize(), inline=True)
                 if random:
                     return embed
                 else:
@@ -1373,13 +1396,13 @@ class SendInfo():
             if str(data[key]['name']) == char:
                 embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=str(data[key]['name']), color=0xb19325)
                 embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
-                embed.add_field(name=await Functions.translate(interaction, "Role"), value=str(data[key]['role']).capitalize(), inline=True)
-                embed.add_field(name=await Functions.translate(interaction, "Gender"), value=str(data[key]['gender']).capitalize(), inline=True)
+                embed.add_field(name=await Functions.translate(interaction, "Role"), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
+                embed.add_field(name=await Functions.translate(interaction, "Gender"), value=str(await Functions.translate(interaction, data[key]['gender'])).capitalize(), inline=True)
                 for dlc_key in dlc_data.keys():
                     if dlc_key == data[key]['dlc']:
                         embed.add_field(name="DLC", value=f"[{dlc_data[dlc_key]['name'].capitalize().replace(' chapter', '')}]({steamStore}{dlc_data[dlc_key]['steamid']})", inline=True)
                 if data[key]['difficulty'] != 'none':
-                    embed.add_field(name=await Functions.translate(interaction, "Difficulty"), value=str(data[key]['difficulty']).capitalize(), inline=True)
+                    embed.add_field(name=await Functions.translate(interaction, "Difficulty"), value=str(await Functions.translate(interaction, data[key]['difficulty'])).capitalize(), inline=True)
                 if str(data[key]['role']) == 'killer':
                     embed.add_field(name=await Functions.translate(interaction, "Walkspeed"), value=f"{int(data[key]['tunables']['MaxWalkSpeed']) / 100}m/s", inline=True)
                     embed.add_field(name=await Functions.translate(interaction, "Terror Radius"), value=f"{int(data[key]['tunables']['TerrorRadius']) / 100}m", inline=True)
@@ -1452,11 +1475,12 @@ class SendInfo():
                                       color = 0x00ff00)
                 embed.set_thumbnail(url=f"{bot_base}{data_loc[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
-                embed.add_field(name = 'Rarity', value = str(data_loc[i]['rarity']))
-                embed.add_field(name = 'Is in Bloodweb', value = str(data_loc[i]['bloodweb']))
-                embed.add_field(name = 'Role', value = str(data_loc[i]['role']))
+                embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = await Functions.translate(interaction, str(data_loc[i]['rarity']).capitalize()))
+                bloodweb = "Yes" if data_loc[i]['bloodweb'] == 1 else "No"
+                embed.add_field(name = await Functions.translate(interaction, 'Is in Bloodweb'), value = await Functions.translate(interaction, bloodweb))
+                embed.add_field(name = await Functions.translate(interaction, 'Role'), value = await Functions.translate(interaction, str(data_loc[i]['role'])))
                 if data_loc[i]['event'] is not None:
-                    embed.add_field(name = 'Event', value = str(data_loc[i]['event']))
+                    embed.add_field(name = await Functions.translate(interaction, 'Event'), value = str(data_loc[i]['event']))
                 if loadout == True:
                     return embed, data_loc[i]['item_type']
                 await interaction.followup.send(embed = embed, ephemeral = True)
@@ -1485,12 +1509,14 @@ class SendInfo():
                                       color = 0x00ff00)
                 embed.set_thumbnail(url=f"{bot_base}{data[item]['image']}")
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
-                embed.add_field(name = 'Rarity', value = data[item]['rarity'])
-                embed.add_field(name = 'Type', value = data[item]['type'])
-                embed.add_field(name = 'Tags', value = str(data[item]['tags']).replace('[', '').replace(']', '').replace('\'', ''))
-                embed.add_field(name = 'Role', value = data[item]['role'])
+                embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = str(await Functions.translate(interaction, data[item]['rarity'])).capitalize())
+                embed.add_field(name = await Functions.translate(interaction, 'Type'), value = await Functions.translate(interaction, data[item]['type']))
+                embed.add_field(name = await Functions.translate(interaction, 'Tags'), value = await Functions.translate(interaction, str(data[item]['tags']).replace('[', '').replace(']', '').replace('\'', '')))
+                role = data[item]['role'] if data[item]['role'] is not None else "Both"
+                embed.add_field(name = await Functions.translate(interaction, 'Role'), value = await Functions.translate(interaction, role))
                 embed.add_field(name = '\u200b', value = '\u200b')
-                embed.add_field(name = 'Retired', value = data[item]['retired'])
+                retired = "Yes" if data[item]['retired'] == 1 else "No"
+                embed.add_field(name = await Functions.translate(interaction, 'Retired'), value = await Functions.translate(interaction, retired))
                 if loadout:
                     return embed
                 await interaction.followup.send(embed = embed, ephemeral = True)
@@ -1594,7 +1620,7 @@ class SendInfo():
 #Info
 class Info():
     async def addon(interaction: discord.Interaction, name: str):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('addons', lang)
         if data is None:
@@ -1606,7 +1632,7 @@ class Info():
         return
 
     async def adepts(interaction: discord.Integration, steamid):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         try:
             int(check[0])
@@ -1687,7 +1713,7 @@ class Info():
                     await interaction.followup.send(embeds=embeds[i:i+10])
 
     async def character(interaction: discord.Interaction, char: str):
-        await interaction.response.defer(thinking = True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('chars', lang)
         if data is None:
@@ -1702,7 +1728,7 @@ class Info():
             return
 
     async def dlc(interaction: discord.Interaction, name: str = ''):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('dlcs', lang)
         if data is None:
@@ -1755,7 +1781,7 @@ class Info():
             await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
 
     async def event(interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
 
         lang = await Functions.get_language_code(interaction)
 
@@ -1801,7 +1827,7 @@ class Info():
             await interaction.followup.send(embed=embed)
 
     async def item(interaction: discord.Interaction, name: str):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('items', lang)
         if data is None:
@@ -1812,7 +1838,7 @@ class Info():
         return
 
     async def killswitch(interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
 
         if os.path.exists(f'{buffer_folder}killswitch.json'):
             if os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
@@ -1825,9 +1851,9 @@ class Info():
                         await interaction.followup.send(embed=embed)
                         return
                     else:
-                        embed = discord.Embed(title="Killswitch", description=data['md'], color=0xb19325)
+                        embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data['md']), color=0xb19325)
                         embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-                        embed.set_footer(text = f'Update every 15 minutes.')
+                        embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
                         await interaction.followup.send(embed=embed)
                         return
         try:
@@ -1841,13 +1867,13 @@ class Info():
         if data.replace('\n', '').strip() == '':
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-            embed.set_footer(text = f'Update every 15 minutes.')
+            embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
             await interaction.followup.send(embed=embed)
             killswitch_on = 0
         elif data is not None:
             embed = discord.Embed(title="Killswitch", description=data, color=0xb19325)
             embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-            embed.set_footer(text = f'Update every 15 minutes.')
+            embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
             await interaction.followup.send(embed=embed)
             killswitch_on = 1
 
@@ -1860,7 +1886,7 @@ class Info():
             json.dump(data_to_save, f, indent=4)
 
     async def legacycheck(interaction: discord.Interaction, steamid):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         dbd_check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         if dbd_check[0] == 1:
             await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))
@@ -1893,7 +1919,7 @@ class Info():
                     return
 
     async def maps(interaction: discord.Interaction, name):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
 
         data = await Functions.data_load('maps', lang)
@@ -1909,7 +1935,7 @@ class Info():
                 await interaction.followup.send(embed=embed)
 
     async def offering(interaction: discord.Interaction, name: str):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('offerings', 'en')
         if data is None:
@@ -1918,7 +1944,7 @@ class Info():
         await SendInfo.offering(interaction, name, lang)
 
     async def patch(interaction: discord.Interaction, version: str):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         data = await Functions.data_load('patchnotes', version=version)
         if data is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the patchnotes."))
@@ -1936,18 +1962,18 @@ class Info():
                 os.remove(f'{buffer_folder}patchnotes.md')
 
     async def perk(interaction: discord.Interaction, name: str):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         await SendInfo.perk(name, lang, interaction)
 
     async def playercount(interaction: discord.Interaction):
         async def selfembed(data):
-            embed = discord.Embed(title=await Functions.translate(interaction, "Playercount"), color=0xb19325)
+            embed = discord.Embed(title=await Functions.translate(interaction, "Player count"), color=0xb19325)
             embed.set_thumbnail(url=f"{bot_base}dbd.png")
             embed.add_field(name="\u200b", value="\u200b", inline=False)
-            embed.add_field(name=await Functions.translate(interaction, "Current"), value=await Functions.convert_number(int(data['Current Players'])), inline=True)
-            embed.add_field(name=await Functions.translate(interaction, "24h Peak"), value=await Functions.convert_number(int(data['Peak Players 24h'])), inline=True)
-            embed.add_field(name=await Functions.translate(interaction, "All-time Peak"), value=await Functions.convert_number(int(data['Peak Players All Time'])), inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Current"), value=f"{int(data['Current Players']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "24h Peak"), value=f"{int(data['Peak Players 24h']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "All-time Peak"), value=f"{int(data['Peak Players All Time']):,}", inline=True)
             embed.set_footer(text=await Functions.translate(interaction, "This will be updated every full hour."))
             await interaction.followup.send(embed = embed)
         async def selfget():
@@ -1963,21 +1989,21 @@ class Info():
                 manlogger.warning(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
                 await interaction.followup.send(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
                 return
-            data['update_hour'] = datetime.now().hour
+            data['update_hour'] = datetime.datetime.now().hour
             with open(buffer_folder+'playercount.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
             return data
-        await interaction.response.defer(thinking = True)
+        await interaction.response.defer()
         if os.path.exists(buffer_folder+'playercount.json'):
             with open(buffer_folder+'playercount.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
-            if data['update_hour'] == datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
+            if data['update_hour'] == datetime.datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
                 await selfembed(data)
                 return
         await selfembed(await selfget())
 
     async def playerstats(interaction: discord.Interaction, steamid):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         try:
             int(check[0])
@@ -2056,168 +2082,154 @@ class Info():
                 embed.set_footer(text=footer)
 
             #Embed1 - Survivor
-            embed1.add_field(name=await Functions.translate(interaction, "Bloodpoints Earned"), value=await Functions.convert_number(player_stats['bloodpoints']), inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Bloodpoints Earned"), value=f"{int(player_stats['bloodpoints']):,}", inline=True)
             embed1.add_field(name=await Functions.translate(interaction, "Rank"), value=player_stats['survivor_rank'], inline=True)
             embed1.add_field(name="\u200b", value="\u200b", inline=False)
-            embed1.add_field(name=await Functions.translate(interaction, "Full loadout Games"), value=await Functions.convert_number(player_stats['survivor_fullloadout']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=await Functions.convert_number(player_stats['survivor_perfectgames']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Generators repaired"), value=await Functions.convert_number(player_stats['gensrepaired']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Gens without Perks"), value=await Functions.convert_number(player_stats['gensrepaired_noperks']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Damaged gens repaired"), value=await Functions.convert_number(player_stats['damagedgensrepaired']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Successful skill checks"), value=await Functions.convert_number(player_stats['skillchecks']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Items Depleted"), value=await Functions.convert_number(player_stats['itemsdepleted']), inline=False)
-            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Cleansed"), value=await Functions.convert_number(player_stats['hextotemscleansed']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Blessed"), value=await Functions.convert_number(player_stats['hextotemsblessed']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Blessed Boosts"), value=await Functions.convert_number(player_stats['blessedtotemboosts']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Exit Gates Opened"), value=await Functions.convert_number(player_stats['exitgatesopened']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Hooks Sabotaged"), value=await Functions.convert_number(player_stats['hookssabotaged']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched"), value=await Functions.convert_number(player_stats['chestssearched']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched in the Basement"), value=await Functions.convert_number(player_stats['chestssearched_basement']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Mystery boxes opened"), value=await Functions.convert_number(player_stats['mysteryboxesopened']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Killers aura revealed"), value=await Functions.convert_number(player_stats['killersaurarevealed']), inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Screams"), value=await Functions.convert_number(player_stats['screams']), inline=True)
-            #Embed2 - Killer Interactions
+            embed1.add_field(name=await Functions.translate(interaction, "Full loadout Games"), value=f"{int(player_stats['survivor_fullloadout']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=f"{int(player_stats['survivor_perfectgames']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Generators repaired"), value=f"{int(player_stats['gensrepaired']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Gens without Perks"), value=f"{int(player_stats['gensrepaired_noperks']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Damaged gens repaired"), value=f"{int(player_stats['damagedgensrepaired']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Successful skill checks"), value=f"{int(player_stats['skillchecks']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Items Depleted"), value=f"{int(player_stats['itemsdepleted']):,}", inline=False)
+            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Cleansed"), value=f"{int(player_stats['hextotemscleansed']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Blessed"), value=f"{int(player_stats['hextotemsblessed']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Blessed Boosts"), value=f"{int(player_stats['blessedtotemboosts']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Exit Gates Opened"), value=f"{int(player_stats['exitgatesopened']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Hooks Sabotaged"), value=f"{int(player_stats['hookssabotaged']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched"), value=f"{int(player_stats['chestssearched']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched in the Basement"), value=f"{int(player_stats['chestssearched_basement']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Mystery boxes opened"), value=f"{int(player_stats['mysteryboxesopened']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Killers aura revealed"), value=f"{int(player_stats['killersaurarevealed']):,}", inline=True)
+            embed1.add_field(name=await Functions.translate(interaction, "Screams"), value=f"{int(player_stats['screams']):,}", inline=True)
+            # Embed2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
-            embed2.add_field(name=await Functions.translate(interaction, "Dodged basic attack or projectiles"), value=await Functions.convert_number(player_stats['dodgedattack']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Escaped chase after pallet stun"), value=await Functions.convert_number(player_stats['escapedchase_palletstun']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Escaped chase injured after hit"), value=await Functions.convert_number(player_stats['escapedchase_healthyinjured']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Escape chase by hiding in locker"), value=await Functions.convert_number(player_stats['escapedchase_hidinginlocker']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Protection hits for unhooked survivor"), value=await Functions.convert_number(player_stats['protectionhits_unhooked']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Protectionhits while a survivor is carried"), value=await Functions.convert_number(player_stats['protectionhits_whilecarried']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=await Functions.convert_number(player_stats['vaultsinchase']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Dodge attack before vaulting"), value=await Functions.convert_number(player_stats['vaultsinchase_missed']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Wiggled from killers grasp"), value=await Functions.convert_number(player_stats['wiggledfromkillersgrasp']), inline=True)
-            embed2.add_field(name=await Functions.translate(interaction, "Killers blinded with a flashlight"), value=await Functions.convert_number(player_stats['killerblinded_flashlight']), inline=True)
-            #Embed3 - Healing/Saves
+            embed2.add_field(name=await Functions.translate(interaction, "Dodged basic attack or projectiles"), value=f"{int(player_stats['dodgedattack']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Escaped chase after pallet stun"), value=f"{int(player_stats['escapedchase_palletstun']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Escaped chase injured after hit"), value=f"{int(player_stats['escapedchase_healthyinjured']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Escape chase by hiding in locker"), value=f"{int(player_stats['escapedchase_hidinginlocker']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Protection hits for unhooked survivor"), value=f"{int(player_stats['protectionhits_unhooked']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Protectionhits while a survivor is carried"), value=f"{int(player_stats['protectionhits_whilecarried']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=f"{int(player_stats['vaultsinchase']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Dodge attack before vaulting"), value=f"{int(player_stats['vaultsinchase_missed']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Wiggled from killers grasp"), value=f"{int(player_stats['wiggledfromkillersgrasp']):,}", inline=True)
+            embed2.add_field(name=await Functions.translate(interaction, "Killers blinded with a flashlight"), value=f"{int(player_stats['killerblinded_flashlight']):,}", inline=True)
+            # Embed3 - Healing/Saves
             embed3.add_field(name="\u200b", value="\u200b", inline=False)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed"), value=await Functions.convert_number(player_stats['survivorshealed']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while injured"), value=await Functions.convert_number(player_stats['survivorshealed_whileinjured']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while 3 others not healthy"), value=await Functions.convert_number(player_stats['survivorshealed_threenothealthy']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed who found you while injured"), value=await Functions.convert_number(player_stats['survivorshealed_foundyou']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed from dying state to injured"), value=await Functions.convert_number(player_stats['healeddyingtoinjured']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Obsessions healed"), value=await Functions.convert_number(player_stats['obsessionshealed']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors saved (from death)"), value=await Functions.convert_number(player_stats['saved']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors saved during endgame"), value=await Functions.convert_number(player_stats['saved_endgame']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Killers pallet stunned while carrying a survivor"), value=await Functions.convert_number(player_stats['killerstunnedpalletcarrying']), inline=True)
-            embed3.add_field(name="Kobed", value=await Functions.convert_number(player_stats['unhookedself']), inline=True)
-            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while in the basement"), value=await Functions.convert_number(player_stats['survivorshealed_basement']), inline=True)
-            #Embed4 - Escaped
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed"), value=f"{int(player_stats['survivorshealed']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while injured"), value=f"{int(player_stats['survivorshealed_whileinjured']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while 3 others not healthy"), value=f"{int(player_stats['survivorshealed_threenothealthy']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed who found you while injured"), value=f"{int(player_stats['survivorshealed_foundyou']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed from dying state to injured"), value=f"{int(player_stats['healeddyingtoinjured']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Obsessions healed"), value=f"{int(player_stats['obsessionshealed']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors saved (from death)"), value=f"{int(player_stats['saved']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors saved during endgame"), value=f"{int(player_stats['saved_endgame']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Killers pallet stunned while carrying a survivor"), value=f"{int(player_stats['killerstunnedpalletcarrying']):,}", inline=True)
+            embed3.add_field(name="Kobed", value=f"{int(player_stats['unhookedself']):,}", inline=True)
+            embed3.add_field(name=await Functions.translate(interaction, "Survivors healed while in the basement"), value=f"{int(player_stats['survivorshealed_basement']):,}", inline=True)
+            # Embed4 - Escaped
             embed4.add_field(name="\u200b", value="\u200b", inline=False)
-            embed4.add_field(name=await Functions.translate(interaction, "While healthy/injured"), value=await Functions.convert_number(player_stats['escaped']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "While crawling"), value=await Functions.convert_number(player_stats['escaped_ko']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "After kobed"), value=await Functions.convert_number(player_stats['hooked_escape']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch"), value=await Functions.convert_number(player_stats['escaped_hatch']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch while crawling"), value=await Functions.convert_number(player_stats['escaped_hatchcrawling']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch with everyone"), value=await Functions.convert_number(player_stats['escaped_allhatch']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "After been downed once"), value=await Functions.convert_number(player_stats['escaped_downedonce']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "After been injured for half of the trial"), value=await Functions.convert_number(player_stats['escaped_injuredhalfoftrail']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "With no bloodloss as obsession"), value=await Functions.convert_number(player_stats['escaped_nobloodlossobsession']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "Last gen last survivor"), value=await Functions.convert_number(player_stats['escaped_lastgenlastsurvivor']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "With new item"), value=await Functions.convert_number(player_stats['escaped_newitem']), inline=True)
-            embed4.add_field(name=await Functions.translate(interaction, "With item from someone else"), value=await Functions.convert_number(player_stats['escaped_withitemfrom']), inline=True)
-            #Embed5 - Repaired second floor generator and escaped
+            embed4.add_field(name=await Functions.translate(interaction, "While healthy/injured"), value=f"{int(player_stats['escaped']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "While crawling"), value=f"{int(player_stats['escaped_ko']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "After kobed"), value=f"{int(player_stats['hooked_escape']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch"), value=f"{int(player_stats['escaped_hatch']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch while crawling"), value=f"{int(player_stats['escaped_hatchcrawling']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "Through the hatch with everyone"), value=f"{int(player_stats['escaped_allhatch']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "After been downed once"), value=f"{int(player_stats['escaped_downedonce']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "After been injured for half of the trial"), value=f"{int(player_stats['escaped_injuredhalfoftrail']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "With no bloodloss as obsession"), value=f"{int(player_stats['escaped_nobloodlossobsession']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "Last gen last survivor"), value=f"{int(player_stats['escaped_lastgenlastsurvivor']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "With new item"), value=f"{int(player_stats['escaped_newitem']):,}", inline=True)
+            embed4.add_field(name=await Functions.translate(interaction, "With item from someone else"), value=f"{int(player_stats['escaped_withitemfrom']):,}", inline=True)
+            # Embed5 - Repaired second floor generator and escaped
             embed5.add_field(name="\u200b", value="\u200b", inline=False)
-            embed5.add_field(name="Disturbed Ward", value=await Functions.convert_number(player_stats['secondfloorgen_disturbedward']), inline=True)
-            embed5.add_field(name="Father Campbells Chapel", value=await Functions.convert_number(player_stats['secondfloorgen_fathercampbellschapel']), inline=True)
-            embed5.add_field(name="Mothers Dwelling", value=await Functions.convert_number(player_stats['secondfloorgen_mothersdwelling']), inline=True)
-            embed5.add_field(name="Temple of Purgation", value=await Functions.convert_number(player_stats['secondfloorgen_templeofpurgation']), inline=True)
-            embed5.add_field(name="The Game", value=await Functions.convert_number(player_stats['secondfloorgen_game']), inline=True)
-            embed5.add_field(name="Family Residence", value=await Functions.convert_number(player_stats['secondfloorgen_familyresidence']), inline=True)
-            embed5.add_field(name="Sanctum of Wrath", value=await Functions.convert_number(player_stats['secondfloorgen_sanctumofwrath']), inline=True)
-            embed5.add_field(name="Mount Ormond", value=await Functions.convert_number(player_stats['secondfloorgen_mountormondresort']), inline=True)
-            embed5.add_field(name="Lampkin Lane", value=await Functions.convert_number(player_stats['secondfloorgen_lampkinlane']), inline=True)
-            embed5.add_field(name="Pale Rose", value=await Functions.convert_number(player_stats['secondfloorgen_palerose']), inline=True)
-            embed5.add_field(name="Hawkins", value=await Functions.convert_number(player_stats['secondfloorgen_undergroundcomplex']), inline=True)
-            embed5.add_field(name="Treatment Theatre", value=await Functions.convert_number(player_stats['secondfloorgen_treatmenttheatre']), inline=True)
-            embed5.add_field(name="Dead Dawg Saloon", value=await Functions.convert_number(player_stats['secondfloorgen_deaddawgsaloon']), inline=True)
-            embed5.add_field(name="Midwich", value=await Functions.convert_number(player_stats['secondfloorgen_midwichelementaryschool']), inline=True)
-            embed5.add_field(name="Raccoon City", value=await Functions.convert_number(player_stats['secondfloorgen_racconcitypolicestation']), inline=True)
-            embed5.add_field(name="Eyrie of Crows", value=await Functions.convert_number(player_stats['secondfloorgen_eyrieofcrows']), inline=True)
-            embed5.add_field(name="Garden of Joy", value=await Functions.convert_number(player_stats['secondfloorgen_gardenofjoy']), inline=True)
-            embed5.add_field(name="Shattered Square", value=await Functions.convert_number(player_stats['secondfloorgen_shatteredsquare']), inline=True)
-            embed5.add_field(name="Shelter Woods", value=await Functions.convert_number(player_stats['secondfloorgen_shelterwoods']), inline=True)
-            embed5.add_field(name="Toba Landing", value=await Functions.convert_number(player_stats['secondfloorgen_tobalanding']), inline=True)
-            embed5.add_field(name="Nostromo Wreckage", value=await Functions.convert_number(player_stats['secondfloorgen_messhall']), inline=True)
-            embed5.add_field(name="Greenville Square", value=await Functions.convert_number(player_stats['secondfloorgen_greenvillesquare']), inline=True)
-            #Embed6 - Killer Stats
+            embed5.add_field(name="Disturbed Ward", value=f"{int(player_stats['secondfloorgen_disturbedward']):,}", inline=True)
+            embed5.add_field(name="Father Campbells Chapel", value=f"{int(player_stats['secondfloorgen_fathercampbellschapel']):,}", inline=True)
+            embed5.add_field(name="Mothers Dwelling", value=f"{int(player_stats['secondfloorgen_mothersdwelling']):,}", inline=True)
+            embed5.add_field(name="Temple of Purgation", value=f"{int(player_stats['secondfloorgen_templeofpurgation']):,}", inline=True)
+            embed5.add_field(name="The Game", value=f"{int(player_stats['secondfloorgen_game']):,}", inline=True)
+            embed5.add_field(name="Family Residence", value=f"{int(player_stats['secondfloorgen_familyresidence']):,}", inline=True)
+            embed5.add_field(name="Sanctum of Wrath", value=f"{int(player_stats['secondfloorgen_sanctumofwrath']):,}", inline=True)
+            embed5.add_field(name="Mount Ormond", value=f"{int(player_stats['secondfloorgen_mountormondresort']):,}", inline=True)
+            embed5.add_field(name="Lampkin Lane", value=f"{int(player_stats['secondfloorgen_lampkinlane']):,}", inline=True)
+            embed5.add_field(name="Pale Rose", value=f"{int(player_stats['secondfloorgen_palerose']):,}", inline=True)
+            embed5.add_field(name="Hawkins", value=f"{int(player_stats['secondfloorgen_undergroundcomplex']):,}", inline=True)
+            embed5.add_field(name="Treatment Theatre", value=f"{int(player_stats['secondfloorgen_treatmenttheatre']):,}", inline=True)
+            embed5.add_field(name="Dead Dawg Saloon", value=f"{int(player_stats['secondfloorgen_deaddawgsaloon']):,}", inline=True)
+            embed5.add_field(name="Midwich", value=f"{int(player_stats['secondfloorgen_midwichelementaryschool']):,}", inline=True)
+            embed5.add_field(name="Raccoon City", value=f"{int(player_stats['secondfloorgen_racconcitypolicestation']):,}", inline=True)
+            embed5.add_field(name="Eyrie of Crows", value=f"{int(player_stats['secondfloorgen_eyrieofcrows']):,}", inline=True)
+            embed5.add_field(name="Garden of Joy", value=f"{int(player_stats['secondfloorgen_gardenofjoy']):,}", inline=True)
+            embed5.add_field(name="Shattered Square", value=f"{int(player_stats['secondfloorgen_shatteredsquare']):,}", inline=True)
+            embed5.add_field(name="Shelter Woods", value=f"{int(player_stats['secondfloorgen_shelterwoods']):,}", inline=True)
+            embed5.add_field(name="Toba Landing", value=f"{int(player_stats['secondfloorgen_tobalanding']):,}", inline=True)
+            embed5.add_field(name="Nostromo Wreckage", value=f"{int(player_stats['secondfloorgen_messhall']):,}", inline=True)
+            embed5.add_field(name="Greenville Square", value=f"{int(player_stats['secondfloorgen_greenvillesquare']):,}", inline=True)
+            # Embed6 - Killer Stats
             embed6.add_field(name=await Functions.translate(interaction, "Rank"), value=player_stats['killer_rank'], inline=True)
             embed6.add_field(name="\u200b", value="\u200b", inline=False)
-            embed6.add_field(name=await Functions.translate(interaction, "Played with full loadout"), value=await Functions.convert_number(player_stats['killer_fullloadout']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=await Functions.convert_number(player_stats['killer_perfectgames']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Survivors Killed"), value=await Functions.convert_number(player_stats['killed']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Survivors Sacrificed"), value=await Functions.convert_number(player_stats['sacrificed']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Sacrificed all before last gen"), value=await Functions.convert_number(player_stats['sacrificed_allbeforelastgen']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Killed/Sacrificed after last gen"), value=await Functions.convert_number(player_stats['killed_sacrificed_afterlastgen']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Killed all 4 with tier 3 Myers"), value=await Functions.convert_number(player_stats['killed_allevilwithin']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Obsessions Sacrificed"), value=await Functions.convert_number(player_stats['sacrificed_obsessions']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Hatches Closed"), value=await Functions.convert_number(player_stats['hatchesclosed']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Gens damaged while 1-4 survivors are hooked"), value=await Functions.convert_number(player_stats['gensdamagedwhileonehooked']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Gens damaged while undetectable"), value=await Functions.convert_number(player_stats['gensdamagedwhileundetectable']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Grabbed while repairing a gen"), value=await Functions.convert_number(player_stats['survivorsgrabbedrepairinggen']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Grabbed while you are hiding in locker"), value=await Functions.convert_number(player_stats['survivorsgrabbedfrominsidealocker']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Hit one who dropped a pallet in chase"), value=await Functions.convert_number(player_stats['survivorshit_droppingpalletinchase']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Hit while carrying"), value=await Functions.convert_number(player_stats['survivorshit_whilecarrying']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Interrupted cleansing"), value=await Functions.convert_number(player_stats['survivorsinterruptedcleansingtotem']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=await Functions.convert_number(player_stats['vaultsinchase_askiller']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Survivors made scream"), value=await Functions.convert_number(player_stats['survivorscreams']), inline=True)
-            embed6.add_field(name=await Functions.translate(interaction, "Survivors injured while in basement"), value=await Functions.convert_number(player_stats['survivorsinjured_basement']), inline=True)
-            #Embed7 - Hooked
+            embed6.add_field(name=await Functions.translate(interaction, "Played with full loadout"), value=f"{int(player_stats['killer_fullloadout']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=f"{int(player_stats['killer_perfectgames']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Survivors Killed"), value=f"{int(player_stats['killed']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Survivors Sacrificed"), value=f"{int(player_stats['sacrificed']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Sacrificed all before last gen"), value=f"{int(player_stats['sacrificed_allbeforelastgen']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Killed/Sacrificed after last gen"), value=f"{int(player_stats['killed_sacrificed_afterlastgen']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Killed all 4 with tier 3 Myers"), value=f"{int(player_stats['killed_allevilwithin']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Obsessions Sacrificed"), value=f"{int(player_stats['sacrificed_obsessions']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Hatches Closed"), value=f"{int(player_stats['hatchesclosed']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Gens damaged while 1-4 survivors are hooked"), value=f"{int(player_stats['gensdamagedwhileonehooked']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Gens damaged while undetectable"), value=f"{int(player_stats['gensdamagedwhileundetectable']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Grabbed while repairing a gen"), value=f"{int(player_stats['survivorsgrabbedrepairinggen']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Grabbed while you are hiding in locker"), value=f"{int(player_stats['survivorsgrabbedfrominsidealocker']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Hit one who dropped a pallet in chase"), value=f"{int(player_stats['survivorshit_droppingpalletinchase']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Hit while carrying"), value=f"{int(player_stats['survivorshit_whilecarrying']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Interrupted cleansing"), value=f"{int(player_stats['survivorsinterruptedcleansingtotem']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Vaults while in chase"), value=f"{int(player_stats['vaultsinchase_askiller']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Survivors made scream"), value=f"{int(player_stats['survivorscreams']):,}", inline=True)
+            embed6.add_field(name=await Functions.translate(interaction, "Survivors injured while in basement"), value=f"{int(player_stats['survivorsinjured_basement']):,}", inline=True)
+            # Embed7 - Hooked
             embed7.add_field(name="\u200b", value="\u200b", inline=False)
-            embed7.add_field(name=await Functions.translate(interaction, "Suvivors hooked before a generator is repaired"), value=await Functions.convert_number(player_stats['survivorshookedbeforegenrepaired']), inline=True)
-            embed7.add_field(name=await Functions.translate(interaction, "Survivors hooked during end game collapse"), value=await Functions.convert_number(player_stats['survivorshookedendgamecollapse']), inline=True)
-            embed7.add_field(name=await Functions.translate(interaction, "Hooked a survivor while 3 other survivors were injured"), value=await Functions.convert_number(player_stats['hookedwhilethreeinjured']), inline=True)
-            embed7.add_field(name=await Functions.translate(interaction, "3 Survivors hooked in basement"), value=await Functions.convert_number(player_stats['survivorsthreehookedbasementsametime']), inline=True)
+            embed7.add_field(name=await Functions.translate(interaction, "Suvivors hooked before a generator is repaired"), value=f"{int(player_stats['survivorshookedbeforegenrepaired']):,}", inline=True)
+            embed7.add_field(name=await Functions.translate(interaction, "Survivors hooked during end game collapse"), value=f"{int(player_stats['survivorshookedendgamecollapse']):,}", inline=True)
+            embed7.add_field(name=await Functions.translate(interaction, "Hooked a survivor while 3 other survivors were injured"), value=f"{int(player_stats['hookedwhilethreeinjured']):,}", inline=True)
+            embed7.add_field(name=await Functions.translate(interaction, "3 Survivors hooked in basement"), value=f"{int(player_stats['survivorsthreehookedbasementsametime']):,}", inline=True)
             embed7.add_field(name="\u200b", value="\u200b", inline=True)
-            embed7.add_field(name=await Functions.translate(interaction, "Survivors hooked in basement"), value=await Functions.convert_number(player_stats['survivorshookedinbasement']), inline=True)
-            #Embed8 - Powers
+            embed7.add_field(name=await Functions.translate(interaction, "Survivors hooked in basement"), value=f"{int(player_stats['survivorshookedinbasement']):,}", inline=True)
+            # Embed8 - Powers
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
-            embed8.add_field(name=await Functions.translate(interaction, "Beartrap Catches"), value=await Functions.convert_number(player_stats['beartrapcatches']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Uncloak Attacks"), value=await Functions.convert_number(player_stats['uncloakattacks']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Chainsaw Hits  (Billy)"), value=await Functions.convert_number(player_stats['chainsawhits']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Blink Attacks"), value=await Functions.convert_number(player_stats['blinkattacks']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Phantasms Triggered"), value=await Functions.convert_number(player_stats['phantasmstriggered']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Hit each survivor after teleporting to phantasm trap"), value=await Functions.convert_number(player_stats['survivorshit_afterteleporting']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Evil Within Tier Ups"), value=await Functions.convert_number(player_stats['evilwithintierup']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Shock Therapy Hits"), value=await Functions.convert_number(player_stats['shocked']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Trials with all survivors in madness tier 3"), value=await Functions.convert_number(player_stats['survivorsallmaxmadness']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Hatchets Thrown"), value=await Functions.convert_number(player_stats['hatchetsthrown']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Pulled into Dream State"), value=await Functions.convert_number(player_stats['dreamstate']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Reverse Bear Traps Placed"), value=await Functions.convert_number(player_stats['rbtsplaced']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Cages of Atonement"), value=await Functions.convert_number(player_stats['cagesofatonement']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Lethal Rush Hits"), value=await Functions.convert_number(player_stats['lethalrushhits']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Lacerations"), value=await Functions.convert_number(player_stats['lacerations']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Possessed Chains"), value=await Functions.convert_number(player_stats['possessedchains']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Condemned"), value=await Functions.convert_number(player_stats['condemned']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Slammed"), value=await Functions.convert_number(player_stats['slammedsurvivors']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Damaged while pursued by Guard"), value=await Functions.convert_number(player_stats['survivorsdamagedpursuedbyguard']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Tailattacks"), value=await Functions.convert_number(player_stats['tailattacks']), inline=True)
-            embed8.add_field(name=await Functions.translate(interaction, "Survivor hit 3 sec after scamper"), value=await Functions.convert_number(player_stats['survivorshit_scamper']), inline=True)
-            #Embed9 - Survivors downed
+            embed8.add_field(name=await Functions.translate(interaction, "Beartrap Catches"), value=f"{int(player_stats['beartrapcatches']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Uncloak Attacks"), value=f"{int(player_stats['uncloakattacks']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Chainsaw Hits  (Billy)"), value=f"{int(player_stats['chainsawhits']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Blink Attacks"), value=f"{int(player_stats['blinkattacks']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Phantasms Triggered"), value=f"{int(player_stats['phantasmstriggered']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Hit each survivor after teleporting to phantasm trap"), value=f"{int(player_stats['survivorshit_afterteleporting']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Evil Within Tier Ups"), value=f"{int(player_stats['evilwithintierup']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Shock Therapy Hits"), value=f"{int(player_stats['shocked']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Trials with all survivors in madness tier 3"), value=f"{int(player_stats['survivorsallmaxmadness']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Hatchets Thrown"), value=f"{int(player_stats['hatchetsthrown']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Pulled into Dream State"), value=f"{int(player_stats['dreamstate']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Reverse Bear Traps Placed"), value=f"{int(player_stats['rbtsplaced']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Cages of Atonement"), value=f"{int(player_stats['cagesofatonement']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Lethal Rush Hits"), value=f"{int(player_stats['lethalrushhits']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Lacerations"), value=f"{int(player_stats['lacerations']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Possessed Chains"), value=f"{int(player_stats['possessedchains']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Condemned"), value=f"{int(player_stats['condemned']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Slammed"), value=f"{int(player_stats['slammedsurvivors']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Damaged while pursued by Guard"), value=f"{int(player_stats['survivorsdamagedpursuedbyguard']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Tailattacks"), value=f"{int(player_stats['tailattacks']):,}", inline=True)
+            embed8.add_field(name=await Functions.translate(interaction, "Survivor hit 3 sec after scamper"), value=f"{int(player_stats['survivorshit_scamper']):,}", inline=True)
+            # Embed9 - Survivors downed
             embed9.add_field(name="\u200b", value="\u200b", inline=False)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while hindered"), value=await Functions.convert_number(player_stats['survivorsdowned_hindered']), inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while suffering from oblivious"), value=await Functions.convert_number(player_stats['survivorsdowned_oblivious']), inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while Exposed"), value=await Functions.convert_number(player_stats['survivorsdowned_exposed']), inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while carrying a survivor"), value=await Functions.convert_number(player_stats['survivorsdowned_whilecarrying']), inline=True)
-            embed9.add_field(name="\u200b", value="\u200b", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed near a raised pallet"), value=await Functions.convert_number(player_stats['survivorsdowned_nearraisedpallet']), inline=True)
-            #Embed10 - Survivors downed with power
-            embed10.add_field(name="\u200b", value="\u200b", inline=False)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed with a Hatchet (24+ meters)"), value=await Functions.convert_number(player_stats['survivorsdowned_hatchets']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed with a Chainsaw (Bubba)"), value=await Functions.convert_number(player_stats['survivorsdowned_chainsaw']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while Intoxicated"), value=await Functions.convert_number(player_stats['survivorsdowned_intoxicated']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed after Haunting"), value=await Functions.convert_number(player_stats['survivorsdowned_haunting']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while in Deep Wound"), value=await Functions.convert_number(player_stats['survivorsdowned_deepwound']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while having max sickness"), value=await Functions.convert_number(player_stats['survivorsdowned_maxsickness']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while marked (Ghostface)"), value=await Functions.convert_number(player_stats['survivorsdowned_marked']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Shred"), value=await Functions.convert_number(player_stats['survivorsdowned_shred']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Blood Fury"), value=await Functions.convert_number(player_stats['survivorsdowned_bloodfury']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while Speared"), value=await Functions.convert_number(player_stats['survivorsdowned_speared']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while Victor is clinging to them"), value=await Functions.convert_number(player_stats['survivorsdowned_victor']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while contaminated"), value=await Functions.convert_number(player_stats['survivorsdowned_contaminated']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Dire Crows"), value=await Functions.convert_number(player_stats['survivorsdowned_direcrows']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed while exposed by Lock On"), value=await Functions.convert_number(player_stats['survivorsdowned_lockon']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed during nightfall"), value=await Functions.convert_number(player_stats['survivorsdowned_nightfall']), inline=True)
-            embed10.add_field(name=await Functions.translate(interaction, "Downed using UVX"), value=await Functions.convert_number(player_stats['survivorsdowned_uvx']), inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while hindered"), value=f"{int(player_stats['downed_hindered']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "After a chase 2 minutes long"), value=f"{int(player_stats['downed_afterchase2mins']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Survivors downed while healthy"), value=f"{int(player_stats['downedwhilehealthy']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed after hitting survivor"), value=f"{int(player_stats['downed_afterhittingsurvivor']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "While undetectable"), value=f"{int(player_stats['downed_whileundetectable']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while carrying survivor"), value=f"{int(player_stats['downed_whilecarrying']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while on killer shoulder"), value=f"{int(player_stats['downed_onshoulder']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed survivors not the obsession"), value=f"{int(player_stats['downed_notobsession']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed survivor as last survivor"), value=f"{int(player_stats['downed_last']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Pulled out of locker"), value=f"{int(player_stats['pulledoutoflocker']):,}", inline=True)
             #Send Statistics
             await interaction.edit_original_response(embeds=[embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10])
 
@@ -2249,12 +2261,12 @@ class Info():
             for shrine in data['data']['perks']:
                 print(shrine)
                 shrine_embed = await SendInfo.perk(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
-                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
+                shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
             await channel.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
             return
         else:
-            await interaction.response.defer(thinking=True)
+            await interaction.response.defer()
             lang = await Functions.get_language_code(interaction)
             data = await Functions.data_load('shrine')
             if data is None:
@@ -2270,7 +2282,7 @@ class Info():
                 print(shrine)
                 shrine_perk_name = Functions.find_key_by_name(shrine['name'], perk_data_en)
                 shrine_embed = await SendInfo.perk(shrine_perk_name, lang, interaction, True)
-                shrine_embed.set_footer(text=f"Bloodpoints: {await Functions.convert_number(shrine['bloodpoints'])} | Shards: {await Functions.convert_number(shrine['shards'])}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
+                shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
             await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
 
@@ -2286,16 +2298,16 @@ class Info():
         embed = discord.Embed(title=f"Twitch Info - <t:{data['updated_at']}>", url="https://www.twitch.tv/directory/game/Dead%20by%20Daylight", description="Statistics", color=0xff00ff)
         embed.set_thumbnail(url=data['image'])
         embed.set_footer(text=f"Update every 5 minutes.")
-        embed.add_field(name="Total Viewers", value=await Functions.convert_number(data['viewer_count']), inline=True)
-        embed.add_field(name="Total Streams", value=await Functions.convert_number(data['stream_count']), inline=True)
-        embed.add_field(name="\u00D8 Viewer/Stream", value=await Functions.convert_number(data['average_viewer_count']), inline=True)
-        embed.add_field(name="Current Rank", value=await Functions.convert_number(data['category_rank']), inline=False)
+        embed.add_field(name="Total Viewers", value=f"{int(data['viewer_count']):,}", inline=True)
+        embed.add_field(name="Total Streams", value=f"{int(data['stream_count']):,}", inline=True)
+        embed.add_field(name="\u00D8 Viewer/Stream", value=f"{int(data['average_viewer_count']):,}", inline=True)
+        embed.add_field(name="Current Rank", value=f"{int(data['category_rank']):,}", inline=False)
         embeds.append(embed)
         for streamer in data['top_streamers'].values():
             embed = discord.Embed(title=streamer['streamer'], description=streamer['title'], color=0xffb8ff)
             embed.set_thumbnail(url=streamer['thumbnail'])
-            embed.add_field(name="Viewer", value=await Functions.convert_number(streamer['viewer_count']), inline=True)
-            embed.add_field(name="Follower", value=await Functions.convert_number(streamer['follower_count']), inline=True)
+            embed.add_field(name="Viewer", value=f"{int(streamer['viewer_count']):,}", inline=True)
+            embed.add_field(name="Follower", value=f"{int(streamer['follower_count']):,}", inline=True)
             embed.add_field(name="\u200b", value=f"[Stream]({streamer['link']})", inline=True)
             embed.add_field(name="Language", value=await Functions.get_language_name(streamer['language']), inline=True)
             embed.set_footer(text=f"Started at: {streamer['started_at']}")
@@ -2304,7 +2316,7 @@ class Info():
         await interaction.response.send_message(embeds=embeds)
 
     async def version(interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         data = await Functions.data_load('versions')
 
         embed1 = discord.Embed(title='DB Version (1/2)', color=0x42a32e)
@@ -2641,6 +2653,7 @@ class Owner():
         published_total = 0
         for entry in data:
             channel = await Functions.get_or_fetch('channel', entry[2])
+            guild = await Functions.get_or_fetch('guild', entry[1])
             if channel is None:
                 manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
                 c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
@@ -2648,7 +2661,7 @@ class Owner():
                 continue
             if not send_as_file:
                 try:
-                    await channel.send(text)
+                    await channel.send(await Functions.translate(guild, text))
                     published_success += 1
                     published_total += 1
                 except discord.errors.NotFound:
@@ -2665,7 +2678,12 @@ class Owner():
                     published_total += 1
             else:
                 try:
-                    await channel.send(file=discord.File(changelog))
+                    temp_changelog = f'{buffer_folder}changelogTEMP.txt'
+                    with open(changelog, 'rb') as f:
+                        with open(temp_changelog, 'wb') as f2:
+                            f2.write(await Functions.translate(guild, f.read()))
+                    await channel.send(file=discord.File(temp_changelog))
+                    os.remove(temp_changelog)
                     published_success += 1
                     published_total += 1
                 except discord.errors.NotFound:
@@ -2785,6 +2803,25 @@ class Owner():
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
 
+    async def clean(message, args):
+        async def __wrong_selection():
+            await message.channel.send('```'
+                                       'clean [translation] - Deletes the cache for the selected stuff.\n'
+                                       '```')
+        if args == []:
+            await __wrong_selection()
+            return
+        if args[0] == 'translation':
+            if db_available:
+                db[DB_NAME].translations.drop()
+            translations = f"{buffer_folder}translations.json"
+            if os.path.exists(translations):
+                os.remove(translations)
+        await message.channel.send('Translations deleted.')
+
+
+
+
 
 ##Bot Commands (These commands are for the bot itself.)
 #Ping
@@ -2811,7 +2848,7 @@ async def self(interaction: discord.Interaction):
 
     embed.add_field(name="Created at", value=bot.user.created_at.strftime("%d.%m.%Y, %H:%M:%S"), inline=True)
     embed.add_field(name="Version", value=bot_version, inline=True)
-    embed.add_field(name="Uptime", value=str(datetime.timedelta(seconds=int((datetime.now() - start_time).total_seconds()))), inline=True)
+    embed.add_field(name="Uptime", value=str(datetime.timedelta(seconds=int((datetime.datetime.now() - start_time).total_seconds()))), inline=True)
 
     embed.add_field(name="Owner", value=f"<@!{OWNERID}>", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
@@ -2861,7 +2898,7 @@ async def self(interaction: discord.Interaction,
                changelogs: bool
                ):
     if interaction.guild is None:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        await interaction.response.send_message(await Functions.translate(interaction, 'This command can only be used in a server.'))
         return
 
     permissions = channel.permissions_for(interaction.guild.me)
@@ -2913,20 +2950,20 @@ async def self(interaction: discord.Interaction):
     await interaction.response.defer(thinking = True, ephemeral = True)
 
     if interaction.guild is None:
-        await interaction.response.send_message('This command can only be used in a server.', ephemeral=True)
+        await interaction.response.send_message(await Functions.translate(interaction, 'This command can only be used in a server.'))
         return
     embed = discord.Embed(title = 'Translation', color = 0x00ff00)
-    embed.description = 'This bot is translated into the following languages:'
+    embed.description = await Functions.translate(interaction, 'This bot is translated into the following languages:')
     temp = []
     for lang in api_langs:
         lang = await Functions.get_language_name(lang)
         temp.append(lang)
         embed.description += f'\n• {lang}'
-    embed.description += '\n\nFor this languages, the bot uses ML (maschine learning) to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.'
+    embed.description += f'\n\n{await Functions.translate(interaction, "For these languages, the bot uses GoogleTranslate (LibreTranslate as backup), to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.")}'
     for lang in languages:
         if lang not in temp:
             embed.description += f'\n• {lang}'
-    embed.description += '\n\nThe bot will automatically select the language based on the client who invokes a comand.\nIf you sub to the shrine, he will post it in the language of the server (community).\nIf he can\'t translate to that languag, he\'ll default to english.'
+    embed.description += f'\n\n{await Functions.translate(interaction, "The bot will automatically select the language based on the client who invokes a comand. If you sub to the shrine, he will post it in the language of the server (community). If he can\'t translate to that language, he\'ll default to english.")}'
     await interaction.followup.send(embed = embed, ephemeral = True)
 
 
@@ -3102,7 +3139,7 @@ async def self(interaction: discord.Interaction,
                perk: str = None
                ):
     if interaction.guild is None:
-        await interaction.response.send_message("This command can only be used in a server.")
+        await interaction.response.send_message(await Functions.translate(interaction, 'This command can only be used in a server.'))
         return
 
     if category == 'char':
