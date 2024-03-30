@@ -367,3 +367,5 @@ FodyWeavers.xsd
 *.bat
 /DBDStats/DBDStats/activity.json
 /DBDStats/DBDStats/DBDStats.db
+/DBDStats/playground.py
+/DBDStats/googleauth.json
