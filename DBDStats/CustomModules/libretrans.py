@@ -20,7 +20,6 @@ class LibreTranslateAPI:
 
         return sample
 
-
     async def detect(self, text):
         url = f"{self.url}/detect"
         params = {
@@ -31,7 +30,6 @@ class LibreTranslateAPI:
             async with session.post(url, params=params) as response:
                 data = await response.json()
                 return {"status": response.status, "data": data}
-
 
     async def translate(self, text, dest_lang, source = ''):
         url = f'{self.url}/translate'
@@ -52,7 +50,7 @@ class LibreTranslateAPI:
         except:
             return {"status": 500, "data": None}
 
-    async def check_status(self):
+    async def get_settings(self):
         url = f'{self.url}/frontend/settings'
         try:
             async with aiohttp.ClientSession() as session:
@@ -60,4 +58,9 @@ class LibreTranslateAPI:
                     return response.status == 200
         except:
             return False
+
+    async def validate_key(self):
+        data = await self.detect("Hello")
+        return data["status"] == 200
+
 

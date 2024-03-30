@@ -258,10 +258,16 @@ translator = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
 translate_available = False
 retry_count = 10
 while not translate_available and retry_count > 0:
-    if asyncio.run(translator.check_status()):
-        manlogger.info('Connected to LibreTranslate.')
-        pt('Connected to LibreTranslate.')
-        translate_available = True
+    if asyncio.run(translator.get_settings()):
+        if asyncio.run(translator.validate_key()):
+            manlogger.info('Connected to LibreTranslate.')
+            pt('Connected to LibreTranslate.')
+            translate_available = True
+        else:
+            manlogger.warning('Invalid LibreTranslate API key. | Disabling translation.')
+            pt('Invalid LibreTranslate API key. | Disabling translation.')
+            translate_available = False
+            break
     else:
         retry_count -= 1
         if retry_count > 0:
