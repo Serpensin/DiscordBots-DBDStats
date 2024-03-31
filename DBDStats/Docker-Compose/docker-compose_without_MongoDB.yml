@@ -5,9 +5,7 @@ services:
     container_name: DBDStats
     ports:
       - "5000:5000"
-    deploy:
-      restart_policy:
-        condition: any
+    restart: always
     environment:
       SENTRY_DSN: SENTRY_DSN_FOR_ERROR_REPORTING
       steamAPIkey: STEAM_APIKEY
