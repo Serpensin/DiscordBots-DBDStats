@@ -9,6 +9,7 @@ Commands, that only be used by the owner of the bot, can only be used in a DM wi
 - Display information about in-game items
 - Supports multiple installation methods
 - Integrates with MongoDB for data storage (optional)
+- Translates with Google Cloud Translation, or LibreTranslate (optional)
 
 ## Setup
 
@@ -25,9 +26,10 @@ Commands, that only be used by the owner of the bot, can only be used in a DM wi
    - `support_server`: The ID of your support server. The bot must be a member of this server to create an invite if someone requires support.
    - `twitch_client_id`: The client ID of your Twitch app. Obtain it from the [Twitch Developer Console](https://dev.twitch.tv/console/apps).
    - `twitch_client_secret`: The client secret of your Twitch app. Obtain it from the [Twitch Developer Console](https://dev.twitch.tv/console/apps).
-   - `libretransURL`: The URL of your LibreTranslate instance.
+   - `libretransURL`: The URL of your LibreTranslate instance. -> If you don't want to use LibreTanslate, remove the variables containing 'libretrans'.
    - `libretransAPIkey`: The API key for the LibreTranslate instance.
-   - `MongoDB_host`: The MongoDB host address.
+   - `GOOGLE_APPLICATION_CREDENTIALS`: The path to your Google Cloud credentials file (optional).
+   - `MongoDB_host`: The MongoDB host address. -> If you don't want to use MongoDB, remove the variables containing 'MongoDB'.
    - `MongoDB_port`: The MongoDB port number.
    - `MongoDB_user`: The MongoDB username.
    - `MongoDB_password`: The MongoDB password.
@@ -76,6 +78,7 @@ docker-compose -f docker-compose_without_MongoDB.yml up -d
    - Variables containing 'twitch' are for the Twitch command. Remove them if you don't want to use this command.
    - The `libretransURL` variable is for translating output. Remove it if you don't need it.
    - The `libretransAPIkey` variable is the API key for the LibreTranslate instance set in the `libretransURL` variable.
+   - The `GOOGLE_APPLICATION_CREDENTIALS` variable is the path to your Google Cloud credentials file (optional).
    - Variables containing 'MongoDB' are for storing the bot's data. Remove them if you don't want to use MongoDB.
 
 #### Run the bot
@@ -96,6 +99,7 @@ docker run -d \
 -e MongoDB_user=USER_OF_MONGODB \
 -e MongoDB_password=PASSWORD_OF_MONGODB \
 -e MongoDB_database=DATABASE_OF_MONGODB \
+-e GOOGLE_APPLICATION_CREDENTIALS=/path/to/googleauth.json \
 --name DBDStats \
 --restart any \
 --health-cmd="curl -f http://localhost:5000/health || exit 1" \
@@ -105,5 +109,6 @@ docker run -d \
 --health-start-period=40s \
 -p 5000:5000 \
 -v dbdstats_log:/app/DBDStats/Logs \
+-v /path/to/googleauth.json:/app/googleauth.json:ro \
 serpensin/dbdstats
 ```
