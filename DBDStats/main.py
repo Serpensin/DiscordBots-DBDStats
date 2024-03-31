@@ -36,9 +36,10 @@ from CustomModules.twitch import TwitchAPI
 from CustomModules import bot_directory
 from CustomModules import googletrans
 from CustomModules import killswitch
+from CustomModules import steam
 from CustomModules import steamcharts
 from dotenv import load_dotenv
-from google.auth.exceptions import DefaultCredentialsError, RefreshError
+from google.auth.exceptions import RefreshError
 from typing import Any, List, Literal, Optional
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -50,6 +51,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/' # For production
 #api_base = 'http://localhost:5000/' # For testing
+NO_CACHE = True # Disables cache for faster testing (NOT SUIABLE FOR PRODUCTION!!!)
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
@@ -63,6 +65,7 @@ api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 
 
 ##Init
+DBD_ID = 381210
 discord.VoiceClient.warn_nacl = False
 load_dotenv()
 #Init sentry
@@ -228,7 +231,13 @@ else:
 
 db = pymongo.MongoClient(connection_string, serverSelectionTimeoutMS=10000)
 
-twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
+TwitchApi = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
+try:
+    SteamApi = steam.API(STEAMAPIKEY)
+except steam.Errors.InvalidKey:
+    error_message = 'Invalid Steam API key.'
+    manlogger.critical(error_message)
+    sys.exit(error_message)
 
 #Fix error on windows on shutdown.
 if platform.system() == 'Windows':
@@ -255,7 +264,7 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	manlogger.warning(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
-#db_available = False
+
 translator_google = googletrans.Translator(GOOGLE_APPLICATION_CREDENTIALS)
 translator_libre = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
 translator_libre_available = asyncio.run(translator_libre.validate_key())
@@ -280,7 +289,7 @@ except FileNotFoundError as e:
     pt(f'Couldn\'t find `googleauth.json`.: {e}')
     translator_google_available = False
 
-twitch_available = twitch_api.check_access_token()
+twitch_available = TwitchApi.check_access_token()
 support_available = bool(SUPPORTID)
 
 
@@ -480,7 +489,7 @@ class aclient(discord.AutoShardedClient):
             bot.loop.create_task(Background.update_twitchinfo_task())
 
         while not self.cache_updated:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0)
         bot.loop.create_task(Background.subscribe_shrine_task())
         if not docker:
             clear()
@@ -510,8 +519,9 @@ tree.on_error = bot.on_app_command_error
 class Cache():
     async def _update_perks():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f"{api_base}perks?locale={lang}")
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f"{api_base}perks?locale={lang}")
+            except Exception:
                 manlogger.warning("Perks couldn't be updated.")
                 print("Perks couldn't be updated.")
                 return 1
@@ -523,8 +533,9 @@ class Cache():
 
     async def _update_offerings():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}offerings?locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}offerings?locale={lang}')
+            except Exception:
                 manlogger.warning("Offerings couldn't be updated.")
                 print("Offerings couldn't be updated.")
                 return 1
@@ -536,8 +547,9 @@ class Cache():
 
     async def _update_chars():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}characters?locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}characters?locale={lang}')
+            except Exception:
                 manlogger.warning("Characters couldn't be updated.")
                 print("Characters couldn't be updated.")
                 return 1
@@ -549,8 +561,9 @@ class Cache():
 
     async def _update_dlc():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}dlc?locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}dlc?locale={lang}')
+            except Exception:
                 manlogger.warning("DLC couldn't be updated.")
                 print("DLC couldn't be updated.")
                 return 1
@@ -562,8 +575,9 @@ class Cache():
 
     async def _update_item():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
+            except Exception:
                 manlogger.warning("Items couldn't be updated.")
                 print("Items couldn't be updated.")
                 return 1
@@ -575,8 +589,11 @@ class Cache():
 
     async def _update_addon():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
+            except Exception:
+                manlogger.warning("Addons couldn't be updated.")
+                print("Addons couldn't be updated.")
                 return 1
             data['_id'] = lang
             if db_available:
@@ -586,8 +603,9 @@ class Cache():
 
     async def _update_map():
         for lang in api_langs:
-            data = await Functions.check_api_rate_limit(f'{api_base}maps?locale={lang}')
-            if data == 1:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}maps?locale={lang}')
+            except Exception:
                 manlogger.warning("Maps couldn't be updated.")
                 print("Maps couldn't be updated.")
                 return 1
@@ -599,8 +617,9 @@ class Cache():
 
     async def _update_event():
         for lang in api_langs:
-            data_list = await Functions.check_api_rate_limit(f'{api_base}events?locale={lang}')
-            if data_list == 1:
+            try:
+                data_list = await Functions.check_api_rate_limit(f'{api_base}events?locale={lang}')
+            except Exception:
                 manlogger.warning("Events couldn't be updated.")
                 print("Events couldn't be updated.")
                 return 1
@@ -614,8 +633,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_version():
-        data = await Functions.check_api_rate_limit(f'{api_base}versions')
-        if data == 1:
+        try:
+            data = await Functions.check_api_rate_limit(f'{api_base}versions')
+        except Exception:
             manlogger.warning("Version couldn't be updated.")
             print("Version couldn't be updated.")
             return 1
@@ -626,16 +646,17 @@ class Cache():
             json.dump(data, f, indent=2)
 
     async def _update_patchnotes():
+        try:
+            data = await Functions.check_api_rate_limit(f'{api_base}patchnotes')
+        except Exception:
+            manlogger.warning("Patchnotes couldn't be updated.")
+            print("Patchnotes couldn't be updated.")
+            return 1
         if os.path.exists(f'{buffer_folder}patchnotes'):
             for filename in os.scandir(f'{buffer_folder}patchnotes'):
                 os.remove(filename)
         else:
             os.makedirs(f'{buffer_folder}patchnotes', exist_ok=True)
-        data = await Functions.check_api_rate_limit(f'{api_base}patchnotes')
-        if data == 1:
-            manlogger.warning("Patchnotes couldn't be updated.")
-            print("Patchnotes couldn't be updated.")
-            return 1
         data.sort(key=lambda x: x["id"], reverse=True)
         if db_available:
             db[DB_NAME]['patchnotes'].drop()
@@ -731,8 +752,6 @@ class Cache():
            if task == 1 and not bot.cache_updated:
                manlogger.critical('Cache couldn\'t be updated, because of a 429. Exiting...')
                sys.exit("Cache couldn't be updated, because of a 429. Exiting...")
-
-
         await Cache._name_lists()
 
         bot.cache_updated = True
@@ -741,6 +760,9 @@ class Cache():
         manlogger.info('Cache updated.')
 
     async def task():
+        if NO_CACHE:
+            bot.cache_updated = True
+            return
         while True:
             await Cache.start_cache_update()
             try:
@@ -820,8 +842,9 @@ class Background():
 
     async def subscribe_shrine_task():
         async def function():
-            shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
-            if shrine_new == 1:
+            try:
+                shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
+            except Exception:
                 manlogger.warning("Shrine couldn't be updated.")
                 print("Shrine couldn't be updated.")
                 return 1
@@ -848,14 +871,14 @@ class Background():
         async def function():
             if not twitch_available:
                 return
-            game_id = await twitch_api.get_game_id("Dead by Daylight")
+            game_id = await TwitchApi.get_game_id("Dead by Daylight")
             if game_id is None:
                 return
-            stats = await twitch_api.get_category_stats(game_id)
+            stats = await TwitchApi.get_category_stats(game_id)
             if not isinstance(stats, dict):
                 return
-            top = await twitch_api.get_top_streamers(game_id)
-            image = await twitch_api.get_category_image(game_id)
+            top = await TwitchApi.get_top_streamers(game_id)
+            image = await TwitchApi.get_category_image(game_id)
             if image is None:
                 image = ''
             # Create json from data - Stats
@@ -902,37 +925,10 @@ class Functions():
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 print(response)
-                if response.status == 429:
-                    return 1
+                if response.status != 200:
+                    response.raise_for_status()
                 else:
                     return await response.json()
-
-    async def check_for_dbd(id, steamAPIkey):
-        id = await Functions.steam_link_to_id(id)
-        if id is None:
-            return (1, 1)
-        if len(id) != 17:
-            return (1, 1)
-        try:
-            int(id)
-        except:
-            return (1, 1)
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={steamAPIkey}&steamid={id}&format=json') as resp:
-                    data = await resp.json()
-                    if resp.status == 400:
-                        return (2, 2)
-                    if data['response'] == {}:
-                        return (3, 3)
-                    for event in data['response']['games']:
-                        if event['appid'] == 381210:
-                            return (0, id)
-                        else:
-                            continue
-                    return (4, 4)
-        except:
-            return(5, 5)
 
     async def check_if_removed(id):
         try:
@@ -1122,22 +1118,6 @@ class Functions():
             except discord.Forbidden:
                 pass
         return item_object
-
-    async def steam_link_to_id(vanity):
-        vanity = vanity.replace('https://steamcommunity.com/profiles/', '')
-        vanity = vanity.replace('https://steamcommunity.com/id/', '')
-        vanity = vanity.replace('/', '')
-        api_url = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={STEAMAPIKEY}&vanityurl={vanity}'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as resp:
-                data = await resp.json()
-                try:
-                    if data['response']['success'] == 1:
-                        return data['response']['steamid']
-                    else:
-                        return vanity
-                except:
-                    return None
 
     async def translate(interaction: discord.Interaction, text):
         async def _translate(text, target_lang, source_lang='en'):
@@ -1636,35 +1616,45 @@ class Info():
 
     async def adepts(interaction: discord.Integration, steamid):
         await interaction.response.defer()
-        check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
         try:
-            int(check[0])
-        except:
-            embed = discord.Embed(title=await Functions.translate(interaction, 'Try again'), description=await Functions.translate(interaction, check[1]), color=0x004cff)
+            ownesDBD = await SteamApi.ownsGame(steamid, DBD_ID)
+        except ValueError:
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+            return
+        except steam.Errors.Private:
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+            return
+        except steam.Errors.RateLimit:
+            embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+            embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.followup.send(embed=embed)
             return
-        if check[0] == 1:
-            await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)
-        elif check[0] == 2:
-            await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
-        elif check[0] == 3:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
-        elif check[0] == 4:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
-        elif check[0] == 5:
-            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
-            embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.followup.send(embed=embed1, ephemeral=True)
-        elif check[0] == 0:
-            data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={check[1]}')
-            steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAMAPIKEY}&steamids={check[1]}')
-            if steam_data == 1 or data == 1:
+        if not ownesDBD:
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
+        else:
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={await SteamApi.link_to_id(steamid)}')
+            except Exception:
                 await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
-            for event in steam_data['response']['players']:
-                personaname = event['personaname']
-                profileurl = event['profileurl']
-                avatar = event['avatarfull']
+            try:
+                steam_data = await SteamApi.get_player_summary(steamid)
+            except ValueError:
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+                return
+            except steam.Errors.RateLimit:
+                embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+                embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+                await interaction.followup.send(embed=embed)
+                return
+            if steam_data == {}:
+                await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+                return
+
+            event = steam_data['response']['players'][0]
+            personaname = event['personaname']
+            profileurl = event['profileurl']
+            avatar = event['avatarfull']
 
             updated_at = data['updated_at']
             entrys_to_remove = ['created_at', 'updated_at', 'steamid']
@@ -1890,23 +1880,31 @@ class Info():
 
     async def legacycheck(interaction: discord.Interaction, steamid):
         await interaction.response.defer()
-        dbd_check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
-        if dbd_check[0] == 1:
-            await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'))
-        elif dbd_check[0] == 2:
-            await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'))
-        elif dbd_check[0] == 3:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
-        elif dbd_check[0] == 4:
+        try:
+            check = await SteamApi.ownsGame(steamid, DBD_ID)
+        except ValueError:
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+            return
+        except steam.Errors.Private:
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+            return
+        except steam.Errors.RateLimit:
+            embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+            embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+            await interaction.followup.send(embed=embed)
+            return
+        if not check:
             await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
-        elif dbd_check[0] == 5:
-            embed1 = discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our") + f" [Support-Server]({str(await Functions.create_support_invite(interaction))})" + await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
-            embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.followup.send(embed=embed1)
-        elif dbd_check[0] == 0:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={STEAMAPIKEY}&steamid={dbd_check[1]}&appid=381210') as resp:
-                    data = await resp.json()
+        else:
+            try:
+                data = await SteamApi.get_player_achievements(steamid, DBD_ID)
+            except ValueError:
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+            except steam.Errors.RateLimit:
+                embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+                embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+                await interaction.followup.send(embed=embed)
+                return
             if data['playerstats']['success'] == False:
                 await interaction.followup.send(await Functions.translate(interaction, 'This profile is private.'))
                 return
@@ -1915,7 +1913,7 @@ class Info():
                     await interaction.followup.send(await Functions.translate(interaction, 'This player has probably legit legacy.'))
                     return
                 elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) > 1480017600:
-                    await interaction.followup.send(await Functions.translate(interaction, 'If this player has legacy, they are probably hacked.'))
+                    await interaction.followup.send(await Functions.translate(interaction, 'If this player has legacy, they are probably fraudulent.'))
                     return
                 elif entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 0:
                     await interaction.followup.send(await Functions.translate(interaction, "This player doesn't even have one character prestiged."))
@@ -2007,7 +2005,7 @@ class Info():
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer()
-        check = await Functions.check_for_dbd(steamid, STEAMAPIKEY)
+        check = await SteamApi.ownsGame(steamid, DBD_ID)
         try:
             int(check[0])
         except:
@@ -2045,8 +2043,9 @@ class Info():
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
             else:
-                data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={check[1]}')
-                if data != 1:
+                try:
+                    data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={check[1]}')
+                except Exception:
                     async with aiohttp.ClientSession() as session:
                         async with session.get(f'{api_base}playerstats?steamid={check[1]}') as resp:
                             player_stats = await resp.json()
@@ -2057,14 +2056,24 @@ class Info():
                     return
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
-            steam_data = await Functions.check_api_rate_limit(f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={STEAMAPIKEY}&steamids={check[1]}')
-            if steam_data == 1 or player_stats == 1:
-                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
+            try:
+                steam_data = await SteamApi.get_player_summary(steamid)
+            except ValueError:
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
                 return
-            for event in steam_data['response']['players']:
-                personaname = event['personaname']
-                profileurl = event['profileurl']
-                avatar = event['avatarfull']
+            except steam.Errors.RateLimit:
+                embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+                embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+                await interaction.followup.send(embed=embed)
+                return
+            if steam_data == {}:
+                await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+                return
+
+            event = steam_data['response']['players'][0]
+            personaname = event['personaname']
+            profileurl = event['profileurl']
+            avatar = event['avatarfull']
             #Set embed headers
             embed1 = discord.Embed(title=await Functions.translate(interaction, "Statistics (1/10) - Survivor Stats"), description=personaname+'\n'+profileurl, color=0xb19325)
             embed2 = discord.Embed(title=await Functions.translate(interaction, "Statistics (2/10) - Killer Interactions"), description=personaname+'\n'+profileurl, color=0xb19325)
@@ -3390,8 +3399,8 @@ async def self(interaction: discord.Interaction,
 
 
 if __name__ == '__main__':
-    if not TOKEN or not STEAMAPIKEY:
-        error_message = 'Missing token or steam API key. Please check your .env file.'
+    if not TOKEN:
+        error_message = 'Missing token. Please check your .env file.'
         manlogger.critical(error_message)
         sys.exit(error_message)
     else:
