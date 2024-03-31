@@ -34,7 +34,6 @@ from CustomModules import killswitch
 from CustomModules import steamcharts
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
-from prettytable import PrettyTable
 from typing import Any, List, Literal, Optional
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -223,7 +222,6 @@ else:
 
 db = pymongo.MongoClient(connection_string, serverSelectionTimeoutMS=10000)
 
-tb = PrettyTable()
 twitch_api = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
 
 #Fix error on windows on shutdown.
