@@ -1,4 +1,4 @@
-﻿FROM python:3.9.16-alpine
+﻿FROM python:3.12.2-alpine
 
 WORKDIR /app
 
@@ -14,17 +14,26 @@ ARG TARGETPLATFORM
 ARG BUILD_DATE
 ARG COMMIT
 
-RUN python -m pip install --upgrade pip
-RUN pip install --upgrade setuptools
-RUN if [ "$TARGETPLATFORM" = "linux/arm/v6" ] || [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
-        apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev; \
-    fi
-RUN pip install -r requirements.txt
+# Install build dependencies and curl
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo && \
+    apk add --no-cache curl && \
+    python -m pip install --upgrade pip && \
+    pip install --upgrade setuptools wheel && \
+    pip install -r requirements.txt && \
+    apk del .build-deps && \
+    find /usr/local \
+    \( -type d -a -name test -o -name tests \) \
+    -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
+    -exec rm -rf '{}' + && \
+    rm -rf /root/.cache/pip
 
-LABEL maintainer="./𝕾𝖊𝖗𝖕𝖊𝖓𝖘𝖎𝖓.𝖘𝖍#0007"
-LABEL commit=$COMMIT
-LABEL description="Discord bot for DBD for Steam stats."
-LABEL release=$BUILD_DATE
-LABEL url="https://gitlab.bloodygang.com/Serpensin/DBDStats"
+EXPOSE 5000
+
+LABEL MAINTAINER="Discord: the_devil_of_the_rhine (863687441809801246)" \
+      COMMIT=$COMMIT \
+      DESCRIPTION="Discord bot for DBD for Steam stats." \
+      RELEASE=$BUILD_DATE \
+      VERSION="1.10.0" \
+      URL="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]

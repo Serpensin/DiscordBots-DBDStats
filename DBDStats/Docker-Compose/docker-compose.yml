@@ -13,6 +13,8 @@ services:
 
   dbdstats:
     container_name: DBDStats
+    ports:
+      - "5000:5000"
     deploy:
       restart_policy:
         condition: any
@@ -28,8 +30,7 @@ services:
       libretransAPIkey: APIKey_for_libretranslate
       MongoDB_host: mongo           #####################################
       MongoDB_port: 27017           #           Don't change!!!         #
-      MongoDB_database: DBDStats    #                                   #
-      MongoDB_collection: API       #####################################
+      MongoDB_database: DBDStats    #####################################
     image: serpensin/dbdstats
     volumes:
       - dbdstats:/app/DBDStats
@@ -37,6 +38,12 @@ services:
       - mongo
     networks:
       - dbd_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   dbd_net:

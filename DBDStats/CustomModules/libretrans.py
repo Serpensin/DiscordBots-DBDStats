@@ -52,7 +52,6 @@ class LibreTranslateAPI:
         except:
             return {"status": 500, "data": None}
 
-
     async def check_status(self):
         url = f'{self.url}/frontend/settings'
         try:
@@ -61,10 +60,4 @@ class LibreTranslateAPI:
                     return response.status == 200
         except:
             return False
-
-
-
-
-
-
 

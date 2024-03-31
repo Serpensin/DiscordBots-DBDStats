@@ -1,6 +1,7 @@
-# Dead by Daylight Stats Bot
+# Dead by Daylight Stats Bot [![Discord Bot Invite](https://img.shields.io/badge/Invite-blue)](https://discord.com/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot)[![Discord Bots](https://top.gg/api/widget/servers/1030163127926542400.svg)](https://top.gg/bot/1030163127926542400)
 
-This Discord bot allows you to display Dead by Daylight (DBD) player stats and items for Steam users. It supports multiple methods to set up and start the bot, including the Classic Method and Docker Method. You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands) the bot I host to your server.
+This Discord bot allows you to display Dead by Daylight (DBD) player stats and items for Steam users. It supports multiple methods to set up and start the bot, including the Classic Method and Docker Method.
+Commands, that only be used by the owner of the bot, can only be used in a DM with the bot. Write `help`, to get a list of available owner commands.
 
 ## Features
 
@@ -13,7 +14,7 @@ This Discord bot allows you to display Dead by Daylight (DBD) player stats and i
 
 ### Classic Method
 
-1. Ensure Python 3.9 is installed. This bot was developed using Python 3.9.7. Download it [here](https://www.python.org/downloads/).
+1. Ensure Python 3.9 is installed. This bot was developed using Python 3.9.13. Download it [here](https://www.python.org/downloads/).
 2. Clone this repository or download the zip file.
 3. Open a terminal in the "DBDStats" folder where you cloned the repository or extracted the zip file.
 4. Run `pip install -r requirements.txt` to install the dependencies.
@@ -31,7 +32,6 @@ This Discord bot allows you to display Dead by Daylight (DBD) player stats and i
    - `MongoDB_user`: The MongoDB username.
    - `MongoDB_password`: The MongoDB password.
    - `MongoDB_database`: The MongoDB database name.
-   - `MongoDB_collection`: The MongoDB collection name.
 6. Rename the file ".env.template" to ".env".
 7. Run `python main.py` or `python3 main.py` to start the bot.
 
@@ -79,6 +79,8 @@ docker-compose -f docker-compose_without_MongoDB.yml up -d
    - Variables containing 'MongoDB' are for storing the bot's data. Remove them if you don't want to use MongoDB.
 
 #### Run the bot
+You only need to expose the port `-p 5000:5000`, if you want to use an external tool, to test, if the bot is running.
+You need to call the `/health` endpoint.
 ```bash
 docker run -d \
 -e steamAPIkey=STEAM_APIKEY \
@@ -94,13 +96,14 @@ docker run -d \
 -e MongoDB_user=USER_OF_MONGODB \
 -e MongoDB_password=PASSWORD_OF_MONGODB \
 -e MongoDB_database=DATABASE_OF_MONGODB \
--e MongoDB_collection=COLLECTION_OF_MONGODB \
 --name DBDStats \
 --restart any \
+--health-cmd="curl -f http://localhost:5000/health || exit 1" \
+--health-interval=30s \
+--health-timeout=10s \
+--health-retries=3 \
+--health-start-period=40s \
+-p 5000:5000 \
 -v dbdstats_log:/app/DBDStats/Logs \
 serpensin/dbdstats
 ```
-
-
-You can also [invite](https://discord.com/api/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot%20applications.commands) the bot I host to your server.
-
