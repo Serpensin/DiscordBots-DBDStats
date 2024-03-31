@@ -39,7 +39,6 @@ from CustomModules import killswitch
 from CustomModules import steam
 from CustomModules import steamcharts
 from dotenv import load_dotenv
-from google.auth.exceptions import RefreshError
 from typing import Any, List, Literal, Optional
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -51,15 +50,12 @@ from zipfile import ZIP_DEFLATED, ZipFile
 app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/' # For production
 #api_base = 'http://localhost:5000/' # For testing
-NO_CACHE = True # Disables cache for faster testing (NOT SUIABLE FOR PRODUCTION!!!)
+NO_CACHE = False # Disables cache for faster testing (NOT SUIABLE FOR PRODUCTION!!!)
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
 bot_version = "1.10.0"
-languages = ['Arabic', 'Azerbaijani', 'Catalan', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Esperanto', 'Finnish', 'French',
-             'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Irish', 'Italian', 'Japanese',
-             'Korean', 'Persian', 'Polish', 'Portuguese', 'Russian', 'Slovak', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian']
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 
 
@@ -231,14 +227,6 @@ else:
 
 db = pymongo.MongoClient(connection_string, serverSelectionTimeoutMS=10000)
 
-TwitchApi = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
-try:
-    SteamApi = steam.API(STEAMAPIKEY)
-except steam.Errors.InvalidKey:
-    error_message = 'Invalid Steam API key.'
-    manlogger.critical(error_message)
-    sys.exit(error_message)
-
 #Fix error on windows on shutdown.
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -265,31 +253,44 @@ except mongoerr.ServerSelectionTimeoutError as e:
 	pt(f"Error connecting to MongoDB Platform. | Fallback to json-storage. -> {error_content}")
 	db_available = False
 
-translator_google = googletrans.Translator(GOOGLE_APPLICATION_CREDENTIALS)
-translator_libre = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
-translator_libre_available = asyncio.run(translator_libre.validate_key())
-if not translator_libre_available:
-    manlogger.warning('LibreTranslate API is not available. | Disabling translation.')
-    pt('LibreTranslate API is not available. | Disabling translation.')
-else:
-    manlogger.info('Connected to LibreTranslate.')
-    pt('Connected to LibreTranslate.')
+# APIs setup
+try:
+    TranslatorGoogle = googletrans.Translator(GOOGLE_APPLICATION_CREDENTIALS)
+    manlogger.info('Connected to GoogleTranslate.')
+    pt('Connected to GoogleTranslate.')
+    translator_google_available = True
+except Exception as e:
+    manlogger.warning(f'Error connecting to GoogleTranslate. | Disabling translation. -> {e}')
+    pt(f'Error connecting to GoogleTranslate. | Disabling translation. -> {e}')
+    translator_google_available = False
 
 try:
-    translator_google.check_credentials()
-    manlogger.info('Connected to Google Translate.')
-    pt('Connected to Google Translate.')
-    translator_google_available = True
-except RefreshError as e:
-    manlogger.warning(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
-    pt(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
-    translator_google_available = False
-except FileNotFoundError as e:
-    manlogger.warning(f'Couldn\'t find `googleauth.json`.: {e}')
-    pt(f'Couldn\'t find `googleauth.json`.: {e}')
-    translator_google_available = False
+    TranslatorLibre = LibreTranslateAPI(LIBRETRANS_APIKEY, LIBRETRANS_URL)
+    manlogger.info('Connected to LibreTranslate.')
+    pt('Connected to LibreTranslate.')
+    translator_libre_available = True
+except ValueError as e:
+    manlogger.warning(f'Error connecting to LibreTranslate. | Disabling translation. -> {e}')
+    pt(f'Error connecting to LibreTranslate. | Disabling translation. -> {e}')
+    translator_libre_available = False
 
-twitch_available = TwitchApi.check_access_token()
+try:
+    TwitchApi = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
+    manlogger.info('Connected to Twitch API.')
+    pt('Connected to Twitch API.')
+    twitch_available = True
+except ValueError as e:
+    manlogger.warning(f'Error connecting to Twitch API. | Disabling Twitch features. -> {e}')
+    pt(f'Error connecting to Twitch API. | Disabling Twitch features. -> {e}')
+    twitch_available = False
+
+try:
+    SteamApi = steam.API(STEAMAPIKEY)
+except steam.Errors.InvalidKey:
+    error_message = 'Invalid Steam API key.'
+    manlogger.critical(error_message)
+    sys.exit(error_message)
+
 support_available = bool(SUPPORTID)
 
 
@@ -663,7 +664,7 @@ class Cache():
         for entry in data:
             notes = {key: value for key, value in entry.items() if key == "notes"}
             notes['_id'] = entry["id"]
-            with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace('.', '')}.json', 'w', encoding='utf8') as f:
+            with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace(".", "")}.json', 'w', encoding='utf8') as f:
                 json.dump(notes, f, indent=2)
             if db_available:
                 db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
@@ -848,17 +849,18 @@ class Background():
                 manlogger.warning("Shrine couldn't be updated.")
                 print("Shrine couldn't be updated.")
                 return 1
-            shrine_old = await Functions.data_load('shrine')
-            if shrine_old is None or shrine_new['data']['week'] != shrine_old['data']['week']:
-                if db_available:
-                    shrine_new['_id'] = 'shrine_info'
-                    db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
-                with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
-                    json.dump(shrine_new, f, indent=4)
-            if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
-                c.execute('SELECT * FROM shrine')
-                for row in c.fetchall():
-                    await Info.shrine(channel_id=(row[1], row[2]))
+            else:
+                shrine_old = await Functions.data_load('shrine')
+                if shrine_old is None or shrine_new['data']['week'] != shrine_old['data']['week']:
+                    if db_available:
+                        shrine_new['_id'] = 'shrine_info'
+                        db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
+                    with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
+                        json.dump(shrine_new, f, indent=4)
+                if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
+                    c.execute('SELECT * FROM shrine')
+                    for row in c.fetchall():
+                        await Info.shrine(channel_id=(row[1], row[2]))
 
         while True:
             await function()
@@ -869,8 +871,6 @@ class Background():
 
     async def update_twitchinfo_task():
         async def function():
-            if not twitch_available:
-                return
             game_id = await TwitchApi.get_game_id("Dead by Daylight")
             if game_id is None:
                 return
@@ -912,6 +912,8 @@ class Background():
                 json.dump(data, f, indent=4)
 
         while True:
+            if not twitch_available:
+                break
             await function()
             try:
                 await asyncio.sleep(60*5)
@@ -921,6 +923,35 @@ class Background():
 
 #Functions
 class Functions():
+    async def build_lang_lists():
+        global libre_languages, google_languages
+        google_languages = []
+        libre_languages = []
+        if translator_google_available:
+            lang_codes = TranslatorGoogle.get_languages()
+            for lang in lang_codes:
+                lang_name = await Functions.get_language_name(lang['language'])
+                if lang_name is not None:
+                    google_languages.append(lang_name)
+                else:
+                    print(f'Error while loading Google languages: {lang}')
+            google_languages = sorted(google_languages)
+            pt('Google languages loaded.')
+            print(google_languages)
+        if translator_libre_available:
+            lang_codes = await TranslatorLibre.get_languages()
+            for entry in lang_codes:
+                if entry['code'] == 'en':
+                    for lang in entry['targets']:
+                        lang_name = await Functions.get_language_name(lang)
+                        if lang_name is not None:
+                            libre_languages.append(lang_name)
+                        else:
+                            print(f'Error while loading LibreTranslate languages: {lang}')
+            libre_languages = sorted(libre_languages)
+            pt('LibreTranslate languages loaded.')
+            print(libre_languages)
+
     async def check_api_rate_limit(url):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -1024,11 +1055,14 @@ class Functions():
             file_name += f"{lang}"
             db_id = lang
         else:
-            raise Exception('Invalid request.')
+            raise TypeError('Invalid request.')
 
         if not db_available:
-            with open(f"{file_name}.json", "r", encoding="utf8") as f:
-                data = json.load(f)
+            try:
+                with open(f"{file_name}.json", "r", encoding="utf8") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                return None
         else:
             data = json.loads(json.dumps(db[DB_NAME][requested].find_one({'_id': db_id})))
 
@@ -1073,22 +1107,49 @@ class Functions():
         else:
             lang_code = interaction.locale[1]
         lang_name = await Functions.get_language_name(lang_code)
-        if lang_name in languages:
+        if lang_name in google_languages and translator_google_available:
+            return lang_code
+        elif lang_name in libre_languages and translator_libre_available:
             return lang_code
         else:
             return 'en'
 
     async def get_language_name(lang_code):
-        if lang_code == 'pt-BR':
-            return 'Portuguese'
-        elif lang_code == 'zh-TW':
+        if lang_code in ['zh-TW', 'zt', 'zh-CN']:
             return 'Chinese'
+        elif lang_code == 'doi':
+            return 'Dogri'
+        elif lang_code == 'el':
+            return 'Greek'
+        elif lang_code == 'iw':
+            return 'Hebrew'
+        elif lang_code == 'jw':
+            return 'Javanese'
+        elif lang_code == 'ms':
+            return 'Malay'
+        elif lang_code == 'mni-Mtei':
+            return 'Meiteilon'
+        elif lang_code in ['nep', 'ne']:
+            return 'Nepali'
+        elif lang_code == 'nb':
+            return 'Norwegian'
+        elif lang_code in ['or', 'ori']:
+            return 'Oriya'
+        elif lang_code == 'pt-BR':
+            return 'Portuguese'
+        elif lang_code in ['es-ES', 'es']:
+            return 'Spanish'
+        elif lang_code == 'sw':
+            return 'Swahili'
         try:
             lang = pycountry.languages.get(alpha_2=lang_code).name
             return lang
-        except Exception as e:
-            print(e)
-            return None
+        except AttributeError:
+            try:
+                lang = pycountry.languages.get(alpha_3=lang_code).name
+                return lang
+            except AttributeError:
+                return None
 
     async def get_or_fetch(item: str, item_id: int) -> Optional[Any]:
         """
@@ -1121,21 +1182,19 @@ class Functions():
 
     async def translate(interaction: discord.Interaction, text):
         async def _translate(text, target_lang, source_lang='en'):
-            def translate_in_executor(text, target_lang, source_lang):
+            async def translate_in_executor(text, target_lang, source_lang):
                 if translator_google_available:
                     try:
-                        translated_text = translator_google.translate_text(text, target_lang, source_lang)
-                        print("Translated with Google Translator.")
+                        translated_text = TranslatorGoogle.translate_text(text, target_lang, source_lang)
+                        print(f"Translated with Google Translator.: {translation}")
                         return translated_text
-                    except RefreshError as e:
-                        manlogger.warning(f"Google Translator Refresh Error: {e}")
-                        print(f"Google Translator Refresh Error: {e}")
-                    except FileNotFoundError as e:
-                        manlogger.warning(f"Google Translator FileNotFoundError: {e}")
-                        print(f"Google Translator FileNotFoundError: {e}")
+                    except Exception as e:
+                        manlogger.warning(f"Error while translating: {e}")
+                        print(f"Error while translating: {e}")
+                        return text
                 try:
-                    translation = translator_libre.translate(text, target_lang, source_lang)
-                    print("Translated with LibreTranslate.")
+                    translation = await TranslatorLibre.translate(text, target_lang, source_lang)
+                    print(f"Translated with LibreTranslate.: {translation}")
                     return translation
                 except Exception as e:
                     manlogger.warning(f"Error while translating: {e}")
@@ -1183,13 +1242,13 @@ class Functions():
             else:
                 print(f'Language {lang} not found in cache.')
                 translation = await _translate(text, lang)
-                data[hashed] = {lang: translation['data']['translatedText']}
+                data[hashed] = {lang: translation}
                 if db_available:
                     db[DB_NAME]['translations'].update_one(
                         {'_id': 'translations'},
                         {
                             '$set': {
-                                f'{hashed}.{lang}': translation['data']['translatedText']
+                                f'{hashed}.{lang}': translation
                             }
                         }
                     )
@@ -1619,7 +1678,7 @@ class Info():
         try:
             ownesDBD = await SteamApi.ownsGame(steamid, DBD_ID)
         except ValueError:
-            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             return
         except steam.Errors.Private:
             await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
@@ -1633,14 +1692,27 @@ class Info():
             await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
         else:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={await SteamApi.link_to_id(steamid)}')
+                steamid = await SteamApi.link_to_id(steamid)
+            except steam.Errors.RateLimit:
+                embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+                embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+                await interaction.followup.send(embed=embed)
+                return
+            except ValueError:
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
+                return
+            if steamid is None:
+                await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
+                return
+            try:
+                data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={steamid}')
             except Exception:
                 await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
             try:
                 steam_data = await SteamApi.get_player_summary(steamid)
             except ValueError:
-                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
                 return
             except steam.Errors.RateLimit:
                 embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
@@ -1833,29 +1905,28 @@ class Info():
     async def killswitch(interaction: discord.Interaction):
         await interaction.response.defer()
 
-        if os.path.exists(f'{buffer_folder}killswitch.json'):
-            if os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
-                with open(f'{buffer_folder}killswitch.json', 'r') as f:
-                    data = json.load(f)
-                    if data['killswitch_on'] == 0:
-                        embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
-                        embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-                        embed.set_footer(text = f'Update every 15 minutes.')
-                        await interaction.followup.send(embed=embed)
-                        return
-                    else:
-                        embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data['md']), color=0xb19325)
-                        embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
-                        embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
-                        await interaction.followup.send(embed=embed)
-                        return
+        if os.path.exists(f'{buffer_folder}killswitch.json') and os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
+            with open(f'{buffer_folder}killswitch.json', 'r') as f:
+                data = json.load(f)
+                if data['killswitch_on'] == 0:
+                    embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
+                    embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                    embed.set_footer(text = f'Update every 15 minutes.')
+                    await interaction.followup.send(embed=embed)
+                    return
+                else:
+                    embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data['md']), color=0xb19325)
+                    embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                    embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
+                    await interaction.followup.send(embed=embed)
+                    return
         try:
             data = await killswitch.get_killswitch('md')
         except ValueError as e:
             await interaction.followup.send(str(e), ephemeral = True)
             return
 
-        data = data.replace('\n\n', '[TEMP_NL]').replace('\n', ' ').replace('[TEMP_NL]', '\n\n').strip()
+        data = await Functions.translate(interaction, data.replace('\n\n', '[TEMP_NL]').replace('\n', ' ').replace('[TEMP_NL]', '\n\n').strip())
 
         if data.replace('\n', '').strip() == '':
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
@@ -1883,7 +1954,7 @@ class Info():
         try:
             check = await SteamApi.ownsGame(steamid, DBD_ID)
         except ValueError:
-            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             return
         except steam.Errors.Private:
             await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
@@ -1899,14 +1970,14 @@ class Info():
             try:
                 data = await SteamApi.get_player_achievements(steamid, DBD_ID)
             except ValueError:
-                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             except steam.Errors.RateLimit:
                 embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
                 embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
                 await interaction.followup.send(embed=embed)
                 return
             if data['playerstats']['success'] == False:
-                await interaction.followup.send(await Functions.translate(interaction, 'This profile is private.'))
+                await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
                 return
             for entry in data['playerstats']['achievements']:
                 if entry['apiname'] == 'ACH_PRESTIGE_LVL1' and entry['achieved'] == 1 and int(entry['unlocktime']) < 1480017600:
@@ -2005,28 +2076,37 @@ class Info():
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer()
-        check = await SteamApi.ownsGame(steamid, DBD_ID)
         try:
-            int(check[0])
-        except:
-            embed = discord.Embed(title=await Functions.translate(interaction, 'Try again'), description=await Functions.translate(interaction, check[1]), color=0x004cff)
+            steamid = await SteamApi.link_to_id(steamid)
+        except steam.Errors.RateLimit:
+            embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+            embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.followup.send(embed=embed)
             return
-        if check[0] == 1:
-            await interaction.followup.send(await Functions.translate(interaction, 'The SteamID64 has to be 17 chars long and only containing numbers.'), ephemeral=True)
-        elif check[0] == 2:
-            await interaction.followup.send(await Functions.translate(interaction, 'This SteamID64 is NOT in use.'), ephemeral=True)
-        elif check[0] == 3:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f"\n[here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
-        elif check[0] == 4:
+        except ValueError:
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
+            return
+        if steamid is None:
+            await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
+            return
+        try:
+            check = await SteamApi.ownsGame(steamid, DBD_ID)
+        except ValueError:
+            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
+            return
+        except steam.Errors.Private:
+            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+            return
+        except steam.Errors.RateLimit:
+            embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+            embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+            await interaction.followup.send(embed=embed)
+            return
+        if not check:
             await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
-        elif check[0] == 5:
-            embed1=discord.Embed(title="Fatal Error", description=await Functions.translate(interaction, "It looks like there was an error querying the SteamAPI (probably a rate limit).\nPlease join our")+" [Support-Server]("+str(await Functions.create_support_invite(interaction))+await Functions.translate(interaction, ") and create a ticket to tell us about this."), color=0xff0000)
-            embed1.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.followup.send(embed=embed1, ephemeral=True)
-        elif check[0] == 0:
+        else:
             #Get Stats
-            removed = await Functions.check_if_removed(check[1])
+            removed = await Functions.check_if_removed(steamid)
             clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
             file_path = os.path.join(stats_folder, clean_filename)
             if removed == 2:
@@ -2059,7 +2139,7 @@ class Info():
             try:
                 steam_data = await SteamApi.get_player_summary(steamid)
             except ValueError:
-                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, 'is not a valid SteamID/Link.')}')
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
                 return
             except steam.Errors.RateLimit:
                 embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
@@ -2971,11 +3051,13 @@ async def self(interaction: discord.Interaction):
         lang = await Functions.get_language_name(lang)
         temp.append(lang)
         embed.description += f'\n• {lang}'
-    embed.description += f'\n\n{await Functions.translate(interaction, "For these languages, the bot uses GoogleTranslate (LibreTranslate as backup), to translate the text, which can be a bit whacky. That\'s the reason, we only output these languages. For the input, you still have to use english.")}'
+    embed.description += f"\n\n{await Functions.translate(interaction, 'For these languages, the bot uses GoogleTranslate (LibreTranslate as backup), to translate the text, which can be a bit whacky. That is the reason, we only output these languages. For the input, you still have to use english.')}"
+    # Merge two lists
+    languages = list(set(libre_languages + google_languages))
     for lang in languages:
         if lang not in temp:
             embed.description += f'\n• {lang}'
-    embed.description += f'\n\n{await Functions.translate(interaction, "The bot will automatically select the language based on the client who invokes a comand. If you sub to the shrine, he will post it in the language of the server (community). If he can\'t translate to that language, he\'ll default to english.")}'
+    embed.description += f"\n\n{await Functions.translate(interaction, 'The bot will automatically select the language based on the client who invokes a comand. If you sub to the shrine, he will post it in the language of the server (community). If he can not translate to that language, he will default to english.')}"
     await interaction.followup.send(embed = embed, ephemeral = True)
 
 
@@ -3405,6 +3487,7 @@ if __name__ == '__main__':
         sys.exit(error_message)
     else:
         try:
+            asyncio.run(Functions.build_lang_lists())
             bot.run(TOKEN, log_handler=None)
         except discord.errors.LoginFailure:
             error_message = 'Invalid token. Please check your .env file.'

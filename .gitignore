@@ -364,6 +364,7 @@ FodyWeavers.xsd
 /DBDStats/DBDStats/Buffer
 /DBDStats/.env
 /DBDStats/env
+/DBDStats/env1
 *.bat
 /DBDStats/DBDStats/activity.json
 /DBDStats/DBDStats/DBDStats.db

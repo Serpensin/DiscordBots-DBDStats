@@ -28,10 +28,16 @@ class Errors:
 
 
 
-
-
 class API():
     def __init__(self, key):
+        """
+        Initialize the API object with the given API key.
+
+        Args:
+            key (str): The Steam API key.
+        Raises:
+            Errors.InvalidKey: If the provided API key is invalid.
+        """
         self.KEY = key
         self.URL_GetOwnedGames = f'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={key}&steamid='
         self.URL_ResolveVanity = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={key}&vanityurl='
@@ -42,10 +48,13 @@ class API():
         if not isValid:
             raise Errors.InvalidKey()
 
-
-
-
     async def keyIsValid(self) -> bool:
+        """
+        Check if the provided API key is valid.
+
+        Returns:
+            bool: True if the key is valid, False otherwise.
+        """
         async with aiohttp.ClientSession() as session:
             async with session.get(f'{self.URL_GetPlayerSummeries}76561198889439823') as response:
                 if response.status != 200:
@@ -57,13 +66,26 @@ class API():
         else:
             return False
 
-
-
     async def get_player_summeries(self, steamid) -> dict:
+        """
+        Get player summaries for the given Steam IDs.
+
+        Args:
+            steamid (str): Comma-separated list of Steam IDs.
+
+        Returns:
+            dict: Player summaries data.
+        Raises:
+            Errors.RateLimit: If the API rate limit is exceeded.
+            ValueError: If the provided Steam ID or link is invalid.
+        """
         steamids = steamid.split(',')
         cleaned_steamids = ''
         for entry in steamids:
-            check = await self.link_to_id(str(entry).strip())
+            try:
+                check = await self.link_to_id(str(entry).strip())
+            except Exception as e:
+                raise e
             if check is None:
                 raise ValueError('Invalid steamid or link.')
             else:
@@ -79,13 +101,24 @@ class API():
                 data = await response.json()
         return data
 
-
-
-
-
-
     async def get_player_achievements(self, steamid, appid) -> dict:
-        steamid = await self.link_to_id(steamid)
+        """
+        Get player achievements for the given Steam ID and App ID.
+
+        Args:
+            steamid (str): Steam ID of the player.
+            appid (int): App ID of the game.
+
+        Returns:
+            dict: Player achievements data.
+        Raises:
+            Errors.RateLimit: If the API rate limit is exceeded.
+            ValueError: If the provided Steam ID or link is invalid.
+        """
+        try:
+            steamid = await self.link_to_id(steamid)
+        except Exception as e:
+            raise e
         if steamid is None:
             raise ValueError('Invalid steamid or link.')
         url = f'{self.URL_GetPlayerAchievements}{steamid}&appid={appid}'
@@ -98,9 +131,19 @@ class API():
                 data = await response.json()
         return data
 
-
-
     async def link_to_id(self, link) -> str:
+        """
+        Convert a Steam profile link to a Steam ID.
+
+        Args:
+            link (str): Steam profile link or vanity URL.
+
+        Returns:
+            str: Steam ID.
+        Raises:
+            Errors.RateLimit: If the API rate limit is exceeded.
+            ValueError: If the provided Steam ID or link is invalid.
+        """
         link = link.replace('https://steamcommunity.com/profiles/', '').replace('https://steamcommunity.com/id/', '').replace('/', '')
         if len(link) == 17 and link.isdigit():
             return link
@@ -110,13 +153,29 @@ class API():
                 if response.status == 429:
                     raise Errors.RateLimit()
                 elif response.status != 200:
-                    return{"error": {"code": response.status, "message": http.HTTPStatus(response.status).phrase}}
+                    raise ValueError('Invalid steamid or link.')
                 data = await response.json()
         return data['response']['steamid'] if data['response']['success'] == 1 else None
 
-
     async def ownsGame(self, steamid, appid) -> bool:
-        steamid = await self.link_to_id(steamid)
+        """
+        Check if the player owns a specific game.
+
+        Args:
+            steamid (str): Steam ID of the player.
+            appid (int): App ID of the game.
+
+        Returns:
+            bool: True if the player owns the game, False otherwise.
+        Raises:
+            Errors.RateLimit: If the API rate limit is exceeded.
+            ValueError: If the provided Steam ID or link is invalid.
+            Errors.Private: If the profile is private.
+        """
+        try:
+            steamid = await self.link_to_id(steamid)
+        except Exception as e:
+            raise e
         if steamid is None:
             raise ValueError('Invalid steamid or link.')
         url = f'{self.URL_GetOwnedGames}{steamid}'

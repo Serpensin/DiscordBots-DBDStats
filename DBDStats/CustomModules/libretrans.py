@@ -1,4 +1,5 @@
 ﻿import aiohttp
+import asyncio
 
 
 
@@ -7,6 +8,12 @@ class LibreTranslateAPI:
     def __init__(self, APIkey, url):
         self.APIkey = APIkey
         self.url = url
+
+        try:
+            asyncio.run(self.validate_key())
+        except Exception:
+            raise ValueError("Invalid API key.")
+
 
 
     async def _get_sample(self, text):
@@ -72,4 +79,11 @@ class LibreTranslateAPI:
         except Exception:
             return False
 
-
+    async def get_languages(self):
+        url = f'{self.url}/languages'
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    return await response.json()
+        except:
+            return None

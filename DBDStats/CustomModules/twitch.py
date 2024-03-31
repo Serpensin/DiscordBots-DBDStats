@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import requests as r
 
 
@@ -11,6 +12,10 @@ class TwitchAPI:
         self.streams = "https://api.twitch.tv/helix/streams"
         self.users = "https://api.twitch.tv/helix/users"
         self.top = "https://api.twitch.tv/helix/games/top"
+
+        isValid = asyncio.run(self.check_access_token())
+        if not isValid:
+            raise ValueError("Invalid client ID or client secret.")
 
 
     def get_twitch_app_access_token(self):
