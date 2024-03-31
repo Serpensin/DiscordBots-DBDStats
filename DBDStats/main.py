@@ -271,10 +271,6 @@ try:
     manlogger.info('Connected to Google Translate.')
     pt('Connected to Google Translate.')
     translator_google_available = True
-except DefaultCredentialsError as e:
-    manlogger.warning(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
-    pt(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
-    translator_google_available = False
 except RefreshError as e:
     manlogger.warning(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
     pt(f'Error connecting to Google Cloud. | Disabling translation. -> {e}')
