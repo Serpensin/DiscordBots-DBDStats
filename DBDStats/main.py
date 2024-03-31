@@ -727,7 +727,12 @@ class Cache():
         tasks = [asyncio.create_task(update) for update in updates]
 
         for task in tasks:
-           await task
+           task = await task
+           if task == 1 and not bot.cache_updated:
+               manlogger.critical('Cache couldn\'t be updated, because of a 429. Exiting...')
+               sys.exit("Cache couldn't be updated, because of a 429. Exiting...")
+
+
         await Cache._name_lists()
 
         bot.cache_updated = True
