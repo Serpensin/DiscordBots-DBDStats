@@ -262,7 +262,9 @@ translator_libre_available = asyncio.run(translator_libre.validate_key())
 if not translator_libre_available:
     manlogger.warning('LibreTranslate API is not available. | Disabling translation.')
     pt('LibreTranslate API is not available. | Disabling translation.')
-    translator_libre_available = False
+else:
+    manlogger.info('Connected to LibreTranslate.')
+    pt('Connected to LibreTranslate.')
 
 try:
     translator_google.check_credentials()
