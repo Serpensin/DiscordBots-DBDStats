@@ -16,17 +16,15 @@ ARG BUILD_DATE
 ARG COMMIT
 
 # Install build dependencies and curl
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo && \
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo g++ && \
     apk add --no-cache curl && \
     python -m pip install --upgrade pip && \
     pip install --upgrade setuptools wheel && \
     pip install -r requirements.txt && \
     apk del .build-deps && \
-    find /usr/local \
-    \( -type d -a -name test -o -name tests \) \
-    -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
-    -exec rm -rf '{}' + && \
+    find /usr/local \( -type d -a -name test -o -name tests \) -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf '{}' + && \
     rm -rf /root/.cache/pip
+
 
 EXPOSE 5000
 
