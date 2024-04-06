@@ -34,6 +34,7 @@
     <Compile Include="main.py" />
     <Compile Include="CustomModules\killswitch.py" />
     <Compile Include="CustomModules\twitch.py" />
+    <Compile Include="playground.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
@@ -42,7 +43,9 @@
     <Content Include=".env" />
     <Content Include="Docker-Compose\docker-compose_without_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose.yml" />
+    <Content Include="googleauth.json" />
     <Content Include="requirements.txt" />
+    <Content Include="translation_test.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CustomModules\" />
