@@ -45,6 +45,7 @@
     <Content Include="Docker-Compose\docker-compose.yml" />
     <Content Include="googleauth.json" />
     <Content Include="requirements.txt" />
+    <Content Include="translation_test.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CustomModules\" />
