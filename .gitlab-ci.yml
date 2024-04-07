@@ -15,7 +15,7 @@ docker-build:
     - docker buildx rm mybuilder
     - sleep 10
     - docker volume prune -f
-  timeout: 120m
+  timeout: 180m
 
 workflow:
   rules:
