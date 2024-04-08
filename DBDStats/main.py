@@ -248,7 +248,6 @@ async def isMongoReachable(task: bool = False):
             pt(message)
             isDbAvailable = False
         return message
-asyncio.gather(isMongoReachable())
 
 # Google Translate API
 try:
@@ -308,6 +307,7 @@ class aclient(discord.AutoShardedClient):
         self.synced = False
         self.cache_updated = False
         self.initialized = False
+        self.firstDBchecked = False
 
 
     class Presence():
@@ -480,11 +480,13 @@ class aclient(discord.AutoShardedClient):
                                     DISCORDBOTLISTCOM_TOKEN=DISCORDBOTLISTCOM_TOKEN,
                                     DISCORDLIST_TOKEN=DISCORDLIST_TOKEN,
                                     )
-        bot.loop.create_task(stats.task())
-        bot.loop.create_task(Cache.task())
         bot.loop.create_task(Background.check_db_connection_task())
+        while not self.firstDBchecked:
+            await asyncio.sleep(0)
         bot.loop.create_task(Background.health_server())
         bot.loop.create_task(Background.update_twitchinfo_task())
+        bot.loop.create_task(stats.task())
+        bot.loop.create_task(Cache.task())
 
         while not self.cache_updated:
             await asyncio.sleep(0)
@@ -794,6 +796,10 @@ class Background():
                                                                                           .replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
 
         async def _function():
+            if not bot.initialized:
+                if not bot.firstDBchecked:
+                    await isMongoReachable()
+                    bot.firstDBchecked = True
             global isDbAvailable
             old = isDbAvailable
             new = await isMongoReachable(True)
