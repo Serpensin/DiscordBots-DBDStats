@@ -69,7 +69,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.11.0"
+bot_version = "1.11.1"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -527,7 +527,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}perk//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
@@ -541,7 +541,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}offering//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
@@ -555,7 +555,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}char//{lang}.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
@@ -569,7 +569,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}dlc//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
@@ -583,7 +583,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{buffer_folder}item//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
@@ -597,7 +597,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}addon//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
@@ -611,7 +611,7 @@ class Cache():
                 return 1
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}map//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
@@ -628,7 +628,7 @@ class Cache():
                 data[str(i)] = data_list[i]
             data['_id'] = lang
             if isDbAvailable:
-                db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}event//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
@@ -641,7 +641,7 @@ class Cache():
             return 1
         data['_id'] = 'version_info'
         if isDbAvailable:
-            db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
+            await db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
         with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
 
@@ -659,14 +659,14 @@ class Cache():
             os.makedirs(f'{buffer_folder}patchnotes', exist_ok=True)
         data.sort(key=lambda x: x["id"], reverse=True)
         if isDbAvailable:
-            db[DB_NAME]['patchnotes'].drop()
+            await db[DB_NAME]['patchnotes'].drop()
         for entry in data:
             notes = {key: value for key, value in entry.items() if key == "notes"}
             notes['_id'] = entry["id"]
             with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace(".", "")}.json', 'w', encoding='utf8') as f:
                 json.dump(notes, f, indent=2)
             if isDbAvailable:
-                db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
+                await db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
 
     async def _clear_playerstats():
         for filename in os.scandir(stats_folder):
@@ -783,11 +783,11 @@ class Background():
                         if filename.is_file() and filename.path.endswith('.json'):
                             with open(filename.path, 'r', encoding='utf8') as file:
                                 data = json.load(file)
-                                db[DB_NAME][str(entry.name)].update_one({'_id': data['_id']}, {'$set': data}, upsert=True)
+                                await db[DB_NAME][str(entry.name)].update_one({'_id': data['_id']}, {'$set': data}, upsert=True)
                 if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json', 'translations.json', 'twitch_info']:
                     with open(entry.path, 'r', encoding='utf8') as file:
                         data = json.load(file)
-                        db[DB_NAME][str(entry.name)
+                        await db[DB_NAME][str(entry.name)
                                     .replace('shrine_info.json', 'shrine')
                                     .replace('translations.json', 'translations')
                                     .replace('version_info.json', 'version')].update_one({'_id': str(entry.name)
@@ -858,7 +858,7 @@ class Background():
                 if shrine_old is None or shrine_new['data']['week'] != shrine_old['data']['week']:
                     if isDbAvailable:
                         shrine_new['_id'] = 'shrine_info'
-                        db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
+                        await db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
                     with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
                         json.dump(shrine_new, f, indent=4)
                 if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
@@ -910,7 +910,7 @@ class Background():
                 }
             # Update database
             if isDbAvailable:
-                db[DB_NAME]['twitch'].update_one({'_id': 'twitch_info'}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['twitch'].update_one({'_id': 'twitch_info'}, {'$set': data}, upsert=True)
             # Update json
             with open(f"{buffer_folder}twitch_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=4)
@@ -1060,7 +1060,7 @@ class Functions():
             db_id = lang
         else:
             raise TypeError('Invalid request.')
-        isDbAvailable = False
+
         if not isDbAvailable:
             try:
                 with open(f"{file_name}.json", "r", encoding="utf8") as f:
@@ -1068,7 +1068,7 @@ class Functions():
             except FileNotFoundError:
                 return None
         else:
-            data = json.loads(json.dumps(db[DB_NAME][requested].find_one({'_id': db_id})))
+            data = json.loads(json.dumps(await db[DB_NAME][requested].find_one({'_id': db_id})))
 
         return data
 
@@ -1224,10 +1224,7 @@ class Functions():
         print(f'Translation Hash: {hashed}')
 
         if isDbAvailable:
-            try:
-                data = json.loads(json.dumps(db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
-            except ValueError:
-                data = {}
+            data = json.loads(json.dumps(await db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
         else:
             try:
                 with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
@@ -1238,6 +1235,8 @@ class Functions():
             except FileNotFoundError:
                 data = {}
 
+        if data is None and isDbAvailable:
+            data = {}
         if hashed in data.keys():
             print(f'Hash {hashed} found in cache.')
             if lang in data[hashed].keys():
@@ -1250,7 +1249,7 @@ class Functions():
                     return text
                 data[hashed] = {lang: translation}
                 if isDbAvailable:
-                    db[DB_NAME]['translations'].update_one(
+                    await db[DB_NAME]['translations'].update_one(
                         {'_id': 'translations'},
                         {
                             '$set': {
@@ -1274,7 +1273,7 @@ class Functions():
                 return text
             data[hashed] = {lang: translation}
             if isDbAvailable:
-                db[DB_NAME]['translations'].update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
+                await db[DB_NAME]['translations'].update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
             with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=4)
             return translation
@@ -2363,7 +2362,7 @@ class Info():
                 shrine_embed = await SendInfo.perk(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
-            await channel.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
+            await channel.send(content = f"{await Functions.translate(guild, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(guild, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(guild, "Updates every 15 minutes.")}", embeds=embeds)
             return
         else:
             await interaction.response.defer()
@@ -2384,11 +2383,11 @@ class Info():
                 shrine_embed = await SendInfo.perk(shrine_perk_name, lang, interaction, True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
-            await interaction.followup.send(content = f"This is the current shrine.\nIt started at <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> and will last until <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\nUpdates every 15 minutes.", embeds=embeds)
+            await interaction.followup.send(content = f"{await Functions.translate(interaction, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(interaction, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(interaction, "Updates every 15 minutes.")}", embeds=embeds)
 
     async def twitch_info(interaction: discord.Interaction):
         if not isTwitchAvailable:
-            await interaction.response.send_message("Twitch API is currently not available.\nAsk the owner of this instance to enable it.", ephemeral=True)
+            await interaction.response.send_message(await Functions.translate(interaction, "Twitch API is currently not available.\nAsk the owner of this instance to enable it."), ephemeral=True)
             return
 
         data = await Functions.data_load('twitch')
@@ -2812,7 +2811,7 @@ class Owner():
             return
         if args[0] == 'translation':
             if isDbAvailable:
-                db[DB_NAME].translations.drop()
+                await db[DB_NAME].translations.drop()
             translations = f"{buffer_folder}translations.json"
             if os.path.exists(translations):
                 os.remove(translations)
@@ -2887,7 +2886,7 @@ class Owner():
         await asyncio.gather(*tasks, return_exceptions=True)
 
         conn.close()
-        db.close()
+        await db.close()
 
         await bot.close()
 
