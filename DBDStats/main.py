@@ -2362,7 +2362,12 @@ class Info():
                 shrine_embed = await SendInfo.perk(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
-            await channel.send(content = f"{await Functions.translate(guild, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(guild, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(guild, "Updates every 15 minutes.")}", embeds=embeds)
+            try:
+                await channel.send(content = f"{await Functions.translate(guild, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(guild, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(guild, "Updates every 15 minutes.")}", embeds=embeds)
+            except discord.errors.Forbidden:
+                manlogger.info(f"Missing permissions in {guild.name} ({guild.id})")
+                c.execute(f"DELETE FROM shrine WHERE guild_id = {guild.id} AND channel_id = {channel.id}")
+                conn.commit()
             return
         else:
             await interaction.response.defer()
@@ -2383,7 +2388,12 @@ class Info():
                 shrine_embed = await SendInfo.perk(shrine_perk_name, lang, interaction, True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
-            await interaction.followup.send(content = f"{await Functions.translate(interaction, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(interaction, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(interaction, "Updates every 15 minutes.")}", embeds=embeds)
+            try:
+                await interaction.followup.send(content = f"{await Functions.translate(interaction, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(interaction, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(interaction, "Updates every 15 minutes.")}", embeds=embeds)
+            except discord.errors.Forbidden:
+                manlogger.info(f"Missing permissions in {guild.name} ({guild.id})")
+                c.execute(f"DELETE FROM shrine WHERE guild_id = {guild.id} AND channel_id = {channel.id}")
+                conn.commit()
 
     async def twitch_info(interaction: discord.Interaction):
         if not isTwitchAvailable:
