@@ -69,7 +69,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.11.3"
+bot_version = "1.11.4"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -3444,14 +3444,14 @@ async def self(interaction: discord.Interaction,
                 await interaction.response.send_message(content='You need to specify an item.', ephemeral=True)
                 return
             lang = await Functions.get_language_code(interaction)
-            await Random.addon(interaction, item, lang)
+            await Random.addon_survivor(interaction, item, lang)
 
         elif category == 'adfk':
             if killer is None:
                 await interaction.response.send_message(content='You need to specify a killer.', ephemeral=True)
                 return
             lang = await Functions.get_language_code(interaction)
-            await Random.adfk(interaction, killer, lang)
+            await Random.addon_killer(interaction, killer, lang)
 
         elif category == 'loadout':
             class Input(discord.ui.Modal, title='Loadout for whom? Timeout in 30 seconds.'):
