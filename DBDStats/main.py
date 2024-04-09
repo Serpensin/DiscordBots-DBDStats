@@ -69,7 +69,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.11.1"
+bot_version = "1.11.2"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -3039,7 +3039,7 @@ async def self(interaction: discord.Interaction):
 
         embed.add_field(name="Created at", value=bot.user.created_at.strftime("%d.%m.%Y, %H:%M:%S"), inline=True)
         embed.add_field(name="Version", value=bot_version, inline=True)
-        embed.add_field(name="Uptime", value=str(datetime.timedelta(seconds=int((datetime.now() - start_time).total_seconds()))), inline=True)
+        embed.add_field(name="Uptime", value=str(datetime.timedelta(seconds=int((datetime.datetime.now() - start_time).total_seconds()))), inline=True)
 
         embed.add_field(name="Owner", value=f"<@!{OWNERID}>", inline=True)
         embed.add_field(name="\u200b", value="\u200b", inline=True)
@@ -3150,7 +3150,7 @@ async def self(interaction: discord.Interaction):
             embed.description += f'\n• {lang}'
         embed.description += f"\n\n{await Functions.translate(interaction, 'For these languages, the bot uses GoogleTranslate (LibreTranslate as backup), to translate the text, which can be a bit whacky. That is the reason, we only output these languages. For the input, you still have to use english.')}"
         # Merge two lists
-        languages = list(set(libre_languages + google_languages))
+        languages = sorted(list(set(libre_languages + google_languages)))
         for lang in languages:
             if lang not in temp:
                 embed.description += f'\n• {lang}'
