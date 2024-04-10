@@ -220,6 +220,7 @@ if isRunnigInDocker:
     connection_string = f'mongodb://mongo:27017/DBDStats'
 else:
     connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    # connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
 db = AsyncIOMotorClient(connection_string, server_api=ServerApi('1'), serverSelectionTimeoutMS=10000)
 isDbAvailable = False
 
@@ -2814,7 +2815,7 @@ class Owner():
     async def clean(message, args):
         async def __wrong_selection():
             await message.channel.send('```'
-                                       'clean [translation] - Deletes the cache for the selected stuff.\n'
+                                       'clean [translation/cache] - Deletes the cache for the selected stuff.\n'
                                        '```')
         if args == []:
             await __wrong_selection()
@@ -2825,14 +2826,24 @@ class Owner():
             translations = f"{buffer_folder}translations.json"
             if os.path.exists(translations):
                 os.remove(translations)
-        await message.channel.send('Translations deleted.')
+            await message.channel.send('Translations deleted.')
+        elif args[0] == 'cache':
+            if isDbAvailable:
+                await db.drop_database(DB_NAME)
+            for root, _, files in os.walk(buffer_folder):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    os.remove(file_path)
+            await Cache.start_cache_update()
+            await message.channel.send('All cached files deleted and rebuild.')
+        else:
+            await __wrong_selection()
 
     async def log(message, args):
         async def __wrong_selection():
             await message.channel.send('```'
                                        'log [current/folder/lines] (Replace lines with a positive number, if you only want lines.) - Get the log\n'
                                        '```')
-
         if args == []:
             await __wrong_selection()
             return
