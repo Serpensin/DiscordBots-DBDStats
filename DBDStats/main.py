@@ -64,7 +64,7 @@ load_dotenv()
 app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/' # For production
 #api_base = 'http://localhost:5000/' # For testing
-NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
@@ -1720,7 +1720,7 @@ class Info():
                 await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
             try:
-                steam_data = await SteamApi.get_player_summary(steamid)
+                steam_data = await SteamApi.get_player_summeries(steamid)
             except ValueError:
                 await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
                 return
@@ -2085,7 +2085,7 @@ class Info():
         await selfembed(await selfget())
 
     async def playerstats(interaction: discord.Interaction, steamid):
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
         try:
             steamid = await SteamApi.link_to_id(steamid)
         except steam.Errors.RateLimit:
@@ -2133,21 +2133,17 @@ class Info():
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
             else:
-                try:
-                    data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
-                except Exception:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(f'{api_base}playerstats?steamid={steamid}') as resp:
-                            player_stats = await resp.json()
-                            with open(file_path, 'w', encoding='utf8') as f:
-                                json.dump(player_stats, f, indent=2)
+                data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
+                if type(data) == dict:
+                    with open(file_path, 'w', encoding='utf8') as f:
+                        json.dump(data, f, indent=2)
                 else:
                     await interaction.followup.send(await Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h."), ephemeral=True)
                     return
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
             try:
-                steam_data = await SteamApi.get_player_summary(steamid)
+                steam_data = await SteamApi.get_player_summeries(steamid)
             except ValueError:
                 await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
                 return
@@ -2160,6 +2156,7 @@ class Info():
                 await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
                 return
 
+            first_message = await interaction.followup.send(await Functions.translate(interaction, "Loading stats. This can take a while, if something needs to be translated."))
             event = steam_data['response']['players'][0]
             personaname = event['personaname']
             profileurl = event['profileurl']
@@ -2322,16 +2319,29 @@ class Info():
             embed8.add_field(name=await Functions.translate(interaction, "Survivor hit 3 sec after scamper"), value=f"{int(player_stats['survivorshit_scamper']):,}", inline=True)
             # Embed9 - Survivors downed
             embed9.add_field(name="\u200b", value="\u200b", inline=False)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while hindered"), value=f"{int(player_stats['downed_hindered']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "After a chase 2 minutes long"), value=f"{int(player_stats['downed_afterchase2mins']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Survivors downed while healthy"), value=f"{int(player_stats['downedwhilehealthy']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed after hitting survivor"), value=f"{int(player_stats['downed_afterhittingsurvivor']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "While undetectable"), value=f"{int(player_stats['downed_whileundetectable']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while carrying survivor"), value=f"{int(player_stats['downed_whilecarrying']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed while on killer shoulder"), value=f"{int(player_stats['downed_onshoulder']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed survivors not the obsession"), value=f"{int(player_stats['downed_notobsession']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Downed survivor as last survivor"), value=f"{int(player_stats['downed_last']):,}", inline=True)
-            embed9.add_field(name=await Functions.translate(interaction, "Pulled out of locker"), value=f"{int(player_stats['pulledoutoflocker']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while hindered"), value=f"{int(player_stats['survivorsdowned_hindered']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while oblivious"), value=f"{int(player_stats['survivorsdowned_oblivious']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while exposed"), value=f"{int(player_stats['survivorsdowned_exposed']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed near a raised pallet"), value=f"{int(player_stats['survivorsdowned_nearraisedpallet']):,}", inline=True)
+            embed9.add_field(name=await Functions.translate(interaction, "Downed while carrying survivor"), value=f"{int(player_stats['survivorsdowned_whilecarrying']):,}", inline=True)
+            #Embed10 - Survivors downed with power
+            embed10.add_field(name="\u200b", value="\u200b", inline=False)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed with a Hatchet (24+ meters)"), value=f"{int(player_stats['survivorsdowned_hatchets']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed with a Chainsaw (Bubba)"), value=f"{int(player_stats['survivorsdowned_chainsaw']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while Intoxicated"), value=f"{int(player_stats['survivorsdowned_intoxicated']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed after Haunting"), value=f"{int(player_stats['survivorsdowned_haunting']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while in Deep Wound"), value=f"{int(player_stats['survivorsdowned_deepwound']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while having max sickness"), value=f"{int(player_stats['survivorsdowned_maxsickness']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while marked (Ghostface)"), value=f"{int(player_stats['survivorsdowned_marked']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Shred"), value=f"{int(player_stats['survivorsdowned_shred']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Blood Fury"), value=f"{int(player_stats['survivorsdowned_bloodfury']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while Speared"), value=f"{int(player_stats['survivorsdowned_speared']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while Victor is clinging to them"), value=f"{int(player_stats['survivorsdowned_victor']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while contaminated"), value=f"{int(player_stats['survivorsdowned_contaminated']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while using Dire Crows"), value=f"{int(player_stats['survivorsdowned_direcrows']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed while exposed by Lock On"), value=f"{int(player_stats['survivorsdowned_lockon']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed during nightfall"), value=f"{int(player_stats['survivorsdowned_nightfall']):,}", inline=True)
+            embed10.add_field(name=await Functions.translate(interaction, "Downed using UVX"), value=f"{int(player_stats['survivorsdowned_uvx']):,}", inline=True)
             #Send Statistics
             await interaction.edit_original_response(embeds=[embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10])
 

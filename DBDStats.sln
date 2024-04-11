@@ -10,10 +10,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Pr
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
 		.gitlab-ci.yml = .gitlab-ci.yml
-		LICENSE = LICENSE
 		debug_build.bat = debug_build.bat
+		LICENSE = LICENSE
 		README.md = README.md
 		release_build.bat = release_build.bat
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "hooks", "hooks", "{BDE5405C-F889-44A9-9A60-75E90B5213D1}"
+	ProjectSection(SolutionItems) = preProject
+		hooks\pre-commit.py = hooks\pre-commit.py
 	EndProjectSection
 EndProject
 Global
@@ -27,6 +32,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{BDE5405C-F889-44A9-9A60-75E90B5213D1} = {D24DD320-B2C6-4FF8-A71F-0FF194FD7C8E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {85F648D8-4409-4D78-943D-A5F6972A913F}
