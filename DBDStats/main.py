@@ -2115,27 +2115,27 @@ class Info():
         else:
             #Get Stats
             removed = await Functions.check_if_removed(steamid)
-            clean_filename = os.path.basename(f'player_stats_{check[1]}.json')
+            clean_filename = os.path.basename(f'player_stats_{steamid}.json')
             file_path = os.path.join(stats_folder, clean_filename)
             if removed == 2:
                 await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
                 return
             elif removed == 3:
-                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+check[1], description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
+                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+steamid, description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
                 await interaction.followup.send(embed=embed1)
                 return
             elif removed != 0:
                 await interaction.followup.send(content = removed)
                 return
-            if os.path.exists(f'{stats_folder}player_stats_{check[1]}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{check[1]}.json')) / 3600) <= 4:
+            if os.path.exists(f'{stats_folder}player_stats_{steamid}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{steamid}.json')) / 3600) <= 4:
                 with open(file_path, 'r', encoding='utf8') as f:
                     player_stats = json.load(f)
             else:
                 try:
-                    data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={check[1]}')
+                    data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
                 except Exception:
                     async with aiohttp.ClientSession() as session:
-                        async with session.get(f'{api_base}playerstats?steamid={check[1]}') as resp:
+                        async with session.get(f'{api_base}playerstats?steamid={steamid}') as resp:
                             player_stats = await resp.json()
                             with open(file_path, 'w', encoding='utf8') as f:
                                 json.dump(player_stats, f, indent=2)
