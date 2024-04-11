@@ -64,7 +64,7 @@ load_dotenv()
 app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/' # For production
 #api_base = 'http://localhost:5000/' # For testing
-NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'

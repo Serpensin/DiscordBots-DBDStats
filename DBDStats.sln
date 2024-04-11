@@ -16,9 +16,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Pr
 		release_build.bat = release_build.bat
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "hooks", "hooks", "{BDE5405C-F889-44A9-9A60-75E90B5213D1}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "git-hooks", "git-hooks", "{C7EE63F3-DEFA-4950-BC52-6D49C073BD7C}"
 	ProjectSection(SolutionItems) = preProject
-		hooks\pre-commit.py = hooks\pre-commit.py
+		git-hooks\pre-commit = git-hooks\pre-commit
 	EndProjectSection
 EndProject
 Global
@@ -34,7 +34,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{BDE5405C-F889-44A9-9A60-75E90B5213D1} = {D24DD320-B2C6-4FF8-A71F-0FF194FD7C8E}
+		{C7EE63F3-DEFA-4950-BC52-6D49C073BD7C} = {D24DD320-B2C6-4FF8-A71F-0FF194FD7C8E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {85F648D8-4409-4D78-943D-A5F6972A913F}
