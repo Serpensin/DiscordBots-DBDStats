@@ -69,7 +69,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.11.4"
+bot_version = "1.11.5"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -1380,6 +1380,8 @@ class Functions():
     def merge_dictionaries(json1, json2):
         for key, value in json2.items():
             if key in json1:
+                if key == '_id':
+                    continue
                 json1[key].update(value)
             else:
                 json1[key] = value
