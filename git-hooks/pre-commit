@@ -47,5 +47,20 @@ def check_variables():
         print("ERROR: 'connection_string' must be correctly formatted in main.py for committing to master branch.")
         sys.exit(1)
 
+    # Check Sentry environment
+    expected = r"environment='Production'"
+    with open(main_file_path, 'r', encoding='utf-8') as file:
+        found = False
+        for line in file:
+            line = line.strip()
+            # Check if the line is not a comment and contains the expected connection string
+            if not line.startswith('#') and expected in line:
+                found = True
+                break
+
+    if not found:
+        print("ERROR: 'environment' for Sentry must be set to 'Production' in main.py for committing to master branch.")
+        sys.exit(1)
+
 # Execute the checks
 check_variables()

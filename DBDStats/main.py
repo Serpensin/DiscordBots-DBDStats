@@ -58,13 +58,12 @@ def clear():
 
 
 
-
 #Set vars
 load_dotenv()
 app_folder_name = 'DBDStats'
 api_base = 'https://dbd.tricky.lol/api/' # For production
 #api_base = 'http://localhost:5000/' # For testing
-NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
@@ -100,7 +99,7 @@ sentry_sdk.init(
     dsn=os.getenv('SENTRY_DSN'),
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
-    environment='Production'
+    environment='Development'
 )
 
 #Fix error on windows on shutdown.
@@ -138,7 +137,7 @@ logger.setLevel(logging.INFO)
 manlogger.setLevel(logging.INFO)
 logging.getLogger('discord.http').setLevel(logging.INFO)
 handler = logging.handlers.TimedRotatingFileHandler(
-    filename = f'{log_folder}DBDStats.log',
+    filename = f'{log_folder}{app_folder_name}.log',
     encoding = 'utf-8',
     when = 'midnight',
     backupCount = 27
@@ -219,8 +218,8 @@ except:
 if isRunnigInDocker:
     connection_string = f'mongodb://mongo:27017/DBDStats'
 else:
-    connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-    # connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    # connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
 db = AsyncIOMotorClient(connection_string, server_api=ServerApi('1'), serverSelectionTimeoutMS=10000)
 isDbAvailable = False
 
@@ -1962,7 +1961,7 @@ class Info():
     async def legacycheck(interaction: discord.Interaction, steamid):
         await interaction.response.defer()
         try:
-            check = await SteamApi.ownsGame(steamid, DBD_ID)
+            ownsDBD = await SteamApi.ownsGame(steamid, DBD_ID)
         except ValueError:
             await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             return
@@ -1974,9 +1973,10 @@ class Info():
             embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
             await interaction.followup.send(embed=embed)
             return
-        if not check:
+        if not ownsDBD:
             await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
         else:
+
             try:
                 data = await SteamApi.get_player_achievements(steamid, DBD_ID)
             except ValueError:
@@ -1985,6 +1985,9 @@ class Info():
                 embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
                 embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
                 await interaction.followup.send(embed=embed)
+                return
+            if int(data['playerstats']['steamID']) > 76561198347189883:
+                await interaction.followup.send(await Functions.translate(interaction, 'If this player has legacy, they are fraudulent.'))
                 return
             if data['playerstats']['success'] == False:
                 await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
@@ -2099,49 +2102,47 @@ class Info():
         if steamid is None:
             await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
             return
-        try:
-            check = await SteamApi.ownsGame(steamid, DBD_ID)
-        except ValueError:
-            await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
-            return
-        except steam.Errors.Private:
-            await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
-            return
-        except steam.Errors.RateLimit:
-            embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
-            embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
-            await interaction.followup.send(embed=embed)
-            return
-        if not check:
+        file_path = os.path.join(stats_folder, os.path.basename(f'player_stats_{steamid}.json'))
+        if os.path.exists(f'{stats_folder}player_stats_{steamid}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{steamid}.json')) / 3600) <= 4:
+            with open(file_path, 'r', encoding='utf8') as f:
+                player_stats = json.load(f)
+                ownsDBD = True
+        else:
+            try:
+                ownsDBD = await SteamApi.ownsGame(steamid, DBD_ID)
+            except ValueError:
+                await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
+                return
+            except steam.Errors.Private:
+                await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
+                return
+            except steam.Errors.RateLimit:
+                embed = discord.Embed(title="Fatal Error", description=f"{await Functions.translate(interaction, 'It looks like the bot ran into a rate limit, while querying the SteamAPI. Please join our')} [Support-Server]({str(await Functions.create_support_invite(interaction))}){await Functions.translate(interaction, ') and create a ticket to tell us about this.')}", color=0xff0000)
+                embed.set_author(name="./Serpensin.sh", icon_url="https://cdn.discordapp.com/avatars/863687441809801246/a_64d8edd03839fac2f861e055fc261d4a.gif")
+                await interaction.followup.send(embed=embed)
+                return
+        if not ownsDBD:
             await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
+            return
         else:
             #Get Stats
-            removed = await Functions.check_if_removed(steamid)
-            clean_filename = os.path.basename(f'player_stats_{steamid}.json')
-            file_path = os.path.join(stats_folder, clean_filename)
-            if removed == 2:
-                await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
-                return
-            elif removed == 3:
-                embed1 = discord.Embed(title="Statistics", url=alt_playerstats+steamid, description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
-                await interaction.followup.send(embed=embed1)
-                return
-            elif removed != 0:
-                await interaction.followup.send(content = removed)
-                return
-            if os.path.exists(f'{stats_folder}player_stats_{steamid}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{steamid}.json')) / 3600) <= 4:
-                with open(file_path, 'r', encoding='utf8') as f:
-                    player_stats = json.load(f)
-            else:
-                data = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
-                if type(data) == dict:
-                    with open(file_path, 'w', encoding='utf8') as f:
-                        json.dump(data, f, indent=2)
-                else:
-                    await interaction.followup.send(await Functions.translate(interaction, "The stats got loaded in the last 4h but I don't have a local copy. Try again in ~3-4h."), ephemeral=True)
-                    return
-                with open(file_path, 'r', encoding='utf8') as f:
-                    player_stats = json.load(f)
+            if 'player_stats' not in locals(): # This means, that the stats are not loaded from the file.
+                try:
+                    player_stats = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
+                except Exception:
+                    removed = await Functions.check_if_removed(steamid)
+                    if removed == 2:
+                        await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
+                        return
+                    elif removed == 3:
+                        embed1 = discord.Embed(title="Statistics", url=alt_playerstats+steamid, description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
+                        await interaction.followup.send(embed=embed1)
+                        return
+                    elif removed != 0:
+                        await interaction.followup.send(content = removed)
+                        return
+                with open(file_path, 'w', encoding='utf8') as f:
+                    json.dump(player_stats, f, indent=2)
             try:
                 steam_data = await SteamApi.get_player_summeries(steamid)
             except ValueError:
@@ -2155,8 +2156,8 @@ class Info():
             if steam_data == {}:
                 await interaction.followup.send(await Functions.translate(interaction, "It looks like this profile is private.\nHowever, in order for this bot to work, you must set your profile (including the game details) to public.\nYou can do so, by clicking") + f" [here](https://steamcommunity.com/my/edit/settings?snr=).", suppress_embeds = True)
                 return
+            await interaction.followup.send(await Functions.translate(interaction, "Loading stats. This can take a while, if something needs to be translated."))
 
-            first_message = await interaction.followup.send(await Functions.translate(interaction, "Loading stats. This can take a while, if something needs to be translated."))
             event = steam_data['response']['players'][0]
             personaname = event['personaname']
             profileurl = event['profileurl']
@@ -2343,7 +2344,10 @@ class Info():
             embed10.add_field(name=await Functions.translate(interaction, "Downed during nightfall"), value=f"{int(player_stats['survivorsdowned_nightfall']):,}", inline=True)
             embed10.add_field(name=await Functions.translate(interaction, "Downed using UVX"), value=f"{int(player_stats['survivorsdowned_uvx']):,}", inline=True)
             #Send Statistics
-            await interaction.edit_original_response(embeds=[embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10])
+            embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
+            await interaction.delete_original_response()
+            await interaction.followup.send(embeds=embeds[0:5])
+            await interaction.followup.send(embeds=embeds[5:10])
 
     async def rankreset(interaction: discord.Interaction):
         async with aiohttp.ClientSession() as session:
