@@ -2052,7 +2052,7 @@ class Info():
         await SendInfo.perk(name, lang, interaction)
 
     async def playercount(interaction: discord.Interaction):
-        async def selfembed(data):
+        async def _embed(data):
             embed = discord.Embed(title=await Functions.translate(interaction, "Player count"), color=0xb19325)
             embed.set_thumbnail(url=f"{bot_base}dbd.png")
             embed.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2061,7 +2061,7 @@ class Info():
             embed.add_field(name=await Functions.translate(interaction, "All-time Peak"), value=f"{int(data['Peak Players All Time']):,}", inline=True)
             embed.set_footer(text=await Functions.translate(interaction, "This will be updated every full hour."))
             await interaction.followup.send(embed = embed)
-        async def selfget():
+        async def _get():
             data = await steamcharts.playercount('381210')
             try:
                 current_players = data['Current Players']
@@ -2083,9 +2083,9 @@ class Info():
             with open(buffer_folder+'playercount.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
             if data['update_hour'] == datetime.datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
-                await selfembed(data)
+                await _embed(data)
                 return
-        await selfembed(await selfget())
+        await _embed(await _get())
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
@@ -3056,7 +3056,7 @@ autocomplete = AutoComplete()
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def ping(interaction: discord.Interaction):
         before = time.monotonic()
         await interaction.response.send_message('Pong!')
         ping = (time.monotonic() - before) * 1000
@@ -3065,7 +3065,7 @@ async def self(interaction: discord.Interaction):
 #Bot Info
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def botinfo(interaction: discord.Interaction):
         member_count = sum(guild.member_count for guild in bot.guilds)
 
         embed = discord.Embed(
@@ -3119,7 +3119,7 @@ async def self(interaction: discord.Interaction):
                                shrine = 'Subscribe to the shrine.',
                                changelogs = 'Subscribe to the changelogs of this bot.'
                                )
-async def self(interaction: discord.Interaction,
+async def subscribe(interaction: discord.Interaction,
                channel: discord.TextChannel,
                shrine: bool,
                changelogs: bool
@@ -3172,7 +3172,7 @@ async def self(interaction: discord.Interaction,
 @tree.command(name = 'translation_info', description = 'Get info about the translation.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
-async def self(interaction: discord.Interaction):
+async def translation_info(interaction: discord.Interaction):
         await interaction.response.defer(thinking = True, ephemeral = True)
 
         if interaction.guild is None:
@@ -3197,7 +3197,7 @@ async def self(interaction: discord.Interaction):
 #Support Invite
 @tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def support(interaction: discord.Interaction):
         if str(interaction.guild.id) != SUPPORTID:
             await interaction.response.defer(ephemeral = True)
             await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
@@ -3209,7 +3209,7 @@ async def self(interaction: discord.Interaction):
 #Buy
 @tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.channel.id))
-async def self(interaction: discord.Interaction):
+async def buy(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message(await Functions.translate(interaction, "This command can only be used in a server."))
     else:
@@ -3259,7 +3259,7 @@ async def self(interaction: discord.Interaction):
     discord.app_commands.Choice(name = 'Twitch', value = 'twitch'),
     discord.app_commands.Choice(name = 'Versions', value = 'version')
     ])
-async def self(interaction: discord.Interaction,
+async def info(interaction: discord.Interaction,
                category: str,
                addon: str = None,
                character: str = None,
@@ -3391,7 +3391,7 @@ async def self(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Map', value = 'map'),
     discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def self(interaction: discord.Interaction,
+async def random(interaction: discord.Interaction,
                     category: str,
                     item: str = None,
                     killer: str = None):
