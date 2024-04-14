@@ -28,13 +28,13 @@ services:
       twitch_client_secret: twitch_client_secret
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
-      GOOGLE_APPLICATION_CREDENTIALS: Google Application Credentials JSON File
       MongoDB_host: mongo           #####################################
       MongoDB_port: 27017           #           Don't change!!!         #
       MongoDB_database: DBDStats    #####################################
     image: serpensin/dbdstats
     volumes:
       - dbdstats:/app/DBDStats
+      - /PATH/TO/googleauth.json:/app/googleauth.json
     depends_on:
       - mongo
     networks:

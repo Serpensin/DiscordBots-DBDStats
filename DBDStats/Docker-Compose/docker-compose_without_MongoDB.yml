@@ -18,10 +18,10 @@ services:
       twitch_client_secret: twitch_client_secret
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
-      GOOGLE_APPLICATION_CREDENTIALS: Google Application Credentials JSON File
     image: serpensin/dbdstats
     volumes:
-    - dbdstats_log:/app/DBDStats
+      - dbdstats_log:/app/DBDStats
+      - /PATH/TO/googleauth.json:/app/googleauth.json
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
