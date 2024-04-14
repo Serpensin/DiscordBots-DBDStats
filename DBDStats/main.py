@@ -11,7 +11,6 @@ import json
 import jsonschema
 import logging
 import logging.handlers
-import math
 import os
 import platform
 import psutil
@@ -22,7 +21,7 @@ import re
 import sentry_sdk
 import sqlite3
 import sys
-import traceback
+import tempfile
 import zlib
 from aiohttp import web
 from bs4 import BeautifulSoup
@@ -39,7 +38,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 from typing import Any, List, Literal, Optional
 from urllib.parse import urlparse
-from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
@@ -68,7 +66,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.12.0"
+bot_version = "1.13.0"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -90,7 +88,7 @@ TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
 DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
 DISCORDLIST_TOKEN = os.getenv('DISCORDLIST_TOKEN')
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', './googleauth.json')
 
 discord.VoiceClient.warn_nacl = False
 
@@ -107,22 +105,24 @@ if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 #Set-up folders
-paths = [
-        f'{app_folder_name}//Logs',
-        f'{app_folder_name}//Buffer//Stats',
-        f'{app_folder_name}//Buffer//addon',
-        f'{app_folder_name}//Buffer//char',
-        f'{app_folder_name}//Buffer//dlc',
-        f'{app_folder_name}//Buffer//event',
-        f'{app_folder_name}//Buffer//item',
-        f'{app_folder_name}//Buffer//killer',
-        f'{app_folder_name}//Buffer//map',
-        f'{app_folder_name}//Buffer//offering',
-        f'{app_folder_name}//Buffer//patchnotes',
-        f'{app_folder_name}//Buffer//perk',
-    ]
-for path in paths:
-    os.makedirs(path, exist_ok=True)
+def folder_setup():
+    paths = [
+            f'{app_folder_name}//Logs',
+            f'{app_folder_name}//Buffer//Stats',
+            f'{app_folder_name}//Buffer//addon',
+            f'{app_folder_name}//Buffer//char',
+            f'{app_folder_name}//Buffer//dlc',
+            f'{app_folder_name}//Buffer//event',
+            f'{app_folder_name}//Buffer//item',
+            f'{app_folder_name}//Buffer//killer',
+            f'{app_folder_name}//Buffer//map',
+            f'{app_folder_name}//Buffer//offering',
+            f'{app_folder_name}//Buffer//patchnotes',
+            f'{app_folder_name}//Buffer//perk',
+        ]
+    for path in paths:
+        os.makedirs(path, exist_ok=True)
+folder_setup()
 log_folder = f'{app_folder_name}//Logs//'
 buffer_folder = f'{app_folder_name}//Buffer//'
 stats_folder = f'{app_folder_name}//Buffer//Stats//'
@@ -440,7 +440,6 @@ class aclient(discord.AutoShardedClient):
                 except Exception as e:
                     manlogger.warning(f"Unexpected error while sending message: {e}")
             finally:
-                traceback.print_exception(type(error), error, error.__traceback__)
                 try:
                     manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
                     print(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
@@ -520,7 +519,7 @@ class Cache():
     async def _update_perks():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f"{api_base}perks?locale={lang}")
+                data = await Functions.check_rate_limit(f"{api_base}perks?locale={lang}")
             except Exception:
                 manlogger.warning("Perks couldn't be updated.")
                 print("Perks couldn't be updated.")
@@ -534,7 +533,7 @@ class Cache():
     async def _update_offerings():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}offerings?locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}offerings?locale={lang}')
             except Exception:
                 manlogger.warning("Offerings couldn't be updated.")
                 print("Offerings couldn't be updated.")
@@ -548,7 +547,7 @@ class Cache():
     async def _update_chars():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}characters?locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}characters?locale={lang}')
             except Exception:
                 manlogger.warning("Characters couldn't be updated.")
                 print("Characters couldn't be updated.")
@@ -562,7 +561,7 @@ class Cache():
     async def _update_dlc():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}dlc?locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}dlc?locale={lang}')
             except Exception:
                 manlogger.warning("DLC couldn't be updated.")
                 print("DLC couldn't be updated.")
@@ -576,7 +575,7 @@ class Cache():
     async def _update_item():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
             except Exception:
                 manlogger.warning("Items couldn't be updated.")
                 print("Items couldn't be updated.")
@@ -590,7 +589,7 @@ class Cache():
     async def _update_addon():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}addons?locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}addons?locale={lang}')
             except Exception:
                 manlogger.warning("Addons couldn't be updated.")
                 print("Addons couldn't be updated.")
@@ -604,7 +603,7 @@ class Cache():
     async def _update_map():
         for lang in api_langs:
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}maps?locale={lang}')
+                data = await Functions.check_rate_limit(f'{api_base}maps?locale={lang}')
             except Exception:
                 manlogger.warning("Maps couldn't be updated.")
                 print("Maps couldn't be updated.")
@@ -618,7 +617,7 @@ class Cache():
     async def _update_event():
         for lang in api_langs:
             try:
-                data_list = await Functions.check_api_rate_limit(f'{api_base}events?locale={lang}')
+                data_list = await Functions.check_rate_limit(f'{api_base}events?locale={lang}')
             except Exception:
                 manlogger.warning("Events couldn't be updated.")
                 print("Events couldn't be updated.")
@@ -634,7 +633,7 @@ class Cache():
 
     async def _update_version():
         try:
-            data = await Functions.check_api_rate_limit(f'{api_base}versions')
+            data = await Functions.check_rate_limit(f'{api_base}versions')
         except Exception:
             manlogger.warning("Version couldn't be updated.")
             print("Version couldn't be updated.")
@@ -647,7 +646,7 @@ class Cache():
 
     async def _update_patchnotes():
         try:
-            data = await Functions.check_api_rate_limit(f'{api_base}patchnotes')
+            data = await Functions.check_rate_limit(f'{api_base}patchnotes')
         except Exception:
             manlogger.warning("Patchnotes couldn't be updated.")
             print("Patchnotes couldn't be updated.")
@@ -747,20 +746,43 @@ class Cache():
 
         tasks = [asyncio.create_task(update) for update in updates]
 
+        cache429 = False
         for task in tasks:
            task = await task
            if task == 1 and not bot.cache_updated:
-               manlogger.critical('Cache couldn\'t be updated, because of a 429. Exiting...')
-               sys.exit("Cache couldn't be updated, because of a 429. Exiting...")
+               cache429 = True
+        if cache429:
+            message = 'Cache couldn\'t be populated, because of a 429. Exiting...'
+            paths = [
+                f'{buffer_folder}addon',
+                f'{buffer_folder}char',
+                f'{buffer_folder}dlc',
+                f'{buffer_folder}event',
+                f'{buffer_folder}item',
+                f'{buffer_folder}killer',
+                f'{buffer_folder}map',
+                f'{buffer_folder}offering',
+                f'{buffer_folder}patchnotes',
+                f'{buffer_folder}perk',
+            ]
+            for path in paths:
+                for lang in api_langs:
+                    filename = f"{path}//{lang}.json"
+                    if not os.path.exists(filename):
+                        manlogger.critical(message)
+                        sys.exit(message)
+            if not os.path.exists(f"{buffer_folder}//version_info.json"):
+                manlogger.critical(message)
+                sys.exit(message)
         await Cache._name_lists()
 
         bot.cache_updated = True
-
         print('Cache updated.')
         manlogger.info('Cache updated.')
 
     async def task():
         if NO_CACHE:
+            await Cache._name_lists()
             bot.cache_updated = True
             return
         while True:
@@ -848,7 +870,7 @@ class Background():
     async def subscribe_shrine_task():
         async def function():
             try:
-                shrine_new = await Functions.check_api_rate_limit('https://api.nightlight.gg/v1/shrine')
+                shrine_new = await Functions.check_rate_limit('https://api.nightlight.gg/v1/shrine')
             except Exception:
                 manlogger.warning("Shrine couldn't be updated.")
                 print("Shrine couldn't be updated.")
@@ -956,7 +978,7 @@ class Functions():
             pt('LibreTranslate languages loaded.')
             print(libre_languages)
 
-    async def check_api_rate_limit(url):
+    async def check_rate_limit(url):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 print(response)
@@ -1470,15 +1492,14 @@ class SendInfo():
                 print(f"Story length: {len(story_text)}")
                 if len(story_text) > 4096:
                     story_text = Functions.insert_newlines(story_text)
-                    story_file = f'{buffer_folder}character_story{uuid4()}.txt'
-                    with open(story_file, 'w', encoding='utf8') as f:
+                    with tempfile.NamedTemporaryFile(suffix='.txt', mode='w', delete=False, encoding='utf8') as story_file:
                         if lang in api_langs and lang != 'en':
-                            f.write(story_text)
+                            story_file.write(story_text)
                         else:
-                            f.write(await Functions.translate(interaction, story_text))
+                            story_file.write(await Functions.translate(interaction, story_text))
                     await interaction.followup.send(embed=embed, ephemeral = True)
-                    await interaction.followup.send(f"Story of {data[key]['name']}", file=discord.File(f"{story_file}"), ephemeral=True)
-                    os.remove(story_file)
+                    await interaction.followup.send(f"Story of {data[key]['name']}", file=discord.File(f"{story_file.name}"), ephemeral=True)
+                    os.remove(story_file.name)
                     return
                 elif 1024 < len(story_text) <= 4096:
                     if lang in api_langs and lang != 'en':
@@ -1714,7 +1735,7 @@ class Info():
                 await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
                 return
             try:
-                data = await Functions.check_api_rate_limit(f'{api_base}playeradepts?steamid={steamid}')
+                data = await Functions.check_rate_limit(f'{api_base}playeradepts?steamid={steamid}')
             except Exception:
                 await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
                 return
@@ -1813,10 +1834,8 @@ class Info():
             data = dict(sorted(data.items(), key=lambda x: x[1]['time']))
 
             num_entries = sum(1 for key in data.keys() if key != '_id')
-
             max_fields_per_embed = 24
-
-            num_embeds = math.ceil(num_entries / max_fields_per_embed)
+            num_embeds = -(-num_entries // max_fields_per_embed)
 
             embed_description = (await Functions.translate(interaction, "Here is a list of all DLCs. Click the link to go to the steam storepage."))
 
@@ -2052,7 +2071,7 @@ class Info():
         await SendInfo.perk(name, lang, interaction)
 
     async def playercount(interaction: discord.Interaction):
-        async def _embed(data):
+        async def selfembed(data):
             embed = discord.Embed(title=await Functions.translate(interaction, "Player count"), color=0xb19325)
             embed.set_thumbnail(url=f"{bot_base}dbd.png")
             embed.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2061,7 +2080,7 @@ class Info():
             embed.add_field(name=await Functions.translate(interaction, "All-time Peak"), value=f"{int(data['Peak Players All Time']):,}", inline=True)
             embed.set_footer(text=await Functions.translate(interaction, "This will be updated every full hour."))
             await interaction.followup.send(embed = embed)
-        async def _get():
+        async def selfget():
             data = await steamcharts.playercount('381210')
             try:
                 current_players = data['Current Players']
@@ -2083,9 +2102,9 @@ class Info():
             with open(buffer_folder+'playercount.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
             if data['update_hour'] == datetime.datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
-                await _embed(data)
+                await selfembed(data)
                 return
-        await _embed(await _get())
+        await selfembed(await selfget())
 
     async def playerstats(interaction: discord.Interaction, steamid):
         await interaction.response.defer(thinking=True)
@@ -2128,7 +2147,7 @@ class Info():
             #Get Stats
             if 'player_stats' not in locals(): # This means, that the stats are not loaded from the file.
                 try:
-                    player_stats = await Functions.check_api_rate_limit(f'{api_base}playerstats?steamid={steamid}')
+                    player_stats = await Functions.check_rate_limit(f'{api_base}playerstats?steamid={steamid}')
                 except Exception:
                     removed = await Functions.check_if_removed(steamid)
                     if removed == 2:
@@ -2762,7 +2781,6 @@ class Owner():
                 if len(text) > 2000:
                     send_as_file = True
         except:
-            traceback.print_exc()
             manlogger.warning(f'Error while reading the changelog file.')
             await message.channel.send('Error while reading the changelog file.')
             os.remove(changelog)
@@ -2799,7 +2817,6 @@ class Owner():
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except:
-                    traceback.print_exc()
                     manlogger.warning(f'Error while publishing the changelog to {entry[2]}.')
                     published_total += 1
             else:
@@ -2821,7 +2838,6 @@ class Owner():
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except:
-                    traceback.print_exc()
                     manlogger.warning(f'Error while publishing the changelog to {entry[2]}.')
                     published_total += 1
         os.remove(changelog)
@@ -3056,7 +3072,7 @@ autocomplete = AutoComplete()
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
-async def ping(interaction: discord.Interaction):
+async def self(interaction: discord.Interaction):
         before = time.monotonic()
         await interaction.response.send_message('Pong!')
         ping = (time.monotonic() - before) * 1000
@@ -3065,7 +3081,7 @@ async def ping(interaction: discord.Interaction):
 #Bot Info
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def botinfo(interaction: discord.Interaction):
+async def self(interaction: discord.Interaction):
         member_count = sum(guild.member_count for guild in bot.guilds)
 
         embed = discord.Embed(
@@ -3119,7 +3135,7 @@ async def botinfo(interaction: discord.Interaction):
                                shrine = 'Subscribe to the shrine.',
                                changelogs = 'Subscribe to the changelogs of this bot.'
                                )
-async def subscribe(interaction: discord.Interaction,
+async def self(interaction: discord.Interaction,
                channel: discord.TextChannel,
                shrine: bool,
                changelogs: bool
@@ -3172,7 +3188,7 @@ async def subscribe(interaction: discord.Interaction,
 @tree.command(name = 'translation_info', description = 'Get info about the translation.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
-async def translation_info(interaction: discord.Interaction):
+async def self(interaction: discord.Interaction):
         await interaction.response.defer(thinking = True, ephemeral = True)
 
         if interaction.guild is None:
@@ -3197,7 +3213,7 @@ async def translation_info(interaction: discord.Interaction):
 #Support Invite
 @tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def support(interaction: discord.Interaction):
+async def self(interaction: discord.Interaction):
         if str(interaction.guild.id) != SUPPORTID:
             await interaction.response.defer(ephemeral = True)
             await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
@@ -3209,7 +3225,7 @@ async def support(interaction: discord.Interaction):
 #Buy
 @tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.channel.id))
-async def buy(interaction: discord.Interaction):
+async def self(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message(await Functions.translate(interaction, "This command can only be used in a server."))
     else:
@@ -3259,7 +3275,7 @@ async def buy(interaction: discord.Interaction):
     discord.app_commands.Choice(name = 'Twitch', value = 'twitch'),
     discord.app_commands.Choice(name = 'Versions', value = 'version')
     ])
-async def info(interaction: discord.Interaction,
+async def self(interaction: discord.Interaction,
                category: str,
                addon: str = None,
                character: str = None,
@@ -3391,7 +3407,7 @@ async def info(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Map', value = 'map'),
     discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def random(interaction: discord.Interaction,
+async def self(interaction: discord.Interaction,
                     category: str,
                     item: str = None,
                     killer: str = None):
