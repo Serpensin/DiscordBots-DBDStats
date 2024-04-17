@@ -12,7 +12,7 @@
     <Name>DBDStats</Name>
     <RootNamespace>DBDStats</RootNamespace>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
-    <InterpreterId>MSBuild|playground|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
     <SuppressPackageInstallationPrompt>True</SuppressPackageInstallationPrompt>
   </PropertyGroup>
@@ -46,7 +46,6 @@
     <Content Include="Docker-Compose\docker-compose.yml" />
     <Content Include="googleauth.json" />
     <Content Include="requirements.txt" />
-    <Content Include="translation_test.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CustomModules\" />
