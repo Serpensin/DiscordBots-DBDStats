@@ -19,6 +19,7 @@ import pytz
 import random
 import re
 import sentry_sdk
+import signal
 import sqlite3
 import sys
 import tempfile
@@ -66,7 +67,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.13.0"
+bot_version = "1.13.2"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -452,7 +453,8 @@ class aclient(discord.AutoShardedClient):
         if self.initialized:
             await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
             return
-        global owner, start_time, conn, c
+        global owner, start_time, conn, c, shutdown
+        shutdown = False
         logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
             manlogger.info('Syncing...')
@@ -512,6 +514,16 @@ bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
 tree.on_error = bot.on_app_command_error
 
+
+class SignalHandler:
+    def __init__(self):
+        signal.signal(signal.SIGINT, self._shutdown)
+        signal.signal(signal.SIGTERM, self._shutdown)
+
+    def _shutdown(self, signum, frame):
+        manlogger.info('Received signal to shutdown...')
+        pt('Received signal to shutdown...')
+        bot.loop.create_task(Owner.shutdown(owner))
 
 
 #Update cache/db (Every ~4h)
@@ -2930,9 +2942,14 @@ class Owner():
             return
 
     async def shutdown(message):
+        global shutdown
         manlogger.info('Engine powering down...')
-        await message.channel.send('Engine powering down...')
+        try:
+            await message.channel.send('Engine powering down...')
+        except:
+            await owner.send('Engine powering down...')
         await bot.change_presence(status=discord.Status.invisible)
+        shutdown = True
 
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]
@@ -3540,6 +3557,7 @@ if __name__ == '__main__':
         sys.exit(error_message)
     else:
         try:
+            SignalHandler()
             asyncio.run(Functions.build_lang_lists())
             bot.run(TOKEN, log_handler=None)
         except discord.errors.LoginFailure:
@@ -3547,4 +3565,5 @@ if __name__ == '__main__':
             manlogger.critical(error_message)
             sys.exit(error_message)
         except asyncio.CancelledError:
-            pass
+            if shutdown:
+                pass

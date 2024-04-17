@@ -17,8 +17,8 @@ async def get_killswitch(return_type='html'):
             page_content = await response.text()
             soup = BeautifulSoup(page_content, 'html.parser')
 
-            kill_switch_section = soup.find('h2', {'data-id': 'kill-switch-(disabled)'})
-            known_issues_section = soup.find('h2', {'data-id': 'known-issues-(not-disabled)'})
+            kill_switch_section = soup.find('h2', {'data-id': 'kill-switch-disabled'})
+            known_issues_section = soup.find('h2', {'data-id': 'known-issues-not-disabled'})
 
             content = []
             current_section = kill_switch_section.find_next_sibling()
