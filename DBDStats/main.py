@@ -217,7 +217,7 @@ except:
 
 
 if isRunnigInDocker:
-    if DB_PASS != '':
+    if DB_PASS != '' and DB_NAME != '':
         connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     else:
         connection_string = f'mongodb://mongo:27017/DBDStats'

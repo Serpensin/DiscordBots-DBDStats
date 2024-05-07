@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: MongoDB
+    hostname: mongo
+    restart: always
+    volumes:
+      - dbdata:/data/db
+    networks:
+      - dbd_net
+
+  dbdstats:
+    container_name: DBDStats
+    ports:
+      - "5000:5000"
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      SENTRY_DSN: SENTRY_DSN_FOR_ERROR_REPORTING
+      steamAPIkey: STEAM_APIKEY
+      support_server: ID_OF_SUPPORTSERVER
+      TOKEN: BOT_TOKEN
+      OWNER_ID: DISCORD_ID_OF_OWNER
+      twitch_client_id: twitch_client_id
+      twitch_client_secret: twitch_client_secret
+      libretransURL: URL_for_libretranslate
+      libretransAPIkey: APIKey_for_libretranslate
+      MongoDB_host: mongo           #####################################
+      MongoDB_port: 27017           #									#
+      MongoDB_user: USERNAME		#           Don't change!!!         #
+      MongoDB_password: PASSWORD    #									#
+      MongoDB_database: DBDStats    #####################################
+    image: serpensin/dbdstats
+    volumes:
+      - dbdstats:/app/DBDStats
+      - /PATH/TO/googleauth.json:/app/googleauth.json
+    depends_on:
+      - mongo
+    networks:
+      - dbd_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  dbd_net:
+
+volumes:
+  dbdata:
+  dbdstats:
