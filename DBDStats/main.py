@@ -215,7 +215,7 @@ except:
     print('Not running in docker container.')
     isRunnigInDocker = False
 
-isRunnigInDocker = True
+
 if isRunnigInDocker:
     if DB_PASS != '':
         connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
