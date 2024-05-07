@@ -67,7 +67,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.13.2"
+bot_version = "1.13.3"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 
@@ -215,9 +215,12 @@ except:
     print('Not running in docker container.')
     isRunnigInDocker = False
 
-
+isRunnigInDocker = True
 if isRunnigInDocker:
-    connection_string = f'mongodb://mongo:27017/DBDStats'
+    if DB_PASS != '':
+        connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    else:
+        connection_string = f'mongodb://mongo:27017/DBDStats'
 else:
     connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     # connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
@@ -347,16 +350,16 @@ class aclient(discord.AutoShardedClient):
     async def setup_database(self):
         c.executescript('''
         CREATE TABLE IF NOT EXISTS "changelogs" (
-	        "id"	        INTEGER,
+            "id"	        INTEGER,
             "guild_id"      INTEGER,
-	        "channel_id"	INTEGER,
-	        PRIMARY KEY("id" AUTOINCREMENT)
+            "channel_id"	INTEGER,
+            PRIMARY KEY("id" AUTOINCREMENT)
         );
         CREATE TABLE IF NOT EXISTS "shrine" (
-	        "id"	        INTEGER,
+            "id"	        INTEGER,
             "guild_id"      INTEGER,
-	        "channel_id"	INTEGER,
-	        PRIMARY KEY("id" AUTOINCREMENT)
+            "channel_id"	INTEGER,
+            PRIMARY KEY("id" AUTOINCREMENT)
         )
         ''')
 
