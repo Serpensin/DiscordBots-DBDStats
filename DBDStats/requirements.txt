@@ -33,7 +33,7 @@ psutil==5.9.8
 pyasn1_modules==0.4.0
 pyasn1==0.6.0
 pycountry==23.12.11
-pymongo==4.7.1
+pymongo==4.7.2
 python-dotenv==1.0.1
 pytz==2024.1
 referencing==0.35.1

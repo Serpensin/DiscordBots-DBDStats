@@ -34,6 +34,7 @@ from CustomModules import steam
 from CustomModules import steamcharts
 from CustomModules.app_translation import Translator as CommandTranslator
 from CustomModules.twitch import TwitchAPI
+from discord.utils import is_docker
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
@@ -70,6 +71,7 @@ steamStore = 'https://store.steampowered.com/app/'
 bot_version = "1.13.3"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
+isRunnigInDocker = is_docker()
 
 #Load env
 TOKEN = os.getenv('TOKEN')
@@ -199,21 +201,6 @@ class JSONValidator:
                     json.dump(self.default_content, file, indent=4)
 validator = JSONValidator(activity_file)
 validator.validate_and_fix_json()
-
-
-#Check if running in docker
-try:
-    isRunnigInDocker = os.getenv('RUNNING_IN_DOCKER', 'false').lower() == 'true'
-    if isRunnigInDocker:
-        manlogger.info('Running in docker container.')
-        pt('Running in docker container.')
-    else:
-        manlogger.info('Not running in docker container.')
-        pt('Not running in docker container.')
-except:
-    manlogger.info('Not running in docker container.')
-    print('Not running in docker container.')
-    isRunnigInDocker = False
 
 
 if isRunnigInDocker:

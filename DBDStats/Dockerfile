@@ -1,4 +1,4 @@
-﻿FROM python:3.12.2-alpine
+﻿FROM python:3.12.3-alpine
 
 WORKDIR /app
 
@@ -9,7 +9,6 @@ COPY requirements.txt .
 
 ENV TERM xterm
 ENV PYTHONUNBUFFERED 1
-ENV RUNNING_IN_DOCKER 'true'
 
 ARG TARGETPLATFORM
 ARG BUILD_DATE
@@ -32,7 +31,7 @@ LABEL MAINTAINER="Discord: the_devil_of_the_rhine (863687441809801246)" \
       COMMIT=$COMMIT \
       DESCRIPTION="Discord bot for DBD for Steam stats." \
       RELEASE=$BUILD_DATE \
-      VERSION="1.13.3" \
+      VERSION="1.13.4" \
       URL="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]
