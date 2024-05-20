@@ -2480,11 +2480,11 @@ class Info():
         i = 0
         for key in data.keys():
             i += 1
-            if i <= 5:
+            if i <= 6:
                 embed1.add_field(name='\u200b', value=key.capitalize(), inline=True)
                 embed1.add_field(name='\u200b', value=data[key]['version'], inline=True)
                 embed1.add_field(name='\u200b', value=str(await Functions.convert_time(data[key]['lastupdate'])+' UTC'), inline=True)
-            if i >= 6:
+            if i >= 7:
                 embed2.add_field(name='\u200b', value=key.capitalize(), inline=True)
                 embed2.add_field(name='\u200b', value=data[key]['version'], inline=True)
                 embed2.add_field(name='\u200b', value=str(await Functions.convert_time(data[key]['lastupdate'])+' UTC'), inline=True)
