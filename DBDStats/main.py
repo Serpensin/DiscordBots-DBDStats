@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.0"
+bot_version = "1.14.1"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -1204,7 +1204,7 @@ class Functions():
             lang = await Functions.get_language_code(interaction)
         else:
             lang = interaction
-        if type(interaction) != discord.Guild:
+        if type(interaction) != discord.Guild and type(interaction) != str:
             if interaction.guild is None or lang == 'en':
                 return text
 
