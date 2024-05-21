@@ -18,6 +18,7 @@ services:
       twitch_client_secret: twitch_client_secret
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
+      LOG_LEVEL: INFO
     image: serpensin/dbdstats
     volumes:
       - dbdstats_log:/app/DBDStats

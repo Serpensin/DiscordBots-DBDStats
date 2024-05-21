@@ -28,6 +28,7 @@
     <Compile Include="CustomModules\app_translation.py" />
     <Compile Include="CustomModules\bot_directory.py" />
     <Compile Include="CustomModules\googletrans.py" />
+    <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\steam.py" />
     <Compile Include="CustomModules\steamcharts.py" />
     <Compile Include="Dockerfile" />

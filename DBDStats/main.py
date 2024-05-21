@@ -1,5 +1,4 @@
 #Import
-print('Loading...')
 import time
 startupTime_start = time.time()
 import aiohttp
@@ -9,8 +8,6 @@ import discord
 import html2text
 import json
 import jsonschema
-import logging
-import logging.handlers
 import os
 import platform
 import psutil
@@ -28,6 +25,7 @@ from aiohttp import web
 from bs4 import BeautifulSoup
 from CustomModules import bot_directory
 from CustomModules import googletrans
+from CustomModules import log_handler
 from CustomModules import killswitch
 from CustomModules import libretrans
 from CustomModules import steam
@@ -43,12 +41,6 @@ from urllib.parse import urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
-
-# print() will only print if run in debugger. pt() will always print.
-pt = print
-def print(msg):
-    if sys.gettrace() is not None:
-        pt(msg)
 
 def clear():
     if platform.system() == 'Windows':
@@ -68,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.13.3"
+bot_version = "1.14.0"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -92,6 +84,7 @@ DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
 DISCORDLIST_TOKEN = os.getenv('DISCORDLIST_TOKEN')
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', './googleauth.json')
+LOG_LEVEL = os.getenv('LOG_LEVEL')
 
 discord.VoiceClient.warn_nacl = False
 
@@ -133,24 +126,11 @@ activity_file = os.path.join(app_folder_name, 'activity.json')
 sql_file = os.path.join(app_folder_name, f'{app_folder_name}.db')
 
 
-#Set-up logging
-logger = logging.getLogger('discord')
-manlogger = logging.getLogger('Program')
-logger.setLevel(logging.INFO)
-manlogger.setLevel(logging.INFO)
-logging.getLogger('discord.http').setLevel(logging.INFO)
-handler = logging.handlers.TimedRotatingFileHandler(
-    filename = f'{log_folder}{app_folder_name}.log',
-    encoding = 'utf-8',
-    when = 'midnight',
-    backupCount = 27
-    )
-dt_fmt = '%Y-%m-%d %H:%M:%S'
-formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-manlogger.addHandler(handler)
-manlogger.info('Engine powering up...')
+# #Set-up logging
+log_manager = log_handler.LogManager(log_folder, app_folder_name, LOG_LEVEL)
+discord_logger = log_manager.get_logger('discord')
+program_logger = log_manager.get_logger('Program')
+program_logger.info('Engine powering up...')
 
 
 #Create activity.json if not exists
@@ -188,10 +168,10 @@ class JSONValidator:
                             data = json.load(file)
                             jsonschema.validate(instance=data, schema=self.schema)  # validate the data
                         except jsonschema.exceptions.ValidationError as ve:
-                            print(f'ValidationError: {ve}')
+                            program_logger.debug(f'ValidationError: {ve}')
                             self.write_default_content()
                         except json.decoder.JSONDecodeError as jde:
-                            print(f'JSONDecodeError: {jde}')
+                            program_logger.debug(f'JSONDecodeError: {jde}')
                             self.write_default_content()
                 else:
                     self.write_default_content()
@@ -221,56 +201,47 @@ async def isMongoReachable(task: bool = False):
         if result.get('ok') == 1:
             message = 'Connected to MongoDB.'
             if not task:
-                manlogger.info(message)
-                pt(message)
+                program_logger.info(message)
                 isDbAvailable = True
             return True
         else:
             message = f"Error connecting to MongoDB Platform. {result.get('errmsg')} -> Fallback to json-storage."
             if not task:
-                manlogger.warning(message)
-                pt(message)
+                program_logger.warning(message)
                 isDbAvailable = False
             return message
     except Exception as e:
         message = f"Error connecting to MongoDB Platform. {e} -> Fallback to json-storage."
         if not task:
-            manlogger.warning(message)
-            pt(message)
+            program_logger.warning(message)
             isDbAvailable = False
         return message
 
 # Google Translate API
 try:
     TranslatorGoogle = googletrans.API(GOOGLE_APPLICATION_CREDENTIALS)
-    manlogger.info('Connected to GoogleTranslate.')
-    pt('Connected to GoogleTranslate.')
+    program_logger.info('Connected to GoogleTranslate.')
     isGoogleAvailable = True
 except Exception as e:
-    manlogger.warning(f'Error connecting to GoogleTranslate. | Disabling translation. -> {e}')
-    pt(f'Error connecting to GoogleTranslate. | Disabling translation. -> {e}')
+    program_logger.warning(f'Error connecting to GoogleTranslate. | Disabling translation. -> {e}')
     isGoogleAvailable = False
 
 # LibreTranslate API
 try:
     TranslatorLibre = libretrans.API(LIBRETRANS_APIKEY, LIBRETRANS_URL)
-    manlogger.info('Connected to LibreTranslate.')
-    pt('Connected to LibreTranslate.')
+    program_logger.info('Connected to LibreTranslate.')
     isLibreAvailable = True
 except ValueError as e:
-    manlogger.warning(f'Error connecting to LibreTranslate. | Disabling translation. -> {e}')
-    pt(f'Error connecting to LibreTranslate. | Disabling translation. -> {e}')
+    program_logger.warning(f'Error connecting to LibreTranslate. | Disabling translation. -> {e}')
     isLibreAvailable = False
 
 # Twitch API
 try:
     TwitchApi = TwitchAPI(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
-    manlogger.info('Connected to Twitch API.')
-    pt('Connected to Twitch API.')
+    program_logger.info('Connected to Twitch API.')
     isTwitchAvailable = True
 except ValueError as e:
-    manlogger.warning(f'Error connecting to Twitch API. | Disabling Twitch features. -> {e}')
-    pt(f'Error connecting to Twitch API. | Disabling Twitch features. -> {e}')
+    program_logger.warning(f'Error connecting to Twitch API. | Disabling Twitch features. -> {e}')
     isTwitchAvailable = False
 
 # Steam API
@@ -278,7 +249,7 @@ try:
     SteamApi = steam.API(STEAMAPIKEY)
 except steam.Errors.InvalidKey:
     error_message = 'Invalid Steam API key.'
-    manlogger.critical(error_message)
+    program_logger.critical(error_message)
     sys.exit(error_message)
 
 
@@ -351,10 +322,10 @@ class aclient(discord.AutoShardedClient):
         ''')
 
     async def on_guild_remove(self, guild):
-        manlogger.info(f'I got kicked from {guild}. (ID: {guild.id})')
+        program_logger.info(f'I got kicked from {guild}. (ID: {guild.id})')
 
     async def on_guild_join(self, guild):
-        manlogger.info(f'I joined {guild}. (ID: {guild.id})')
+        program_logger.info(f'I joined {guild}. (ID: {guild.id})')
 
     async def on_message(self, message):
         async def __wrong_selection():
@@ -373,7 +344,7 @@ class aclient(discord.AutoShardedClient):
             args = message.content.split(' ')
             command, *args = args
             file = message.attachments
-            print(command)
+            program_logger.debug(command)
 
             if command == 'help':
                 await __wrong_selection()
@@ -429,14 +400,14 @@ class aclient(discord.AutoShardedClient):
                     except discord.NotFound:
                         pass
                 except Exception as e:
-                    manlogger.warning(f"Unexpected error while sending message: {e}")
+                    program_logger.warning(f"Unexpected error while sending message: {e}")
             finally:
                 try:
-                    manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
-                    print(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
+                    program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
+                    program_logger.debug(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
                 except AttributeError:
-                    manlogger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
-                    print(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
+                    program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
+                    program_logger.debug(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
                 sentry_sdk.capture_exception(error)
 
     async def on_ready(self):
@@ -445,27 +416,26 @@ class aclient(discord.AutoShardedClient):
             return
         global owner, start_time, conn, c, shutdown
         shutdown = False
-        logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
+        program_logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
-            manlogger.info('Syncing...')
-            pt('Syncing commands...')
+            program_logger.info('Syncing...')
             await tree.set_translator(CommandTranslator())
             await tree.sync()
-            manlogger.info('Synced.')
-            print('Commands synced.')
+            program_logger.info('Synced.')
+            program_logger.debug('Commands synced.')
             self.synced = True
         conn = sqlite3.connect(sql_file)
         c = conn.cursor()
         await self.setup_database()
         try:
             owner = await bot.fetch_user(OWNERID)
-            print('Owner found.')
+            program_logger.debug('Owner found.')
         except:
-            print('Owner not found.')
+            program_logger.debug('Owner not found.')
 
         #Start background tasks
         stats = bot_directory.Stats(bot=bot,
-                                    logger=manlogger,
+                                    logger=program_logger,
                                     TOPGG_TOKEN=TOPGG_TOKEN,
                                     DISCORDBOTS_TOKEN=DISCORDBOTS_TOKEN,
                                     DISCORDBOTLISTCOM_TOKEN=DISCORDBOTLISTCOM_TOKEN,
@@ -485,7 +455,7 @@ class aclient(discord.AutoShardedClient):
         if not isRunnigInDocker:
             clear()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
-        pt(r'''
+        program_logger.info(r'''
  ____     ____     ____     ____     __              __
 /\  _`\  /\  _`\  /\  _`\  /\  _`\  /\ \__          /\ \__
 \ \ \/\ \\ \ \L\ \\ \ \/\ \\ \,\L\_\\ \ ,_\     __  \ \ ,_\    ____
@@ -497,8 +467,7 @@ class aclient(discord.AutoShardedClient):
         ''')
         start_time = datetime.datetime.now()
         message = f"Initialization completed in {time.time() - startupTime_start} seconds."
-        pt(message)
-        manlogger.info(message)
+        program_logger.info(message)
         self.initialized = True
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -511,8 +480,7 @@ class SignalHandler:
         signal.signal(signal.SIGTERM, self._shutdown)
 
     def _shutdown(self, signum, frame):
-        manlogger.info('Received signal to shutdown...')
-        pt('Received signal to shutdown...')
+        program_logger.info('Received signal to shutdown...')
         bot.loop.create_task(Owner.shutdown(owner))
 
 
@@ -523,8 +491,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f"{api_base}perks?locale={lang}")
             except Exception:
-                manlogger.warning("Perks couldn't be updated.")
-                print("Perks couldn't be updated.")
+                program_logger.warning("Perks couldn't be updated.")
+                program_logger.debug("Perks couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -537,8 +505,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}offerings?locale={lang}')
             except Exception:
-                manlogger.warning("Offerings couldn't be updated.")
-                print("Offerings couldn't be updated.")
+                program_logger.warning("Offerings couldn't be updated.")
+                program_logger.debug("Offerings couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -551,8 +519,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}characters?locale={lang}')
             except Exception:
-                manlogger.warning("Characters couldn't be updated.")
-                print("Characters couldn't be updated.")
+                program_logger.warning("Characters couldn't be updated.")
+                program_logger.debug("Characters couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -565,8 +533,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}dlc?locale={lang}')
             except Exception:
-                manlogger.warning("DLC couldn't be updated.")
-                print("DLC couldn't be updated.")
+                program_logger.warning("DLC couldn't be updated.")
+                program_logger.debug("DLC couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -579,8 +547,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
             except Exception:
-                manlogger.warning("Items couldn't be updated.")
-                print("Items couldn't be updated.")
+                program_logger.warning("Items couldn't be updated.")
+                program_logger.debug("Items couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -593,8 +561,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}addons?locale={lang}')
             except Exception:
-                manlogger.warning("Addons couldn't be updated.")
-                print("Addons couldn't be updated.")
+                program_logger.warning("Addons couldn't be updated.")
+                program_logger.debug("Addons couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -607,8 +575,8 @@ class Cache():
             try:
                 data = await Functions.check_rate_limit(f'{api_base}maps?locale={lang}')
             except Exception:
-                manlogger.warning("Maps couldn't be updated.")
-                print("Maps couldn't be updated.")
+                program_logger.warning("Maps couldn't be updated.")
+                program_logger.debug("Maps couldn't be updated.")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
@@ -621,8 +589,8 @@ class Cache():
             try:
                 data_list = await Functions.check_rate_limit(f'{api_base}events?locale={lang}')
             except Exception:
-                manlogger.warning("Events couldn't be updated.")
-                print("Events couldn't be updated.")
+                program_logger.warning("Events couldn't be updated.")
+                program_logger.debug("Events couldn't be updated.")
                 return 1
             data = {}
             for i in range(len(data_list)):
@@ -637,8 +605,8 @@ class Cache():
         try:
             data = await Functions.check_rate_limit(f'{api_base}versions')
         except Exception:
-            manlogger.warning("Version couldn't be updated.")
-            print("Version couldn't be updated.")
+            program_logger.warning("Version couldn't be updated.")
+            program_logger.debug("Version couldn't be updated.")
             return 1
         data['_id'] = 'version_info'
         if isDbAvailable:
@@ -650,8 +618,8 @@ class Cache():
         try:
             data = await Functions.check_rate_limit(f'{api_base}patchnotes')
         except Exception:
-            manlogger.warning("Patchnotes couldn't be updated.")
-            print("Patchnotes couldn't be updated.")
+            program_logger.warning("Patchnotes couldn't be updated.")
+            program_logger.debug("Patchnotes couldn't be updated.")
             return 1
         if os.path.exists(f'{buffer_folder}patchnotes'):
             for filename in os.scandir(f'{buffer_folder}patchnotes'):
@@ -683,8 +651,8 @@ class Cache():
                     killer = True
                 data = await Functions.data_load(request_data, lang)
                 if data is None:
-                    print(f'{request_data} couldn\'t be updated for namelist {lang}.')
-                    manlogger.fatal(f'{request_data} couldn\'t be updated for namelist {lang}.')
+                    program_logger.debug(f'{request_data} couldn\'t be updated for namelist {lang}.')
+                    program_logger.fatal(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     sentry_sdk.capture_message(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     return
                 new_names = []
@@ -730,8 +698,8 @@ class Cache():
         patch_versions.sort(reverse=True)
 
     async def start_cache_update():
-        print('Updating cache...')
-        manlogger.info('Updating cache...')
+        program_logger.debug('Updating cache...')
+        program_logger.info('Updating cache...')
 
         updates = [Cache._update_chars(),
                    Cache._update_perks(),
@@ -771,16 +739,16 @@ class Cache():
                 for lang in api_langs:
                     filename = f"{path}//{lang}.json"
                     if not os.path.exists(filename):
-                        manlogger.critical(message)
+                        program_logger.critical(message)
                         sys.exit(message)
             if not os.path.exists(f"{buffer_folder}//version_info.json"):
-                manlogger.critical(message)
+                program_logger.critical(message)
                 sys.exit(message)
         await Cache._name_lists()
 
         bot.cache_updated = True
-        print('Cache updated.')
-        manlogger.info('Cache updated.')
+        program_logger.debug('Cache updated.')
+        program_logger.info('Cache updated.')
 
     async def task():
         if NO_CACHE:
@@ -831,7 +799,7 @@ class Background():
                 if old != new:
                     await _upload_json_to_db()
                     isDbAvailable = True
-                    manlogger.info("Database connection established.")
+                    program_logger.info("Database connection established.")
                     try:
                         await owner.send("Database connection established.")
                     except:
@@ -841,7 +809,7 @@ class Background():
                     return
                 else:
                     isDbAvailable = False
-                    manlogger.warning(f"Database connection lost. {new} -> Fallback to json.")
+                    program_logger.warning(f"Database connection lost. {new} -> Fallback to json.")
                     try:
                         await owner.send(f"Database connection lost.\n{new}\n-> Fallback to json.")
                     except:
@@ -866,16 +834,16 @@ class Background():
         try:
             await site.start()
         except OSError as e:
-            manlogger.warning(f'Error while starting health server: {e}')
-            print(f'Error while starting health server: {e}')
+            program_logger.warning(f'Error while starting health server: {e}')
+            program_logger.debug(f'Error while starting health server: {e}')
 
     async def subscribe_shrine_task():
         async def function():
             try:
                 shrine_new = await Functions.check_rate_limit('https://api.nightlight.gg/v1/shrine')
             except Exception:
-                manlogger.warning("Shrine couldn't be updated.")
-                print("Shrine couldn't be updated.")
+                program_logger.warning("Shrine couldn't be updated.")
+                program_logger.debug("Shrine couldn't be updated.")
                 return 1
             else:
                 shrine_old = await Functions.data_load('shrine')
@@ -962,10 +930,10 @@ class Functions():
                 if lang_name is not None:
                     google_languages.append(lang_name)
                 else:
-                    print(f'Error while loading Google languages: {lang}')
+                    program_logger.debug(f'Error while loading Google languages: {lang}')
             google_languages = sorted(google_languages)
-            pt('Google languages loaded.')
-            print(google_languages)
+            program_logger.info('Google languages loaded.')
+            program_logger.debug(google_languages)
         if isLibreAvailable:
             lang_codes = await TranslatorLibre.get_languages()
             for entry in lang_codes:
@@ -975,15 +943,15 @@ class Functions():
                         if lang_name is not None:
                             libre_languages.append(lang_name)
                         else:
-                            print(f'Error while loading LibreTranslate languages: {lang}')
+                            program_logger.debug(f'Error while loading LibreTranslate languages: {lang}')
             libre_languages = sorted(libre_languages)
-            pt('LibreTranslate languages loaded.')
-            print(libre_languages)
+            program_logger.info('LibreTranslate languages loaded.')
+            program_logger.debug(libre_languages)
 
     async def check_rate_limit(url):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
-                print(response)
+                program_logger.debug(response)
                 if response.status != 200:
                     response.raise_for_status()
                 else:
@@ -993,11 +961,11 @@ class Functions():
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f'{api_base}playerstats?steamid={id}') as resp:
-                    print(resp.status)
+                    program_logger.debug(resp.status)
                     resp.raise_for_status()  # Throws an exception if the status code is not 200
                     return 0
         except aiohttp.ClientResponseError as e:
-            print(e.request_info.url)
+            program_logger.debug(e.request_info.url)
             if e.status == 404:
                 url = f'{alt_playerstats}{id}'
                 try:
@@ -1008,19 +976,19 @@ class Functions():
                     for i in soup.find_all('div', id='error'):
                         return i.text
                 except Exception as e:
-                    manlogger.warning(f'Error while parsing {url}: {e}')
+                    program_logger.warning(f'Error while parsing {url}: {e}')
                     return 1
                 else:
-                    manlogger.warning(f'SteamID {id} got removed from the leaderboard.')
+                    program_logger.warning(f'SteamID {id} got removed from the leaderboard.')
                     return 3
             elif e.status == 429:
-                manlogger.warning(f'Rate limit exceeded while checking SteamID {id}.')
+                program_logger.warning(f'Rate limit exceeded while checking SteamID {id}.')
                 return 2
             else:
-                manlogger.warning(f'Unexpected response from API: {e}')
+                program_logger.warning(f'Unexpected response from API: {e}')
                 return 1
         except Exception as e:
-            manlogger.warning(f'Error while querying API: {e}')
+            program_logger.warning(f'Error while querying API: {e}')
             return 1
 
     async def convert_time(timestamp, request='full'):
@@ -1213,17 +1181,17 @@ class Functions():
             async def _libre():
                 try:
                     translated_text = await TranslatorLibre.translate_text(text, target_lang, source_lang)
-                    print(f"Translated with LibreTranslate.: {translated_text}")
+                    program_logger.debug(f"Translated with LibreTranslate.: {translated_text}")
                     return translated_text
                 except Exception as e:
-                    manlogger.warning(f"Error while translating: {e}")
-                    print(f"Error while translating: {e}")
+                    program_logger.warning(f"Error while translating: {e}")
+                    program_logger.debug(f"Error while translating: {e}")
                     return text
 
             if isGoogleAvailable:
                 try:
                     translated_text = TranslatorGoogle.translate_text(text, target_lang, source_lang)
-                    print(f"Translated with Google Translator.: {translated_text}")
+                    program_logger.debug(f"Translated with Google Translator.: {translated_text}")
                     return translated_text
                 except Exception as e:
                     if isLibreAvailable:
@@ -1245,7 +1213,7 @@ class Functions():
                 return text
 
         hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
-        print(f'Translation Hash: {hashed}')
+        program_logger.debug(f'Translation Hash: {hashed}')
 
         if isDbAvailable:
             data = json.loads(json.dumps(await db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
@@ -1262,12 +1230,12 @@ class Functions():
         if data is None and isDbAvailable:
             data = {}
         if hashed in data.keys():
-            print(f'Hash {hashed} found in cache.')
+            program_logger.debug(f'Hash {hashed} found in cache.')
             if lang in data[hashed].keys():
-                print(f'Language {lang} found in cache.')
+                program_logger.debug(f'Language {lang} found in cache.')
                 return data[hashed][lang]
             else:
-                print(f'Language {lang} not found in cache.')
+                program_logger.debug(f'Language {lang} not found in cache.')
                 translation = await _translate(text, lang)
                 if translation == text:
                     return text
@@ -1291,7 +1259,7 @@ class Functions():
                     json.dump(data, f, indent=4)
                 return translation
         else:
-            print(f'Hash {hashed} not found in cache.')
+            program_logger.debug(f'Hash {hashed} not found in cache.')
             translation = await _translate(text, lang)
             if translation == text:
                 return text
@@ -1491,7 +1459,7 @@ class SendInfo():
                     return embed
 
                 story_text = str(data[key]['story']).replace('<i>', '*').replace('</i>', '*').replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')
-                print(f"Story length: {len(story_text)}")
+                program_logger.debug(f"Story length: {len(story_text)}")
                 if len(story_text) > 4096:
                     story_text = Functions.insert_newlines(story_text)
                     with tempfile.NamedTemporaryFile(suffix='.txt', mode='w', delete=False, encoding='utf8') as story_file:
@@ -1656,7 +1624,7 @@ class SendInfo():
         description = description \
         .replace('<li>', '') \
         .replace('</li>', '')
-        print(perk)
+        program_logger.debug(perk)
 
         if shrine and type(interaction) == discord.Interaction:
             if lang in api_langs:
@@ -1786,8 +1754,8 @@ class Info():
             for i in range(0, len(data), 2):
                 key1, value1 = list(data.items())[i]
                 key2, value2 = list(data.items())[i + 1]
-                print(f"{key1}: {value1}")
-                print(f"{key2}: {value2}")
+                program_logger.debug(f"{key1}: {value1}")
+                program_logger.debug(f"{key2}: {value2}")
                 embed.add_field(name=str(key1).replace('_count', '').capitalize(), value=value1, inline=True)
                 embed.add_field(name=await Functions.translate(interaction, "Unlocked at"), value=f'<t:{value2}>', inline=True)
                 embed.add_field(name="\u200b", value="\u200b", inline=True)
@@ -1805,7 +1773,7 @@ class Info():
             try:
                 await interaction.edit_original_response(embeds=embeds)
             except Exception as e:
-                print(e)
+                program_logger.debug(e)
                 for i in range(0, len(embeds), 10):
                     await interaction.followup.send(embeds=embeds[i:i+10])
 
@@ -2091,8 +2059,8 @@ class Info():
             except:
                 error_code = data['error']['code']
                 error_message = data['error']['message']
-                pt(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
-                manlogger.warning(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
+                program_logger.error(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
+                program_logger.warning(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
                 await interaction.followup.send(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
                 return
             data['update_hour'] = datetime.datetime.now().hour
@@ -2381,13 +2349,13 @@ class Info():
         if channel_id != '':
             channel = await Functions.get_or_fetch('channel', channel_id[1])
             if channel is None:
-                manlogger.info(f"Channel <#{channel_id[1]}> not found. Removing from db.")
+                program_logger.info(f"Channel <#{channel_id[1]}> not found. Removing from db.")
                 c.execute(f"DELETE FROM shrine WHERE channel_id = {channel_id[1]}")
                 conn.commit()
                 return
             guild: discord.Guild = await Functions.get_or_fetch('guild', channel_id[0])
             if guild is None:
-                manlogger.info(f"Guild {channel_id[0]} not found. Removing from db.")
+                program_logger.info(f"Guild {channel_id[0]} not found. Removing from db.")
                 c.execute(f"DELETE FROM shrine WHERE guild_id = {channel_id[0]}")
                 conn.commit()
                 return
@@ -2396,14 +2364,14 @@ class Info():
                 return
             embeds = []
             for shrine in data['data']['perks']:
-                print(shrine)
+                program_logger.debug(shrine)
                 shrine_embed = await SendInfo.perk(shrine['name'], guild.preferred_locale[1][:2], None, shrine=True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(guild, 'Usage by players')}: {await Functions.translate(guild, shrine['usage_tier'])}")
                 embeds.append(shrine_embed)
             try:
                 await channel.send(content = f"{await Functions.translate(guild, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(guild, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(guild, "Updates every 15 minutes.")}", embeds=embeds)
             except discord.errors.Forbidden:
-                manlogger.info(f"Missing permissions in {guild.name} ({guild.id})")
+                program_logger.info(f"Missing permissions in {guild.name} ({guild.id})")
                 c.execute(f"DELETE FROM shrine WHERE guild_id = {guild.id} AND channel_id = {channel.id}")
                 conn.commit()
             return
@@ -2421,7 +2389,7 @@ class Info():
                 return
             embeds = []
             for shrine in data['data']['perks']:
-                print(shrine)
+                program_logger.debug(shrine)
                 shrine_perk_name = Functions.find_key_by_name(shrine['name'], perk_data_en)
                 shrine_embed = await SendInfo.perk(shrine_perk_name, lang, interaction, True)
                 shrine_embed.set_footer(text=f"Bloodpoints: {int(shrine['bloodpoints']):,} | Shards: {int(shrine['shards']):,}\n{await Functions.translate(interaction, 'Usage by players')}: {await Functions.translate(interaction, shrine['usage_tier'])}")
@@ -2429,7 +2397,7 @@ class Info():
             try:
                 await interaction.followup.send(content = f"{await Functions.translate(interaction, "This is the current shrine.\nIt started at")} <t:{Functions.convert_to_unix_timestamp(data['data']['start'])}> {await Functions.translate(interaction, "and will last until")} <t:{Functions.convert_to_unix_timestamp(data['data']['end'])}>.\n{await Functions.translate(interaction, "Updates every 15 minutes.")}", embeds=embeds)
             except discord.errors.Forbidden:
-                manlogger.info(f"Missing permissions in {guild.name} ({guild.id})")
+                program_logger.info(f"Missing permissions in {guild.name} ({guild.id})")
                 c.execute(f"DELETE FROM shrine WHERE guild_id = {guild.id} AND channel_id = {channel.id}")
                 conn.commit()
 
@@ -2693,7 +2661,7 @@ class Random():
             if len(embeds) >= amount:
                 break
             entry = perks[key]
-            print(entry['name'])
+            program_logger.debug(entry['name'])
             embed = await SendInfo.perk(entry['name'], lang, interaction, False, True)
             embeds.append(embed)
         if not embeds:
@@ -2730,8 +2698,8 @@ class Owner():
         action = args[0].lower()
         url = remove_and_save(args[1:])
         title = ' '.join(args[1:])
-        print(title)
-        print(url)
+        program_logger.debug(title)
+        program_logger.debug(url)
         with open(activity_file, 'r', encoding='utf8') as f:
             data = json.load(f)
         if action == 'playing':
@@ -2783,7 +2751,7 @@ class Owner():
                 if len(text) > 2000:
                     send_as_file = True
         except:
-            manlogger.warning(f'Error while reading the changelog file.')
+            program_logger.warning(f'Error while reading the changelog file.')
             await message.channel.send('Error while reading the changelog file.')
             os.remove(changelog)
             return
@@ -2801,7 +2769,7 @@ class Owner():
             channel = await Functions.get_or_fetch('channel', entry[2])
             guild = await Functions.get_or_fetch('guild', entry[1])
             if channel is None:
-                manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                program_logger.info(f"Channel {entry[2]} not found. Removing from db.")
                 c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                 published_total += 1
                 continue
@@ -2811,15 +2779,15 @@ class Owner():
                     published_success += 1
                     published_total += 1
                 except discord.errors.NotFound:
-                    manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                    program_logger.info(f"Channel {entry[2]} not found. Removing from db.")
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except discord.errors.Forbidden:
-                    manlogger.info(f"Missing permissions in channel {entry[2]}. Removing from db.")
+                    program_logger.info(f"Missing permissions in channel {entry[2]}. Removing from db.")
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except:
-                    manlogger.warning(f'Error while publishing the changelog to {entry[2]}.')
+                    program_logger.warning(f'Error while publishing the changelog to {entry[2]}.')
                     published_total += 1
             else:
                 try:
@@ -2832,15 +2800,15 @@ class Owner():
                     published_success += 1
                     published_total += 1
                 except discord.errors.NotFound:
-                    manlogger.info(f"Channel {entry[2]} not found. Removing from db.")
+                    program_logger.info(f"Channel {entry[2]} not found. Removing from db.")
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except discord.errors.Forbidden:
-                    manlogger.info(f"Missing permissions in channel {entry[2]}. Removing from db.")
+                    program_logger.info(f"Missing permissions in channel {entry[2]}. Removing from db.")
                     c.execute("DELETE FROM changelogs WHERE channel_id = ?", (entry[2],))
                     published_total += 1
                 except:
-                    manlogger.warning(f'Error while publishing the changelog to {entry[2]}.')
+                    program_logger.warning(f'Error while publishing the changelog to {entry[2]}.')
                     published_total += 1
         os.remove(changelog)
         conn.commit()
@@ -2933,7 +2901,7 @@ class Owner():
 
     async def shutdown(message):
         global shutdown
-        manlogger.info('Engine powering down...')
+        program_logger.info('Engine powering down...')
         try:
             await message.channel.send('Engine powering down...')
         except:
@@ -2999,7 +2967,7 @@ class AutoComplete:
             for lang in api_langs:
                 global_var_name = f"{category}_names_{lang}"
                 globals()[global_var_name] = [messages[lang]]
-        print("Autocompletion initialized.")
+        program_logger.debug("Autocompletion initialized.")
 
 
 
@@ -3543,7 +3511,7 @@ async def self(interaction: discord.Interaction,
 if __name__ == '__main__':
     if not TOKEN:
         error_message = 'Missing token. Please check your .env file.'
-        manlogger.critical(error_message)
+        program_logger.critical(error_message)
         sys.exit(error_message)
     else:
         try:
@@ -3552,7 +3520,7 @@ if __name__ == '__main__':
             bot.run(TOKEN, log_handler=None)
         except discord.errors.LoginFailure:
             error_message = 'Invalid token. Please check your .env file.'
-            manlogger.critical(error_message)
+            program_logger.critical(error_message)
             sys.exit(error_message)
         except asyncio.CancelledError:
             if shutdown:

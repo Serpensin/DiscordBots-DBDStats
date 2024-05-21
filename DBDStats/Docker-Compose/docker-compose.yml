@@ -28,6 +28,7 @@ services:
       twitch_client_secret: twitch_client_secret
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
+      LOG_LEVEL: INFO
       MongoDB_host: mongo           #####################################
       MongoDB_port: 27017           #           Don't change!!!         #
       MongoDB_database: DBDStats    #####################################
