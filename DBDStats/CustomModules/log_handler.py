@@ -25,7 +25,10 @@ class LogManager:
         init()  # Initialize colorama for colored console output.
         self.log_folder = log_folder
         self.app_folder_name = app_folder_name
-        self.log_level = self._get_log_level(log_level)
+        try:
+            self.log_level = self._get_log_level(log_level)
+        except:
+            self.log_level = logging.INFO
     
     def _get_log_level(self, log_level_str):
         """
@@ -38,9 +41,13 @@ class LogManager:
             int: The logging level.
 
         Raises:
+            AttributeError: If the log level string is empty.
             ValueError: If the log level string is invalid.
         """
-        level = logging.getLevelName(log_level_str.upper())
+        try:
+            level = logging.getLevelName(log_level_str.upper())
+        except AttributeError:
+            raise AttributeError(f"Invalid log level: {log_level_str}")
         if isinstance(level, int):
             return level
         else:
