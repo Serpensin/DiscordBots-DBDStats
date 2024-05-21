@@ -404,10 +404,8 @@ class aclient(discord.AutoShardedClient):
             finally:
                 try:
                     program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
-                    program_logger.debug(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) @ {interaction.guild.name} ({interaction.guild.id}) with Language {interaction.locale[1]}")
                 except AttributeError:
                     program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
-                    program_logger.debug(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
                 sentry_sdk.capture_exception(error)
 
     async def on_ready(self):
@@ -651,7 +649,6 @@ class Cache():
                     killer = True
                 data = await Functions.data_load(request_data, lang)
                 if data is None:
-                    program_logger.debug(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     program_logger.fatal(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     sentry_sdk.capture_message(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     return
@@ -698,7 +695,6 @@ class Cache():
         patch_versions.sort(reverse=True)
 
     async def start_cache_update():
-        program_logger.debug('Updating cache...')
         program_logger.info('Updating cache...')
 
         updates = [Cache._update_chars(),
