@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.2"
+bot_version = "1.14.3"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -93,7 +93,8 @@ sentry_sdk.init(
     dsn=os.getenv('SENTRY_DSN'),
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
-    environment='Production'
+    environment='Production',
+    
 )
 
 #Fix error on windows on shutdown.
@@ -1702,9 +1703,13 @@ class Info():
                 return
             try:
                 data = await Functions.check_rate_limit(f'{api_base}playeradepts?steamid={steamid}')
-            except Exception:
-                await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
-                return
+            except Exception as e:
+                if e.code == 429:
+                    await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
+                    return
+                elif e.code == 404:
+                    await interaction.followup.send(await Functions.translate(interaction, "I couldn't find any data for this profile."), ephemeral=True)
+                    return
             try:
                 steam_data = await SteamApi.get_player_summeries(steamid)
             except ValueError:
@@ -3043,7 +3048,7 @@ autocomplete = AutoComplete()
 #Ping
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def ping(interaction: discord.Interaction):
         before = time.monotonic()
         await interaction.response.send_message('Pong!')
         ping = (time.monotonic() - before) * 1000
@@ -3052,7 +3057,7 @@ async def self(interaction: discord.Interaction):
 #Bot Info
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def botinfo(interaction: discord.Interaction):
         member_count = sum(guild.member_count for guild in bot.guilds)
 
         embed = discord.Embed(
@@ -3106,7 +3111,7 @@ async def self(interaction: discord.Interaction):
                                shrine = 'Subscribe to the shrine.',
                                changelogs = 'Subscribe to the changelogs of this bot.'
                                )
-async def self(interaction: discord.Interaction,
+async def subscribe(interaction: discord.Interaction,
                channel: discord.TextChannel,
                shrine: bool,
                changelogs: bool
@@ -3159,7 +3164,7 @@ async def self(interaction: discord.Interaction,
 @tree.command(name = 'translation_info', description = 'Get info about the translation.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
-async def self(interaction: discord.Interaction):
+async def translation_info(interaction: discord.Interaction):
         await interaction.response.defer(thinking = True, ephemeral = True)
 
         if interaction.guild is None:
@@ -3184,7 +3189,7 @@ async def self(interaction: discord.Interaction):
 #Support Invite
 @tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
-async def self(interaction: discord.Interaction):
+async def support(interaction: discord.Interaction):
         if str(interaction.guild.id) != SUPPORTID:
             await interaction.response.defer(ephemeral = True)
             await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
@@ -3196,7 +3201,7 @@ async def self(interaction: discord.Interaction):
 #Buy
 @tree.command(name = "buy", description = 'This will post a link to a site where you can buy DeadByDaylight for a few bucks.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.channel.id))
-async def self(interaction: discord.Interaction):
+async def buy(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message(await Functions.translate(interaction, "This command can only be used in a server."))
     else:
@@ -3246,7 +3251,7 @@ async def self(interaction: discord.Interaction):
     discord.app_commands.Choice(name = 'Twitch', value = 'twitch'),
     discord.app_commands.Choice(name = 'Versions', value = 'version')
     ])
-async def self(interaction: discord.Interaction,
+async def info(interaction: discord.Interaction,
                category: str,
                addon: str = None,
                character: str = None,
@@ -3269,7 +3274,7 @@ async def self(interaction: discord.Interaction,
 
         elif category == 'stats':
             class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                self.timeout = 30
+                info.timeout = 30
                 answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want stats for.', style = discord.TextStyle.short, required = True)
                 async def on_submit(self, interaction: discord.Interaction):
                     await Info.playerstats(interaction, steamid = self.answer.value.strip())
@@ -3322,7 +3327,7 @@ async def self(interaction: discord.Interaction,
 
         elif category == 'legacy':
             class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                self.timeout = 30
+                info.timeout = 30
                 answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want to check.', style = discord.TextStyle.short, required = True)
                 async def on_submit(self, interaction: discord.Interaction):
                     await Info.legacycheck(interaction, steamid = self.answer.value.strip())
@@ -3345,7 +3350,7 @@ async def self(interaction: discord.Interaction,
 
         elif category == 'adept':
             class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                self.timeout = 30
+                info.timeout = 30
                 answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want adepts for.', style = discord.TextStyle.short, required = True)
                 async def on_submit(self, interaction: discord.Interaction):
                     await Info.adepts(interaction, steamid = self.answer.value.strip())
@@ -3378,7 +3383,7 @@ async def self(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Map', value = 'map'),
     discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def self(interaction: discord.Interaction,
+async def random(interaction: discord.Interaction,
                     category: str,
                     item: str = None,
                     killer: str = None):
