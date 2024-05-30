@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.3"
+bot_version = "1.14.4"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -1869,7 +1869,7 @@ class Info():
                 upcoming_event = event
 
         if current_event is not None:
-            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "Currently there is a event in DeadByDaylight.")+" <a:hyperWOW:1032389458319913023>", color=0x922f2f)
+            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "Currently there is a event in DeadByDaylight.")+" <a:hyperWOW:1245674053272997998>", color=0x922f2f)
             embed.add_field(name="\u200b", value="\u200b", inline=False)
             embed.add_field(name=await Functions.translate(interaction, "Name"), value=data[current_event]['name'], inline=True)
             embed.add_field(name=await Functions.translate(interaction, "Type"), value=data[current_event]['type'], inline=True)
@@ -1878,7 +1878,7 @@ class Info():
             embed.add_field(name=await Functions.translate(interaction, "Ending"), value=str(await Functions.convert_time(data[current_event]['end'])+' UTC'), inline=True)
             await interaction.followup.send(embed=embed)
         elif upcoming_event is not None:
-            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "There is a upcoming event in DeadByDaylight.")+" <a:SmugDance:1032349729167790090>", color=0x922f2f)
+            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "There is a upcoming event in DeadByDaylight.")+" <a:SmugDance:1245674032465051678>", color=0x922f2f)
             embed.add_field(name="\u200b", value="\u200b", inline=False)
             embed.add_field(name=await Functions.translate(interaction, "Name"), value=data[upcoming_event]['name'], inline=True)
             embed.add_field(name=await Functions.translate(interaction, "Type"), value=data[upcoming_event]['type'], inline=True)
@@ -1887,7 +1887,7 @@ class Info():
             embed.add_field(name=await Functions.translate(interaction, "Ending"), value=str(await Functions.convert_time(data[upcoming_event]['end'])+' UTC'), inline=True)
             await interaction.followup.send(embed=embed)
         else:
-            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "Currently there is no event in DeadByDaylight.\nAnd none are planned.")+" <:pepe_sad:1032389746284056646>", color=0x922f2f)
+            embed = discord.Embed(title="Event", description=await Functions.translate(interaction, "Currently there is no event in DeadByDaylight.\nAnd none are planned.")+" <:pepe_sad:1245674076736065576>", color=0x922f2f)
             await interaction.followup.send(embed=embed)
 
     async def item(interaction: discord.Interaction, name: str):
