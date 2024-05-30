@@ -3383,7 +3383,7 @@ async def info(interaction: discord.Interaction,
     discord.app_commands.Choice(name = 'Map', value = 'map'),
     discord.app_commands.Choice(name = 'Key', value = 'key')
     ])
-async def random(interaction: discord.Interaction,
+async def random_func(interaction: discord.Interaction,
                     category: str,
                     item: str = None,
                     killer: str = None):
