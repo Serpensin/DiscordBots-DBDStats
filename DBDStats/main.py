@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.4"
+bot_version = "1.14.5"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -111,7 +111,6 @@ def folder_setup():
             f'{app_folder_name}//Buffer//dlc',
             f'{app_folder_name}//Buffer//event',
             f'{app_folder_name}//Buffer//item',
-            f'{app_folder_name}//Buffer//killer',
             f'{app_folder_name}//Buffer//map',
             f'{app_folder_name}//Buffer//offering',
             f'{app_folder_name}//Buffer//patchnotes',
@@ -726,10 +725,8 @@ class Cache():
                 f'{buffer_folder}dlc',
                 f'{buffer_folder}event',
                 f'{buffer_folder}item',
-                f'{buffer_folder}killer',
                 f'{buffer_folder}map',
                 f'{buffer_folder}offering',
-                f'{buffer_folder}patchnotes',
                 f'{buffer_folder}perk',
             ]
             for path in paths:
