@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.5"
+bot_version = "1.14.6"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2122,8 +2122,8 @@ class Info():
                         await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
                         return
                     elif removed == 3:
-                        embed1 = discord.Embed(title="Statistics", url=alt_playerstats+steamid, description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
-                        await interaction.followup.send(embed=embed1)
+                        embed = discord.Embed(title="Statistics", url=f'https://www.dbd-info.com/player-profile/{steamid}/overview', description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
+                        await interaction.followup.send(embed=embed)
                         return
                     elif removed != 0:
                         await interaction.followup.send(content = removed)
@@ -2150,7 +2150,7 @@ class Info():
             profileurl = event['profileurl']
             avatar = event['avatarfull']
             #Set embed headers
-            embed1 = discord.Embed(title=await Functions.translate(interaction, "Statistics (1/10) - Survivor Stats"), description=personaname+'\n'+profileurl, color=0xb19325)
+            embed = discord.Embed(title=await Functions.translate(interaction, "Statistics (1/10) - Survivor Stats"), description=personaname+'\n'+profileurl, color=0xb19325)
             embed2 = discord.Embed(title=await Functions.translate(interaction, "Statistics (2/10) - Killer Interactions"), description=personaname+'\n'+profileurl, color=0xb19325)
             embed3 = discord.Embed(title=await Functions.translate(interaction, "Statistics (3/10) - Healing/Saved"), description=personaname+'\n'+profileurl, color=0xb19325)
             embed4 = discord.Embed(title=await Functions.translate(interaction, "Statistics (4/10) - Escaped"), description=personaname+'\n'+profileurl, color=0xb19325)
@@ -2161,7 +2161,7 @@ class Info():
             embed9 = discord.Embed(title=await Functions.translate(interaction, "Statistics (9/10) - Survivors downed"), description=personaname+'\n'+profileurl, color=0xb19325)
             embed10 = discord.Embed(title=await Functions.translate(interaction, "Statistics (10/10) - Survivors downed with power"), description=personaname+'\n'+profileurl, color=0xb19325)
             #Set Static Infos
-            embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
+            embeds = [embed, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
             footer = (await Functions.translate(interaction, "Stats are updated every ~4h. | Last update: ")).replace('.|','. | ')+str(await Functions.convert_time(int(player_stats['updated_at'])))+" UTC"
 
             for embed in embeds:
@@ -2169,26 +2169,26 @@ class Info():
                 embed.set_footer(text=footer)
 
             #Embed1 - Survivor
-            embed1.add_field(name=await Functions.translate(interaction, "Bloodpoints Earned"), value=f"{int(player_stats['bloodpoints']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Rank"), value=player_stats['survivor_rank'], inline=True)
-            embed1.add_field(name="\u200b", value="\u200b", inline=False)
-            embed1.add_field(name=await Functions.translate(interaction, "Full loadout Games"), value=f"{int(player_stats['survivor_fullloadout']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=f"{int(player_stats['survivor_perfectgames']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Generators repaired"), value=f"{int(player_stats['gensrepaired']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Gens without Perks"), value=f"{int(player_stats['gensrepaired_noperks']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Damaged gens repaired"), value=f"{int(player_stats['damagedgensrepaired']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Successful skill checks"), value=f"{int(player_stats['skillchecks']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Items Depleted"), value=f"{int(player_stats['itemsdepleted']):,}", inline=False)
-            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Cleansed"), value=f"{int(player_stats['hextotemscleansed']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Hex Totems Blessed"), value=f"{int(player_stats['hextotemsblessed']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Blessed Boosts"), value=f"{int(player_stats['blessedtotemboosts']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Exit Gates Opened"), value=f"{int(player_stats['exitgatesopened']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Hooks Sabotaged"), value=f"{int(player_stats['hookssabotaged']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched"), value=f"{int(player_stats['chestssearched']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Chests Searched in the Basement"), value=f"{int(player_stats['chestssearched_basement']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Mystery boxes opened"), value=f"{int(player_stats['mysteryboxesopened']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Killers aura revealed"), value=f"{int(player_stats['killersaurarevealed']):,}", inline=True)
-            embed1.add_field(name=await Functions.translate(interaction, "Screams"), value=f"{int(player_stats['screams']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Bloodpoints Earned"), value=f"{int(player_stats['bloodpoints']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Rank"), value=player_stats['survivor_rank'], inline=True)
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
+            embed.add_field(name=await Functions.translate(interaction, "Full loadout Games"), value=f"{int(player_stats['survivor_fullloadout']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Perfect Games"), value=f"{int(player_stats['survivor_perfectgames']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Generators repaired"), value=f"{int(player_stats['gensrepaired']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Gens without Perks"), value=f"{int(player_stats['gensrepaired_noperks']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Damaged gens repaired"), value=f"{int(player_stats['damagedgensrepaired']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Successful skill checks"), value=f"{int(player_stats['skillchecks']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Items Depleted"), value=f"{int(player_stats['itemsdepleted']):,}", inline=False)
+            embed.add_field(name=await Functions.translate(interaction, "Hex Totems Cleansed"), value=f"{int(player_stats['hextotemscleansed']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Hex Totems Blessed"), value=f"{int(player_stats['hextotemsblessed']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Blessed Boosts"), value=f"{int(player_stats['blessedtotemboosts']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Exit Gates Opened"), value=f"{int(player_stats['exitgatesopened']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Hooks Sabotaged"), value=f"{int(player_stats['hookssabotaged']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Chests Searched"), value=f"{int(player_stats['chestssearched']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Chests Searched in the Basement"), value=f"{int(player_stats['chestssearched_basement']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Mystery boxes opened"), value=f"{int(player_stats['mysteryboxesopened']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Killers aura revealed"), value=f"{int(player_stats['killersaurarevealed']):,}", inline=True)
+            embed.add_field(name=await Functions.translate(interaction, "Screams"), value=f"{int(player_stats['screams']):,}", inline=True)
             # Embed2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
             embed2.add_field(name=await Functions.translate(interaction, "Dodged basic attack or projectiles"), value=f"{int(player_stats['dodgedattack']):,}", inline=True)
@@ -2331,7 +2331,7 @@ class Info():
             embed10.add_field(name=await Functions.translate(interaction, "Downed during nightfall"), value=f"{int(player_stats['survivorsdowned_nightfall']):,}", inline=True)
             embed10.add_field(name=await Functions.translate(interaction, "Downed using UVX"), value=f"{int(player_stats['survivorsdowned_uvx']):,}", inline=True)
             #Send Statistics
-            embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
+            embeds = [embed, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
             await interaction.delete_original_response()
             await interaction.followup.send(embeds=embeds[0:5])
             await interaction.followup.send(embeds=embeds[5:10])
@@ -2773,7 +2773,8 @@ class Owner():
                 continue
             if not send_as_file:
                 try:
-                    await channel.send(await Functions.translate(guild, text))
+                    # await channel.send(await Functions.translate(guild, text))
+                    await channel.send(text)
                     published_success += 1
                     published_total += 1
                 except discord.errors.NotFound:
