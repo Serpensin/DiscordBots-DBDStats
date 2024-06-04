@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.6"
+bot_version = "1.14.7"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -1289,8 +1289,8 @@ class Functions():
         for key, value in data.items():
             if key == '_id':
                 continue
-            key_name = str(value.get('name')).replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', '')
-            if key_name == input_name.replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', ''):
+            key_name = str(value.get('name')).lower().replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', '')
+            if key_name == input_name.lower().replace('&nbsp;', ' ').replace('\'', '').replace('\u2019', '').replace(':', '').replace(' ', ''):
                 return key
         return input_name
 
@@ -1599,7 +1599,7 @@ class SendInfo():
             else:
                 return {}
 
-        perk = str(Functions.find_key_by_name(perk, data)).replace(' ', '')
+        perk = str(Functions.find_key_by_name(perk, data))#.replace(' ', '')
 
         if shrine:
             data = await Functions.data_load('perks', lang)
