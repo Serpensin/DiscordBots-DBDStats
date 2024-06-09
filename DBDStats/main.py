@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.7"
+bot_version = "1.14.8"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2007,10 +2007,15 @@ class Info():
         for key, value in data.items():
             if key == 'Swp_Mound' or key == '_id':
                 continue
-            if value['name'].lower() == name.lower():
-                embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
-                embed.set_thumbnail(url=f"{map_portraits}{key}.png")
-                await interaction.followup.send(embed=embed)
+            try:
+                if value['name'].lower() == name.lower():
+                    embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
+                    embed.set_thumbnail(url=f"{map_portraits}{key}.png")
+                    await interaction.followup.send(embed=embed)
+                    return
+            except AttributeError:
+                continue
+        await interaction.followup.send(await Functions.translate(interaction, "No map found with this name."))
 
     async def offering(interaction: discord.Interaction, name: str):
         await interaction.response.defer()

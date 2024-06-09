@@ -27,11 +27,11 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev l
 
 EXPOSE 5000
 
-LABEL MAINTAINER="Discord: the_devil_of_the_rhine (863687441809801246)" \
+LABEL MAINTAINER="Discord: pika.pika.no.mi (970119359840284743)" \
       COMMIT=$COMMIT \
       DESCRIPTION="Discord bot for DBD for Steam stats." \
       RELEASE=$BUILD_DATE \
-      VERSION="1.14.7" \
+      VERSION="1.14.8" \
       URL="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]
