@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.8"
+bot_version = "1.14.9"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -332,6 +332,7 @@ class aclient(discord.AutoShardedClient):
             await message.channel.send('```'
                                        'Commands:\n'
                                        'activity - Set the activity of the bot\n'
+                                       'broadcast - Broadcast a message to all server owners\n'
                                        'changelog - Upload a txt, or md, that is send to the changelog channels\n'
                                        'clean - Clean specific parts\n'
                                        'help - Shows this message\n'
@@ -366,6 +367,9 @@ class aclient(discord.AutoShardedClient):
                 return
             elif command == 'clean':
                 await Owner.clean(message, args)
+                return
+            elif command == 'broadcast':
+                await Owner.broadcast(' '.join(args))
                 return
             else:
                 await __wrong_selection()
@@ -2955,6 +2959,20 @@ class Owner():
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
+        
+    async def broadcast(message):
+        success = 0
+        forbidden = 0
+        error = 0
+        for guild in bot.guilds:
+            try:
+                await guild.owner.send(f'Broadcast from the owner of the bot:\n{message}')
+                success += 1
+            except discord.Forbidden:
+                failed += 1
+            except:
+                error += 1
+        await owner.send(f'Broadcast finished.\nSuccess: {success}\nForbidden: {forbidden}\nError: {error}')
 
 
 #Autocompletion

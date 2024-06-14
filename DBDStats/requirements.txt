@@ -13,11 +13,11 @@ dnspython==2.6.1
 exceptiongroup==1.2.1
 frozenlist==1.4.1
 google-api-core==2.19.0
-googleapis-common-protos==1.63.1
-google-auth==2.30.0
+googleapis-common-protos==1.63.0
+google-auth==2.29.0
 google-cloud-core==2.4.1
 google-cloud-translate==3.15.3
-grpcio==1.64.1
+grpcio==1.64.0
 grpcio-status
 h11==0.14.0
 html2text==2024.2.26
