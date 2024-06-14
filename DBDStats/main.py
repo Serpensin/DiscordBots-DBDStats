@@ -60,7 +60,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.9"
+bot_version = "1.14.10"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2965,8 +2965,9 @@ class Owner():
         forbidden = 0
         error = 0
         for guild in bot.guilds:
+            guild_owner = await Functions.get_or_fetch('user', guild.owner_id)
             try:
-                await guild.owner.send(f'Broadcast from the owner of the bot:\n{message}')
+                await guild_owner.send(f'Broadcast from the owner of the bot:\n{message}')
                 success += 1
             except discord.Forbidden:
                 forbidden += 1
