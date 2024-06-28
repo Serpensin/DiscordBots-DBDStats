@@ -42,14 +42,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 
 
-def clear():
-    if platform.system() == 'Windows':
-        os.system('cls')
-    else:
-        os.system('clear')
-
-
-
 #Set vars
 load_dotenv()
 app_folder_name = 'DBDStats'
@@ -60,7 +52,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.14.10"
+bot_version = "1.15.0"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -412,11 +404,8 @@ class aclient(discord.AutoShardedClient):
                     program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
                 sentry_sdk.capture_exception(error)
 
-    async def on_ready(self):
-        if self.initialized:
-            await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
-            return
-        global owner, start_time, conn, c, shutdown
+    async def setup_hook(self):
+        global owner, conn, c, shutdown
         shutdown = False
         program_logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
         if not self.synced:
@@ -433,8 +422,8 @@ class aclient(discord.AutoShardedClient):
             owner = await bot.fetch_user(OWNERID)
             program_logger.debug('Owner found.')
         except:
-            program_logger.debug('Owner not found.')
-
+            program_logger.debug('Owner not found.')     
+            
         #Start background tasks
         stats = bot_directory.Stats(bot=bot,
                                     logger=program_logger,
@@ -451,11 +440,13 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(stats.task())
         bot.loop.create_task(Cache.task())
 
-        while not self.cache_updated:
-            await asyncio.sleep(0)
+    async def on_ready(self):
+        if self.initialized:
+            await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
+            return
+        global start_time
+        
         bot.loop.create_task(Background.subscribe_shrine_task())
-        if not isRunnigInDocker:
-            clear()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         program_logger.info(r'''
  ____     ____     ____     ____     __              __
@@ -468,8 +459,7 @@ class aclient(discord.AutoShardedClient):
 
         ''')
         start_time = datetime.datetime.now()
-        message = f"Initialization completed in {time.time() - startupTime_start} seconds."
-        program_logger.info(message)
+        program_logger.info(f"Initialization completed in {time.time() - startupTime_start} seconds.")
         self.initialized = True
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
@@ -854,7 +844,10 @@ class Background():
                 if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
                     c.execute('SELECT * FROM shrine')
                     for row in c.fetchall():
-                        await Info.shrine(channel_id=(row[1], row[2]))
+                        try:
+                            await Info.shrine(channel_id=(row[1], row[2]))
+                        except Exception as e:
+                            program_logger.warning(f'Error while sending subscribed shrine to {row[1]}: {e}')
 
         while True:
             await function()
@@ -3001,6 +2994,7 @@ class AutoComplete:
                 global_var_name = f"{category}_names_{lang}"
                 globals()[global_var_name] = [messages[lang]]
         program_logger.debug("Autocompletion initialized.")
+        self.returnsize = 25
 
 
 
@@ -3013,65 +3007,65 @@ class AutoComplete:
 
     async def addons(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         addon_list = await self.get_localized_list(interaction, 'addon')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in addon_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in addon_list[:self.returnsize]]
         matching_names = [name for name in addon_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def character(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         char_list = await self.get_localized_list(interaction, 'char')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in char_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in char_list[:self.returnsize]]
         matching_names = [name for name in char_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def killer(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         killer_list = await self.get_localized_list(interaction, 'killer')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in killer_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in killer_list[:self.returnsize]]
         matching_names = [name for name in killer_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def dlcs(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         dlc_list = await self.get_localized_list(interaction, 'dlc')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in dlc_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in dlc_list[:self.returnsize]]
         matching_names = [name for name in dlc_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def items(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         item_list = await self.get_localized_list(interaction, 'item')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in item_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in item_list[:self.returnsize]]
         matching_names = [name for name in item_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def maps(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         map_list = await self.get_localized_list(interaction, 'map')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in map_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in map_list[:self.returnsize]]
         matching_names = [name for name in map_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def offerings(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         offering_list = await self.get_localized_list(interaction, 'offering')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in offering_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in offering_list[:self.returnsize]]
         matching_names = [name for name in offering_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def perks(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
         perk_list = await self.get_localized_list(interaction, 'perk')
-        if current == '':
-            return [discord.app_commands.Choice(name=name, value=name) for name in perk_list[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=name, value=name) for name in perk_list[:self.returnsize]]
         matching_names = [name for name in perk_list if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 
     async def patchversions(self, interaction: discord.Interaction, current: str = '') -> List[discord.app_commands.Choice[str]]:
-        if current == '':
-            return [discord.app_commands.Choice(name=version, value=version) for version in patch_versions[:25]]
+        if not current:
+            return [discord.app_commands.Choice(name=version, value=version) for version in patch_versions[:self.returnsize]]
         matching_names = [name for name in patch_versions if current.lower() in name.lower()]
-        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names]
+        return [discord.app_commands.Choice(name=name, value=name) for name in matching_names[:self.returnsize]]
 autocomplete = AutoComplete()
 
 
