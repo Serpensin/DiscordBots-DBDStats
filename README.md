@@ -1,4 +1,4 @@
-# Dead by Daylight Stats Bot [![Discord Bot Invite](https://img.shields.io/badge/Invite-blue)](https://discord.com/oauth2/authorize?client_id=1030163127926542400&permissions=67423232&scope=bot)[![Discord Bots](https://top.gg/api/widget/servers/1030163127926542400.svg)](https://top.gg/bot/1030163127926542400)
+# Dead by Daylight Stats Bot [![Discord Bot Invite](https://img.shields.io/badge/Invite-blue)](https://discord.com/oauth2/authorize?client_id=1251199987145248789)[![Discord Bots](https://top.gg/api/widget/servers/1251199987145248789.svg)](https://top.gg/bot/1251199987145248789)
 
 This Discord bot allows you to display Dead by Daylight (DBD) player stats and items for Steam users. It supports multiple methods to set up and start the bot, including the Classic Method and Docker Method.
 Commands, that only be used by the owner of the bot, can only be used in a DM with the bot. Write `help`, to get a list of available owner commands.
