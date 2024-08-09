@@ -15,7 +15,8 @@ ARG BUILD_DATE
 ARG COMMIT
 
 # Install build dependencies and curl
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo g++ libstdc++ && \
+RUN apk add --no-cache libstdc++
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo g++ && \
     apk add curl && \
     python -m pip install --upgrade pip && \
     pip install --upgrade setuptools wheel && \
