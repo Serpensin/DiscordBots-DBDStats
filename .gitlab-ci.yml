@@ -1,22 +1,47 @@
 stages:
-   - build
+  - build
 
-docker-build:
+docker-build-x86:
   image: docker:latest
   stage: build
   services:
     - docker:dind
   script:
     - docker login -u serpensin -p $DOCKER_PW
-    - docker buildx create --use --name mybuilder
+    - docker buildx create --use --name mybuilder --driver docker-container
     - sleep 2
-    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t serpensin/dbdstats:latest --push ./DBDStats
-  after_script:
-    - docker buildx rm mybuilder
+    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/386,linux/amd64 --output=type=registry -t serpensin/dbdstats:latest ./DBDStats
+
+docker-build-arm:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker login -u serpensin -p $DOCKER_PW
+    - docker buildx create --use --name mybuilder --driver docker-container
+    - sleep 2
+    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/arm/v6,linux/arm/v7,linux/arm64/v8 --output=type=registry -t serpensin/dbdstats:latest ./DBDStats
+  tags:
+    - arm
+
+docker-create-manifest:
+  image: docker:latest
+  stage: build
+  script:
+    - docker login -u serpensin -p $DOCKER_PW
+    - docker manifest create serpensin/dbdstats:latest \
+      serpensin/dbdstats:latest-arm \
+      serpensin/dbdstats:latest-x86
+    - docker manifest push serpensin/dbdstats:latest
+  needs:
+    - docker-build-x86
+    - docker-build-arm
+
 
 workflow:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: never
+      when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
-      when: never
+      when: always
