@@ -36,7 +36,7 @@ psutil==6.0.0
 pyasn1_modules==0.4.1
 pyasn1==0.6.1
 pycountry==24.6.1
-pymongo==4.10.1
+pymongo==4.9
 python-dotenv==1.0.1
 pytz==2024.2
 referencing==0.35.1
