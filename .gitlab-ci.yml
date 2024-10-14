@@ -10,7 +10,7 @@ docker-build-x86:
     - docker login -u serpensin -p $DOCKER_PW
     - docker buildx create --use --name mybuilder_x86
     - sleep 2
-    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/386,linux/amd64 --output=type=registry -t serpensin/dbdstats:latest ./DBDStats
+    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/386,linux/amd64 --output=type=registry -t serpensin/dbdstats:latest-x86 ./DBDStats
 
 docker-build-arm:
   image: docker:latest
@@ -21,7 +21,7 @@ docker-build-arm:
     - docker login -u serpensin -p $DOCKER_PW
     - docker buildx create --use --name mybuilder_arm
     - sleep 2
-    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/arm/v6,linux/arm/v7,linux/arm64/v8 --output=type=registry -t serpensin/dbdstats:latest ./DBDStats
+    - docker buildx build --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg COMMIT=${CI_COMMIT_SHA} --compress --no-cache --platform linux/arm/v6,linux/arm/v7,linux/arm64/v8 --output=type=registry -t serpensin/dbdstats:latest-arm ./DBDStats
   tags:
     - arm
 
@@ -41,7 +41,11 @@ docker-create-manifest:
 
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: '$CI_COMMIT_BRANCH == "master"'
       when: always
-    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+      when: always
+    - changes:
+        - "*.py"
+        - "requirements.txt"
       when: always
