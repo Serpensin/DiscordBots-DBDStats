@@ -631,7 +631,7 @@ class Translator(discord.app_commands.Translator):
 
 
     async def load(self):
-        print("App Translator initialized.")
+        pass
 
     async def translate(self,
                         string: discord.app_commands.locale_str,
