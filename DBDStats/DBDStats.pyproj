@@ -12,7 +12,7 @@
     <Name>DBDStats</Name>
     <RootNamespace>DBDStats</RootNamespace>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
-    <InterpreterId>MSBuild|DBDStats|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
     <SuppressPackageInstallationPrompt>True</SuppressPackageInstallationPrompt>
     <IsWindowsApplication>False</IsWindowsApplication>
@@ -37,13 +37,12 @@
     <Compile Include="main.py" />
     <Compile Include="CustomModules\killswitch.py" />
     <Compile Include="CustomModules\twitch.py" />
-    <Compile Include="playground.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".env" />
     <Content Include=".env.template" />
     <Content Include=".dockerignore" />
-    <Content Include=".env" />
     <Content Include="Docker-Compose\docker-compose_without_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose.yml" />
     <Content Include="Docker-Compose\docker-compose_with_external_MongoDB.yml" />
@@ -55,10 +54,10 @@
     <Folder Include="Docker-Compose\" />
   </ItemGroup>
   <ItemGroup>
-    <Interpreter Include="H:\venvs\DBDStats\">
-      <Id>DBDStats</Id>
+    <Interpreter Include="env\">
+      <Id>env</Id>
       <Version>0.0</Version>
-      <Description>DBDStats (Python 3.12 (64-bit))</Description>
+      <Description>env (Python 3.12 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>

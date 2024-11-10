@@ -1,4 +1,4 @@
-﻿FROM python:3.12.4-alpine
+﻿FROM python:3.12-alpine
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ LABEL MAINTAINER="Discord: pika.pika.no.mi (970119359840284743)" \
       COMMIT=$COMMIT \
       DESCRIPTION="Discord bot for DBD for Steam stats." \
       RELEASE=$BUILD_DATE \
-      VERSION="1.16.0" \
+      VERSION="1.16.1" \
       URL="https://gitlab.bloodygang.com/Serpensin/DBDStats"
 
 CMD ["python3", "main.py"]

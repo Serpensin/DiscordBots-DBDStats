@@ -369,7 +369,5 @@ FodyWeavers.xsd
 /DBDStats/googleauth.json
 /DBDStats/playground.py
 /DBDStats/translation_test.txt
-/debug_build.bat
-/release_build.bat
 /DBDStats/playground
 /DBDStats/temp

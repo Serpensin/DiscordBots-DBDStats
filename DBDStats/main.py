@@ -52,7 +52,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.0"
+bot_version = "1.16.1"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2423,8 +2423,9 @@ class Info():
                 conn.commit()
 
     async def twitch_info(interaction: discord.Interaction):
+        await interaction.response.defer()
         if not isTwitchAvailable:
-            await interaction.response.send_message(await Functions.translate(interaction, "Twitch API is currently not available.\nAsk the owner of this instance to enable it."), ephemeral=True)
+            await interaction.followup.send(await Functions.translate(interaction, "Twitch API is currently not available.\nAsk the owner of this instance to enable it."), ephemeral=True)
             return
 
         data = await Functions.data_load('twitch')
@@ -2449,7 +2450,7 @@ class Info():
             embed.set_footer(text=f"Started at: {streamer['started_at']}")
             embeds.append(embed)
 
-        await interaction.response.send_message(embeds=embeds)
+        await interaction.followup.send(embeds=embeds)
 
     async def version(interaction: discord.Interaction):
         await interaction.response.defer()
