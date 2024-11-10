@@ -52,7 +52,7 @@ bot_base = 'https://cdn.bloodygang.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.1"
+bot_version = "1.16.2"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -678,15 +678,16 @@ class Cache():
         global patch_versions
         patch_versions = []
 
-        for filename in os.listdir(f'{buffer_folder}patchnotes'):
-            base_name, extension = os.path.splitext(filename)
-            patched_version = ''
-            for i, char in enumerate(base_name):
-                patched_version += char
-                if i < len(base_name) -1 and char.isdigit() and base_name[i +1 ].isdigit():
-                    patched_version += '.'
-            patch_versions.append(patched_version)
-        patch_versions.sort(reverse=True)
+        while(patch_versions == []):
+            for filename in os.listdir(f'{buffer_folder}patchnotes'):
+                base_name, extension = os.path.splitext(filename)
+                patched_version = ''
+                for i, char in enumerate(base_name):
+                    patched_version += char
+                    if i < len(base_name) -1 and char.isdigit() and base_name[i +1 ].isdigit():
+                        patched_version += '.'
+                patch_versions.append(patched_version)
+            patch_versions.sort(reverse=True)
 
     async def start_cache_update():
         program_logger.info('Updating cache...')
@@ -735,7 +736,6 @@ class Cache():
         await Cache._name_lists()
 
         bot.cache_updated = True
-        program_logger.debug('Cache updated.')
         program_logger.info('Cache updated.')
 
     async def task():
