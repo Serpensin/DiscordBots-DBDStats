@@ -52,7 +52,7 @@ bot_base = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.3"
+bot_version = "1.16.4"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -441,6 +441,8 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Cache.task())
 
     async def on_ready(self):
+        while not self.cache_updated:
+            await asyncio.sleep(0)
         if self.initialized:
             await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
             return
@@ -984,11 +986,17 @@ class Functions():
 
     async def convert_time(timestamp, request='full'):
         if request == 'full':
-            return(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp)))
+            return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp))
         elif request == 'date':
-            return(time.strftime('%Y-%m-%d', time.gmtime(timestamp)))
+            return time.strftime('%Y-%m-%d', time.gmtime(timestamp))
         elif request == 'time':
-            return(time.strftime('%H:%M:%S', time.gmtime(timestamp)))
+            return time.strftime('%H:%M:%S', time.gmtime(timestamp))
+        elif request == 'detailed':
+            days = timestamp // 86400
+            hours = (timestamp % 86400) // 3600
+            minutes = (timestamp % 3600) // 60
+            seconds = timestamp % 60
+            return f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
 
     async def create_support_invite(interaction):
         try:
@@ -2187,67 +2195,77 @@ class Info():
                 embed.set_thumbnail(url=avatar)
                 embed.set_footer(text=footer)
 
-            #Embed1 - Survivor
-            await Functions.safe_add_field(embed1, "Bloodpoints Earned", "bloodpoints", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Rank", "survivor_rank", player_stats, interaction)
+            # Embed1 - Survivor
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Bloodpoints Earned"), "bloodpoints", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Rank"), "survivor_rank", player_stats, interaction)
+            #Add formated playtime
+            playtime = await Functions.convert_time(Functions.safe_int(player_stats['playtime']), 'detailed')
+            embed1.add_field(name=await Functions.translate(interaction, "Playtime"), value=playtime)
             embed1.add_field(name="\u200b", value="\u200b", inline=False)
-            await Functions.safe_add_field(embed1, "Full loadout Games", "survivor_fullloadout", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Perfect Games", "survivor_perfectgames", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Generators repaired", "gensrepaired", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Gens without Perks", "gensrepaired_noperks", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Damaged gens repaired", "damagedgensrepaired", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Successful skill checks", "skillchecks", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Items Depleted", "itemsdepleted", player_stats, interaction, inline=False)
-            await Functions.safe_add_field(embed1, "Hex Totems Cleansed", "hextotemscleansed", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Hex Totems Blessed", "hextotemsblessed", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Blessed Boosts", "blessedtotemboosts", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Exit Gates Opened", "exitgatesopened", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Hooks Sabotaged", "hookssabotaged", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Chests Searched", "chestssearched", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Chests Searched in the Basement", "chestssearched_basement", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Mystery boxes opened", "mysteryboxesopened", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Killers aura revealed", "killersaurarevealed", player_stats, interaction)
-            await Functions.safe_add_field(embed1, "Screams", "screams", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Full loadout Games"), "survivor_fullloadout", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Perfect Games"), "survivor_perfectgames", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Generators repaired"), "gensrepaired", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Gens without Perks"), "gensrepaired_noperks", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Damaged gens repaired"), "damagedgensrepaired", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Successful skill checks"), "skillchecks", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Items Depleted"), "itemsdepleted", player_stats, interaction, inline=False)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Hex Totems Cleansed"), "hextotemscleansed", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Hex Totems Blessed"), "hextotemsblessed", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Blessed Boosts"), "blessedtotemboosts", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Exit Gates Opened"), "exitgatesopened", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Hooks Sabotaged"), "hookssabotaged", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Chests Searched"), "chestssearched", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Chests Searched in the Basement"), "chestssearched_basement", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Mystery boxes opened"), "mysteryboxesopened", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Killers aura revealed"), "killersaurarevealed", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Screams"), "screams", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Skillchecks while injured"), "skillchecks_injured", player_stats, interaction)
+            
             # Embed2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
-            await Functions.safe_add_field(embed2, "Dodged basic attack or projectiles", "dodgedattack", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Escaped chase after pallet stun", "escapedchase_palletstun", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Escaped chase injured after hit", "escapedchase_healthyinjured", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Escape chase by hiding in locker", "escapedchase_hidinginlocker", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Protection hits for unhooked survivor", "protectionhits_unhooked", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Protectionhits while a survivor is carried", "protectionhits_whilecarried", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Vaults while in chase", "vaultsinchase", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Dodge attack before vaulting", "vaultsinchase_missed", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Wiggled from killers grasp", "wiggledfromkillersgrasp", player_stats, interaction)
-            await Functions.safe_add_field(embed2, "Killers blinded with a flashlight", "killerblinded_flashlight", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Dodged basic attack or projectiles"), "dodgedattack", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Escaped chase after pallet stun"), "escapedchase_palletstun", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Escaped chase injured after hit"), "escapedchase_healthyinjured", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Escape chase by hiding in locker"), "escapedchase_hidinginlocker", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Protection hits for unhooked survivor"), "protectionhits_unhooked", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Protectionhits while a survivor is carried"), "protectionhits_whilecarried", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Vaults while in chase"), "vaultsinchase", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Dodge attack before vaulting"), "vaultsinchase_missed", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Wiggled from killers grasp"), "wiggledfromkillersgrasp", player_stats, interaction)
+            await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Killers blinded with a flashlight"), "killerblinded_flashlight", player_stats, interaction)
+            
             # Embed3 - Healing/Saves
             embed3.add_field(name="\u200b", value="\u200b", inline=False)
-            await Functions.safe_add_field(embed3, "Survivors healed", "survivorshealed", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors healed while injured", "survivorshealed_whileinjured", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors healed while 3 others not healthy", "survivorshealed_threenothealthy", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors healed who found you while injured", "survivorshealed_foundyou", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors healed from dying state to injured", "healeddyingtoinjured", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Obsessions healed", "obsessionshealed", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors healed while in the basement", "survivorshealed_basement", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors saved (from death)", "saved", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Survivors saved during endgame", "saved_endgame", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Killers pallet stunned while carrying a survivor", "killerstunned_palletcarrying", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Killers stunned while holding item", "killerstunned_holdingitem", player_stats, interaction)
-            await Functions.safe_add_field(embed3, "Kobed", "unhookedself", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed"), "survivorshealed", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed while injured"), "survivorshealed_whileinjured", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed while 3 others not healthy"), "survivorshealed_threenothealthy", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed who found you while injured"), "survivorshealed_foundyou", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed from dying state to injured"), "healeddyingtoinjured", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Obsessions healed"), "obsessionshealed", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed while in the basement"), "survivorshealed_basement", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors saved (from death)"), "saved", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors saved during endgame"), "saved_endgame", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Killers pallet stunned while carrying a survivor"), "killerstunned_palletcarrying", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Killers stunned while holding item"), "killerstunned_holdingitem", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Kobed"), "unhookedself", player_stats, interaction)
+            await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Savely unhooked while broken"), "unhookedsafely_whilebroken", player_stats, interaction)
+            
             # Embed4 - Escaped
             embed4.add_field(name="\u200b", value="\u200b", inline=False)
-            await Functions.safe_add_field(embed4, "While healthy/injured", "escaped", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "While crawling", "escaped_ko", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "After kobed", "hooked_escape", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "Through the hatch", "escaped_hatch", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "Through the hatch while crawling", "escaped_hatchcrawling", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "Through the hatch with everyone", "escaped_allhatch", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "After been downed once", "escaped_downedonce", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "After been injured for half of the trial", "escaped_injuredhalfoftrail", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "With no bloodloss as obsession", "escaped_nobloodlossobsession", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "Last gen last survivor", "escaped_lastgenlastsurvivor", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "With new item", "escaped_newitem", player_stats, interaction)
-            await Functions.safe_add_field(embed4, "With item from someone else", "escaped_withitemfrom", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "While healthy/injured"), "escaped", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "While crawling"), "escaped_ko", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "After kobed"), "hooked_escape", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "Through the hatch"), "escaped_hatch", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "Through the hatch while crawling"), "escaped_hatchcrawling", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "Through the hatch with everyone"), "escaped_allhatch", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "After been downed once"), "escaped_downedonce", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "After been injured for half of the trial"), "escaped_injuredhalfoftrail", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "With no bloodloss as obsession"), "escaped_nobloodlossobsession", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "Last gen last survivor"), "escaped_lastgenlastsurvivor", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "With new item"), "escaped_newitem", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "With item from someone else"), "escaped_withitemfrom", player_stats, interaction)
+            await Functions.safe_add_field(embed4, await Functions.translate(interaction, "While broken"), "escaped_broken", player_stats, interaction)
+
             # Embed5 - Repaired second floor generator and escaped
             embed5.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed5, "Disturbed Ward", "secondfloorgen_disturbedward", player_stats, interaction)
@@ -2273,6 +2291,7 @@ class Info():
             await Functions.safe_add_field(embed5, "Nostromo Wreckage", "secondfloorgen_messhall", player_stats, interaction)
             await Functions.safe_add_field(embed5, "Greenville Square", "secondfloorgen_greenvillesquare", player_stats, interaction)
             await Functions.safe_add_field(embed5, "Forgotten Ruins", "secondfloorgen_forgottenruins", player_stats, interaction)
+
             # Embed6 - Killer Stats
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Rank"), "killer_rank", player_stats, interaction)
             embed6.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2296,6 +2315,9 @@ class Info():
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors made scream"), "survivorscreams", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors injured while in basement"), "survivorsinjured_basement", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors interupted while vaulting"), "survivorsinterupted_vaulting", player_stats, interaction)
+            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors basic hit while undetected"), "survivorshit_basicattackundetectable", player_stats, interaction)
+            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors hit while detained by dog"), "survivorshit_detainedbydog", player_stats, interaction)
+
             # Embed7 - Hooked
             embed7.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hooked before a generator is repaired"), "survivorshookedbeforegenrepaired", player_stats, interaction)
@@ -2304,6 +2326,7 @@ class Info():
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "3 Survivors hooked in basement"), "survivorsthreehookedbasementsametime", player_stats, interaction)
             embed7.add_field(name="\u200b", value="\u200b")
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hooked in basement"), "survivorshookedinbasement", player_stats, interaction)
+            
             # Embed8 - Powers
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Beartrap Catches"), "beartrapcatches", player_stats, interaction)
@@ -2328,6 +2351,8 @@ class Info():
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Tailattacks"), "tailattacks", player_stats, interaction)
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Survivor hit 3 sec after scamper"), "survivorshit_scamper", player_stats, interaction)
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Hellfire Hits"), "hellfirehits", player_stats, interaction)
+            await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Survivorrs hit within 15 seconds of casting a spell"), "survivorshit_castspell", player_stats, interaction)
+            
             # Embed9 - Survivors downed
             embed9.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed9, await Functions.translate(interaction, "Downed while hindered"), "survivorsdowned_hindered", player_stats, interaction)
@@ -2335,6 +2360,7 @@ class Info():
             await Functions.safe_add_field(embed9, await Functions.translate(interaction, "Downed while exposed"), "survivorsdowned_exposed", player_stats, interaction)
             await Functions.safe_add_field(embed9, await Functions.translate(interaction, "Downed near a raised pallet"), "survivorsdowned_nearraisedpallet", player_stats, interaction)
             await Functions.safe_add_field(embed9, await Functions.translate(interaction, "Downed while carrying survivor"), "survivorsdowned_whilecarrying", player_stats, interaction)
+            
             #Embed10 - Survivors downed with power
             embed10.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed10, await Functions.translate(interaction, "Downed with a Hatchet (24+ meters)"), "survivorsdowned_hatchets", player_stats, interaction)
@@ -2353,6 +2379,7 @@ class Info():
             await Functions.safe_add_field(embed10, await Functions.translate(interaction, "Downed while exposed by Lock On"), "survivorsdowned_lockon", player_stats, interaction)
             await Functions.safe_add_field(embed10, await Functions.translate(interaction, "Downed during nightfall"), "survivorsdowned_nightfall", player_stats, interaction)
             await Functions.safe_add_field(embed10, await Functions.translate(interaction, "Downed using UVX"), "survivorsdowned_uvx", player_stats, interaction)
+            
             #Send Statistics
             embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10]
             await interaction.delete_original_response()

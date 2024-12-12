@@ -26,6 +26,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="check_for_new_entries.py" />
     <Compile Include="CustomModules\app_translation.py" />
     <Compile Include="CustomModules\bot_directory.py" />
     <Compile Include="CustomModules\googletrans.py" />
