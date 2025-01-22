@@ -34,7 +34,7 @@ services:
       MongoDB_user: USERNAME		#           Don't change!!!         #
       MongoDB_password: PASSWORD    #									#
       MongoDB_database: DBDStats    #####################################
-    image: serpensin/dbdstats
+    image: ghcr.io/serpensin/discordbots-dbdstats:latest
     volumes:
       - dbdstats:/app/DBDStats
       - /PATH/TO/googleauth.json:/app/googleauth.json

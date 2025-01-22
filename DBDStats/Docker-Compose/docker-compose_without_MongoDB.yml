@@ -19,7 +19,7 @@ services:
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
       LOG_LEVEL: INFO
-    image: serpensin/dbdstats
+    image: ghcr.io/serpensin/discordbots-dbdstats:latest
     volumes:
       - dbdstats_log:/app/DBDStats
       - /PATH/TO/googleauth.json:/app/googleauth.json

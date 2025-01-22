@@ -110,5 +110,5 @@ docker run -d \
 -p 5000:5000 \
 -v dbdstats_log:/app/DBDStats/Logs \
 -v /path/to/googleauth.json:/app/googleauth.json:ro \
-serpensin/dbdstats
+ghcr.io/serpensin/discordbots-dbdstats:latest
 ```

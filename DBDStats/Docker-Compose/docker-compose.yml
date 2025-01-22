@@ -32,7 +32,7 @@ services:
       MongoDB_host: mongo           #####################################
       MongoDB_port: 27017           #           Don't change!!!         #
       MongoDB_database: DBDStats    #####################################
-    image: serpensin/dbdstats
+    image: ghcr.io/serpensin/discordbots-dbdstats:latest
     volumes:
       - dbdstats:/app/DBDStats
       - /PATH/TO/googleauth.json:/app/googleauth.json
