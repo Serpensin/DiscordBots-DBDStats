@@ -53,7 +53,7 @@ bot_base = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.5"
+bot_version = "1.16.6"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -87,7 +87,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production',
-    release=f'DBDStats@{bot_version}'
+    release=f'{app_folder_name}@{bot_version}'
 )
 
 #Fix error on windows on shutdown.
@@ -941,7 +941,10 @@ class Functions():
             program_logger.debug(libre_languages)
 
     async def check_rate_limit(url):
-        async with aiohttp.ClientSession() as session:
+        headers = {
+            'User-Agent': f'{app_folder_name}/{bot_version}'
+        }
+        async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url) as response:
                 program_logger.debug(response)
                 if response.status != 200:
