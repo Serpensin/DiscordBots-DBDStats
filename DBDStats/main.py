@@ -53,7 +53,7 @@ bot_base = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 map_portraits = f'{bot_base}mapportraits/'
 alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
 steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.6"
+bot_version = "1.16.7"
 api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2202,7 +2202,7 @@ class Info():
             # Embed 1 - Survivor
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Bloodpoints Earned"), "bloodpoints", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Rank"), "survivor_rank", player_stats, interaction)
-            #Add formated playtime
+            # Add formated playtime
             playtime = await Functions.convert_time(Functions.safe_int(player_stats['playtime']), 'detailed')
             embed1.add_field(name=await Functions.translate(interaction, "Playtime"), value=playtime)
             embed1.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2224,6 +2224,7 @@ class Info():
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Killers aura revealed"), "killersaurarevealed", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Screams"), "screams", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Skillchecks while injured"), "skillchecks_injured", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Special Items Used"), "specialitem_used", player_stats, interaction)
             
             # Embed 2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2329,6 +2330,9 @@ class Info():
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Rank"), "killer_rank", player_stats, interaction)
             embed7.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Applied the Oblivious status effect"), "survivorseffectedwithoblivious", player_stats, interaction)
+            await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit using grab-attack (Ghoul)"), "survivorshit_grabattack", player_stats, interaction)
+            await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit with the Haste status effect"), "survivorshit_haste", player_stats, interaction)
+            await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit holding Special Item"), "survivorshit_specialitem", player_stats, interaction)
 
             # Embed 8 - Hooked
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
