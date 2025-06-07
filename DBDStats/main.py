@@ -45,17 +45,17 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 load_dotenv()
-app_folder_name = 'DBDStats'
-api_base = 'https://dbd.tricky.lol/api/' # For production
-#api_base = 'http://localhost:5000/' # For testing
+APP_FOLDER_NAME = 'DBDStats'
+API_BASE = 'https://dbd.tricky.lol/api/' # For production
+#API_BASE = 'http://localhost:5000/' # For testing
 NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
-bot_base = 'https://cdn.serpensin.com/botfiles/DBDStats/'
-map_portraits = f'{bot_base}mapportraits/'
-alt_playerstats = 'https://dbd.tricky.lol/playerstats/'
-steamStore = 'https://store.steampowered.com/app/'
-bot_version = "1.16.7"
-api_langs = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
-DBD_ID = 381210
+BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
+MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
+ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
+STEAM_STORE_URL = 'https://store.steampowered.com/app/'
+BOT_VERSION = "1.16.8"
+AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
+DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
 
 #Load env
@@ -87,7 +87,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production',
-    release=f'{app_folder_name}@{bot_version}'
+    release=f'{APP_FOLDER_NAME}@{BOT_VERSION}'
 )
 
 #Fix error on windows on shutdown.
@@ -97,30 +97,30 @@ if platform.system() == 'Windows':
 #Set-up folders
 def folder_setup():
     paths = [
-            f'{app_folder_name}//Logs',
-            f'{app_folder_name}//Buffer//Stats',
-            f'{app_folder_name}//Buffer//addon',
-            f'{app_folder_name}//Buffer//char',
-            f'{app_folder_name}//Buffer//dlc',
-            f'{app_folder_name}//Buffer//event',
-            f'{app_folder_name}//Buffer//item',
-            f'{app_folder_name}//Buffer//map',
-            f'{app_folder_name}//Buffer//offering',
-            f'{app_folder_name}//Buffer//patchnotes',
-            f'{app_folder_name}//Buffer//perk',
+            f'{APP_FOLDER_NAME}//Logs',
+            f'{APP_FOLDER_NAME}//Buffer//Stats',
+            f'{APP_FOLDER_NAME}//Buffer//addon',
+            f'{APP_FOLDER_NAME}//Buffer//char',
+            f'{APP_FOLDER_NAME}//Buffer//dlc',
+            f'{APP_FOLDER_NAME}//Buffer//event',
+            f'{APP_FOLDER_NAME}//Buffer//item',
+            f'{APP_FOLDER_NAME}//Buffer//map',
+            f'{APP_FOLDER_NAME}//Buffer//offering',
+            f'{APP_FOLDER_NAME}//Buffer//patchnotes',
+            f'{APP_FOLDER_NAME}//Buffer//perk',
         ]
     for path in paths:
         os.makedirs(path, exist_ok=True)
 folder_setup()
-log_folder = f'{app_folder_name}//Logs//'
-buffer_folder = f'{app_folder_name}//Buffer//'
-stats_folder = f'{app_folder_name}//Buffer//Stats//'
-activity_file = os.path.join(app_folder_name, 'activity.json')
-sql_file = os.path.join(app_folder_name, f'{app_folder_name}.db')
+log_folder = f'{APP_FOLDER_NAME}//Logs//'
+buffer_folder = f'{APP_FOLDER_NAME}//Buffer//'
+stats_folder = f'{APP_FOLDER_NAME}//Buffer//Stats//'
+activity_file = os.path.join(APP_FOLDER_NAME, 'activity.json')
+sql_file = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
 
 
 # #Set-up logging
-log_manager = log_handler.LogManager(log_folder, app_folder_name, LOG_LEVEL)
+log_manager = log_handler.LogManager(log_folder, APP_FOLDER_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Engine powering up...')
@@ -480,9 +480,9 @@ class SignalHandler:
 #Update cache/db (Every ~4h)
 class Cache():
     async def _update_perks():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f"{api_base}perks?locale={lang}")
+                data = await Functions.check_rate_limit(f"{API_BASE}perks?locale={lang}")
             except Exception:
                 program_logger.warning("Perks couldn't be updated.")
                 program_logger.debug("Perks couldn't be updated.")
@@ -494,9 +494,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_offerings():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}offerings?locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}offerings?locale={lang}')
             except Exception:
                 program_logger.warning("Offerings couldn't be updated.")
                 program_logger.debug("Offerings couldn't be updated.")
@@ -508,9 +508,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_chars():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}characters?locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}characters?locale={lang}')
             except Exception:
                 program_logger.warning("Characters couldn't be updated.")
                 program_logger.debug("Characters couldn't be updated.")
@@ -522,9 +522,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_dlc():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}dlc?locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}dlc?locale={lang}')
             except Exception:
                 program_logger.warning("DLC couldn't be updated.")
                 program_logger.debug("DLC couldn't be updated.")
@@ -536,9 +536,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_item():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}items?role=survivor&locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}items?role=survivor&locale={lang}')
             except Exception:
                 program_logger.warning("Items couldn't be updated.")
                 program_logger.debug("Items couldn't be updated.")
@@ -550,9 +550,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_addon():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}addons?locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}addons?locale={lang}')
             except Exception:
                 program_logger.warning("Addons couldn't be updated.")
                 program_logger.debug("Addons couldn't be updated.")
@@ -564,9 +564,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_map():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data = await Functions.check_rate_limit(f'{api_base}maps?locale={lang}')
+                data = await Functions.check_rate_limit(f'{API_BASE}maps?locale={lang}')
             except Exception:
                 program_logger.warning("Maps couldn't be updated.")
                 program_logger.debug("Maps couldn't be updated.")
@@ -578,9 +578,9 @@ class Cache():
                 json.dump(data, f, indent=2)
 
     async def _update_event():
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             try:
-                data_list = await Functions.check_rate_limit(f'{api_base}events?locale={lang}')
+                data_list = await Functions.check_rate_limit(f'{API_BASE}events?locale={lang}')
             except Exception:
                 program_logger.warning("Events couldn't be updated.")
                 program_logger.debug("Events couldn't be updated.")
@@ -596,7 +596,7 @@ class Cache():
 
     async def _update_version():
         try:
-            data = await Functions.check_rate_limit(f'{api_base}versions')
+            data = await Functions.check_rate_limit(f'{API_BASE}versions')
         except Exception:
             program_logger.warning("Version couldn't be updated.")
             program_logger.debug("Version couldn't be updated.")
@@ -609,7 +609,7 @@ class Cache():
 
     async def _update_patchnotes():
         try:
-            data = await Functions.check_rate_limit(f'{api_base}patchnotes')
+            data = await Functions.check_rate_limit(f'{API_BASE}patchnotes')
         except Exception:
             program_logger.warning("Patchnotes couldn't be updated.")
             program_logger.debug("Patchnotes couldn't be updated.")
@@ -637,7 +637,7 @@ class Cache():
 
     async def _name_lists():
         async def load_and_set_names(request_data, target_var_name):
-            for lang in api_langs:
+            for lang in AVAILABLE_LANGS:
                 killer = False
                 if request_data == 'killers':
                     request_data = 'chars'
@@ -726,7 +726,7 @@ class Cache():
                 f'{buffer_folder}perk',
             ]
             for path in paths:
-                for lang in api_langs:
+                for lang in AVAILABLE_LANGS:
                     filename = f"{path}//{lang}.json"
                     if not os.path.exists(filename):
                         program_logger.critical(message)
@@ -942,7 +942,7 @@ class Functions():
 
     async def check_rate_limit(url):
         headers = {
-            'User-Agent': f'{app_folder_name}/{bot_version}'
+            'User-Agent': f'{APP_FOLDER_NAME}/{BOT_VERSION}'
         }
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url) as response:
@@ -955,14 +955,14 @@ class Functions():
     async def check_if_removed(id):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f'{api_base}playerstats?steamid={id}') as resp:
+                async with session.get(f'{API_BASE}playerstats?steamid={id}') as resp:
                     program_logger.debug(resp.status)
                     resp.raise_for_status()  # Throws an exception if the status code is not 200
                     return 0
         except aiohttp.ClientResponseError as e:
             program_logger.debug(e.request_info.url)
             if e.status == 404:
-                url = f'{alt_playerstats}{id}'
+                url = f'{ALT_PLAYERSTATS}{id}'
                 try:
                     async with aiohttp.ClientSession() as session:
                         async with session.get(url) as resp:
@@ -1033,7 +1033,7 @@ class Functions():
 
     async def data_load(requested: Literal['addons', 'chars', 'dlcs', 'events', 'items', 'maps', 'offerings', 'perks', 'shrine', 'twitch', 'versions', 'patchnotes'], lang: Literal['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW'] = '', version: str = ''):
         requested = (lambda s: s[:-1] if s.endswith('s') and s != "patchnotes" else s)(requested)
-        if lang not in api_langs:
+        if lang not in AVAILABLE_LANGS:
             lang = 'en'
 
         file_name = f"{buffer_folder}{requested}//"
@@ -1067,7 +1067,7 @@ class Functions():
 
     async def find_killer_by_item(item_name: str, killers_data) -> str:
         for killer in killers_data.values():
-            if killer in api_langs:
+            if killer in AVAILABLE_LANGS:
                 continue
             if killer.get('item') == item_name:
                 return killer['id']
@@ -1076,7 +1076,7 @@ class Functions():
     async def find_killer_item(killer, chars):
         killer_data = None
         for char_data in chars.values():
-            if char_data in api_langs:
+            if char_data in AVAILABLE_LANGS:
                 continue
             if str(char_data['id']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip() or str(char_data['name']).lower().replace('the', '').strip() == str(killer).lower().replace('the', '').strip():
                 killer_data = char_data
@@ -1420,14 +1420,14 @@ class SendInfo():
                 .replace('&nbsp;', ' ') \
                 .replace('&nbsp;', ' ')
 
-                if lang in api_langs:
+                if lang in AVAILABLE_LANGS:
                     embed = discord.Embed(title=data[key]['name'],
                                       description=description,
                                       color=0x0400ff)
                 else:
                     embed = discord.Embed(title=str(data[key]['name']).replace('&nbsp;', ' '),
                                       description = await Functions.translate(interaction, description), color=0x0400ff)
-                embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
+                embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name=await Functions.translate(interaction, 'Rarity'), value=str(await Functions.translate(interaction, data[key]['rarity'])).capitalize(), inline=True)
                 embed.add_field(name=await Functions.translate(interaction, 'Role'), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
@@ -1456,12 +1456,12 @@ class SendInfo():
                 continue
             if str(data[key]['name']) == char:
                 embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=str(data[key]['name']), color=0xb19325)
-                embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
+                embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
                 embed.add_field(name=await Functions.translate(interaction, "Role"), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
                 embed.add_field(name=await Functions.translate(interaction, "Gender"), value=str(await Functions.translate(interaction, data[key]['gender'])).capitalize(), inline=True)
                 for dlc_key in dlc_data.keys():
                     if dlc_key == data[key]['dlc']:
-                        embed.add_field(name="DLC", value=f"[{dlc_data[dlc_key]['name'].capitalize().replace(' chapter', '')}]({steamStore}{dlc_data[dlc_key]['steamid']})", inline=True)
+                        embed.add_field(name="DLC", value=f"[{dlc_data[dlc_key]['name'].capitalize().replace(' chapter', '')}]({STEAM_STORE_URL}{dlc_data[dlc_key]['steamid']})", inline=True)
                 if data[key]['difficulty'] != 'none':
                     embed.add_field(name=await Functions.translate(interaction, "Difficulty"), value=str(await Functions.translate(interaction, data[key]['difficulty'])).capitalize(), inline=True)
                 if str(data[key]['role']) == 'killer':
@@ -1469,7 +1469,7 @@ class SendInfo():
                     embed.add_field(name=await Functions.translate(interaction, "Terror Radius"), value=f"{Functions.safe_int(data[key]['tunables']['TerrorRadius']) / 100}m", inline=True)
                     embed.add_field(name='\u200b', value='\u200b', inline=True)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
-                if lang in api_langs and lang != 'en':
+                if lang in AVAILABLE_LANGS and lang != 'en':
                     embed.add_field(name="Bio", value=str(data[key]['bio']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. '), inline=False)
                 else:
                     embed.add_field(name="Bio", value=await Functions.translate(interaction, str(data[key]['bio']).replace('<ul>', '').replace('</ul>', '').replace('<br><br>', '').replace('<br>', '').replace('<b>', '**').replace('</b>', '**').replace('&nbsp;', ' ').replace('.', '. ')), inline=False)
@@ -1481,7 +1481,7 @@ class SendInfo():
                 if len(story_text) > 4096:
                     story_text = Functions.insert_newlines(story_text)
                     with tempfile.NamedTemporaryFile(suffix='.txt', mode='w', delete=False, encoding='utf8') as story_file:
-                        if lang in api_langs and lang != 'en':
+                        if lang in AVAILABLE_LANGS and lang != 'en':
                             story_file.write(story_text)
                         else:
                             story_file.write(await Functions.translate(interaction, story_text))
@@ -1490,14 +1490,14 @@ class SendInfo():
                     os.remove(story_file.name)
                     return
                 elif 1024 < len(story_text) <= 4096:
-                    if lang in api_langs and lang != 'en':
+                    if lang in AVAILABLE_LANGS and lang != 'en':
                         embed2 = discord.Embed(title="Story", description=story_text, color=0xb19325)
                     else:
                         embed2 = discord.Embed(title='Story', description=await Functions.translate(interaction, story_text), color=0xb19325)
                     await interaction.followup.send(embeds=[embed, embed2], ephemeral = True)
                     return
                 else:
-                    if lang in api_langs and lang != 'en':
+                    if lang in AVAILABLE_LANGS and lang != 'en':
                         embed.add_field(name="Story", value=story_text, inline=False)
                     else:
                         embed.add_field(name="Story", value=await Functions.translate(interaction, story_text), inline=False)
@@ -1525,7 +1525,7 @@ class SendInfo():
                     title = i
                 else:
                     title = data_loc[i]['name']
-                if lang in api_langs:
+                if lang in AVAILABLE_LANGS:
                     embed = discord.Embed(title = title,
                                       description = str(data_loc[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. '),
                                       color = 0x00ff00)
@@ -1533,7 +1533,7 @@ class SendInfo():
                     embed = discord.Embed(title = title,
                                       description = await Functions.translate(interaction, str(data_loc[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
-                embed.set_thumbnail(url=f"{bot_base}{data_loc[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
+                embed.set_thumbnail(url=f"{BOT_BASE}{data_loc[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
                 embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = await Functions.translate(interaction, str(data_loc[i]['rarity']).capitalize()))
                 bloodweb = "Yes" if data_loc[i]['bloodweb'] == 1 else "No"
@@ -1559,7 +1559,7 @@ class SendInfo():
             if item == '_id':
                 continue
             if str(data[item]['name']).lower() == offering.lower() or str(item).lower() == offering.lower():
-                if lang in api_langs:
+                if lang in AVAILABLE_LANGS:
                     embed = discord.Embed(title = data[item]['name'],
                                       description = str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. '),
                                       color = 0x00ff00)
@@ -1567,7 +1567,7 @@ class SendInfo():
                     embed = discord.Embed(title = data[item]['name'],
                                       description = await Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
-                embed.set_thumbnail(url=f"{bot_base}{data[item]['image']}")
+                embed.set_thumbnail(url=f"{BOT_BASE}{data[item]['image']}")
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
                 embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = str(await Functions.translate(interaction, data[item]['rarity'])).capitalize())
                 embed.add_field(name = await Functions.translate(interaction, 'Type'), value = await Functions.translate(interaction, data[item]['type']))
@@ -1585,13 +1585,13 @@ class SendInfo():
 
     async def perk(perk, lang, interaction, shrine=False, random=False):
         async def check():
-            embed.set_thumbnail(url=f"{bot_base}{data[key]['image']}")
+            embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
             character = await Functions.data_load('chars', lang)
             if character is None:
                 return
             for i in character.keys():
                 if str(i) == str(data[key]['character']):
-                    embed.set_author(name=f"{character[i]['name']}", icon_url=f"{bot_base}{character[i]['image']}")
+                    embed.set_author(name=f"{character[i]['name']}", icon_url=f"{BOT_BASE}{character[i]['image']}")
                     break
 
         def get_tunables_value(position: int) -> str:
@@ -1645,7 +1645,7 @@ class SendInfo():
         program_logger.debug(perk)
 
         if shrine and type(interaction) == discord.Interaction:
-            if lang in api_langs:
+            if lang in AVAILABLE_LANGS:
                 embed = discord.Embed(title=f"{data[perk]['name']}", description=description, color=0xb19325)
             else:
                 embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[perk]['name']}'", description=await Functions.translate(interaction, description), color=0xb19325)
@@ -1653,7 +1653,7 @@ class SendInfo():
             await check()
             return embed
         elif shrine and type(interaction) != discord.Interaction:
-            if lang in api_langs:
+            if lang in AVAILABLE_LANGS:
                 embed = discord.Embed(title=f"{data[perk]['name']}", description=description, color=0xb19325)
             else:
                 embed = discord.Embed(title=f"{await Functions.translate(lang, 'Perk-Description for')} '{data[perk]['name']}'", description=await Functions.translate(lang, description), color=0xb19325)
@@ -1665,7 +1665,7 @@ class SendInfo():
                 if str(key) == '_id':
                     continue
                 if key == perk:
-                    if lang in api_langs:
+                    if lang in AVAILABLE_LANGS:
                         embed = discord.Embed(title=f"{data[key]['name']}", description=description, color=0xb19325)
                     else:
                         embed = discord.Embed(title=f"{await Functions.translate(interaction, 'Perk-Description for')} '{data[key]['name']}'", description=await Functions.translate(interaction, description), color=0xb19325)
@@ -1694,7 +1694,7 @@ class Info():
     async def adepts(interaction: discord.Integration, steamid):
         await interaction.response.defer()
         try:
-            ownesDBD = await SteamApi.ownsGame(steamid, DBD_ID)
+            ownesDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
         except ValueError:
             await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             return
@@ -1723,7 +1723,7 @@ class Info():
                 await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
                 return
             try:
-                data = await Functions.check_rate_limit(f'{api_base}playeradepts?steamid={steamid}')
+                data = await Functions.check_rate_limit(f'{API_BASE}playeradepts?steamid={steamid}')
             except Exception as e:
                 if e.code == 429:
                     await interaction.followup.send(await Functions.translate(interaction, "The bot got ratelimited. Please try again later. (This error can also appear if the same profile got querried multiple times in a 4h window.)"), ephemeral=True)
@@ -1849,7 +1849,7 @@ class Info():
                         continue
                     if j >= end_index:
                         break
-                    embed.add_field(name=str(data[key]['name']), value=f"[{await Functions.convert_time(data[key]['time'], 'date')}]({steamStore}{str(data[key]['steamid'])})", inline=True)
+                    embed.add_field(name=str(data[key]['name']), value=f"[{await Functions.convert_time(data[key]['time'], 'date')}]({STEAM_STORE_URL}{str(data[key]['steamid'])})", inline=True)
                     j += 1
                 embeds.append(embed)
             await interaction.followup.send(embeds=embeds)
@@ -1930,13 +1930,13 @@ class Info():
                 data = json.load(f)
                 if data['killswitch_on'] == 0:
                     embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
-                    embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                    embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
                     embed.set_footer(text = f'Update every 15 minutes.')
                     await interaction.followup.send(embed=embed)
                     return
                 else:
                     embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data['md']), color=0xb19325)
-                    embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+                    embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
                     embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
                     await interaction.followup.send(embed=embed)
                     return
@@ -1950,13 +1950,13 @@ class Info():
 
         if data.replace('\n', '').strip() == '':
             embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
-            embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
             embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
             await interaction.followup.send(embed=embed)
             killswitch_on = 0
         elif data is not None:
             embed = discord.Embed(title="Killswitch", description=data, color=0xb19325)
-            embed.set_thumbnail(url=f'{bot_base}killswitch.jpg')
+            embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
             embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
             await interaction.followup.send(embed=embed)
             killswitch_on = 1
@@ -1972,7 +1972,7 @@ class Info():
     async def legacycheck(interaction: discord.Interaction, steamid):
         await interaction.response.defer()
         try:
-            ownsDBD = await SteamApi.ownsGame(steamid, DBD_ID)
+            ownsDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
         except ValueError:
             await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             return
@@ -1989,7 +1989,7 @@ class Info():
         else:
 
             try:
-                data = await SteamApi.get_player_achievements(steamid, DBD_ID)
+                data = await SteamApi.get_player_achievements(steamid, DBD_STEAM_APP_ID)
             except ValueError:
                 await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
             except steam.Errors.RateLimit:
@@ -2028,7 +2028,7 @@ class Info():
             try:
                 if value['name'].lower() == name.lower():
                     embed = discord.Embed(title=f"Map description for '{value['name']}'", description=await Functions.translate(interaction, str(value['description']).replace('<br><br>', ' ')), color=0xb19325)
-                    embed.set_thumbnail(url=f"{map_portraits}{key}.png")
+                    embed.set_thumbnail(url=f"{MAP_PORTRAITS}{key}.png")
                     await interaction.followup.send(embed=embed)
                     return
             except AttributeError:
@@ -2070,7 +2070,7 @@ class Info():
     async def playercount(interaction: discord.Interaction):
         async def selfembed(data):
             embed = discord.Embed(title=await Functions.translate(interaction, "Player count"), color=0xb19325)
-            embed.set_thumbnail(url=f"{bot_base}dbd.png")
+            embed.set_thumbnail(url=f"{BOT_BASE}dbd.png")
             embed.add_field(name="\u200b", value="\u200b", inline=False)
             embed.add_field(name=await Functions.translate(interaction, "Current"), value=f"{Functions.safe_int(data['Current Players']):,}", inline=True)
             embed.add_field(name=await Functions.translate(interaction, "24h Peak"), value=f"{Functions.safe_int(data['Peak Players 24h']):,}", inline=True)
@@ -2125,7 +2125,7 @@ class Info():
                 ownsDBD = True
         else:
             try:
-                ownsDBD = await SteamApi.ownsGame(steamid, DBD_ID)
+                ownsDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
             except ValueError:
                 await interaction.followup.send(f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}')
                 return
@@ -2144,7 +2144,7 @@ class Info():
             #Get Stats
             if 'player_stats' not in locals(): # This means, that the stats are not loaded from the file.
                 try:
-                    player_stats = await Functions.check_rate_limit(f'{api_base}playerstats?steamid={steamid}')
+                    player_stats = await Functions.check_rate_limit(f'{API_BASE}playerstats?steamid={steamid}')
                 except Exception:
                     removed = await Functions.check_if_removed(steamid)
                     if removed == 2:
@@ -2410,7 +2410,7 @@ class Info():
 
     async def rankreset(interaction: discord.Interaction):
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'{api_base}rankreset') as resp:
+            async with session.get(f'{API_BASE}rankreset') as resp:
                 data = await resp.json()
         embed = discord.Embed(description=f"{await Functions.translate(interaction, 'The next rank reset will take place on the following date: ')}\n<t:{data['rankreset']}>.", color=0x0400ff)
         await interaction.response.send_message(embed=embed)
@@ -2514,7 +2514,7 @@ class Info():
         embed2.add_field(name=await Functions.translate(interaction, 'Version'), value='\u200b', inline=True)
         embed2.add_field(name=await Functions.translate(interaction, 'Last Update'), value='\u200b', inline=True)
         async with aiohttp.ClientSession() as session:
-            async with session.get(api_base+'versions') as resp:
+            async with session.get(API_BASE+'versions') as resp:
                 data = await resp.json()
         i = 0
         for key in data.keys():
@@ -3055,7 +3055,7 @@ class AutoComplete:
         }
         categories = ["addon", "char", "killer", "dlc", "item", "map", "offering", "perk"]
         for category in categories:
-            for lang in api_langs:
+            for lang in AVAILABLE_LANGS:
                 global_var_name = f"{category}_names_{lang}"
                 globals()[global_var_name] = [messages[lang]]
         program_logger.debug("Autocompletion initialized.")
@@ -3065,7 +3065,7 @@ class AutoComplete:
 
     async def get_localized_list(self, interaction: discord.Interaction, list_type: Literal['addon', 'char', 'killer', 'dlc', 'item', 'map', 'offering', 'perk']) -> List[str]:
         lang = await Functions.get_language_code(interaction)
-        if lang not in api_langs:
+        if lang not in AVAILABLE_LANGS:
             lang = 'en'
         list_name = f'{list_type}_names_{lang}'
         return globals()[list_name]
@@ -3160,7 +3160,7 @@ async def botinfo(interaction: discord.Interaction):
     embed.set_thumbnail(url=bot.user.avatar.url if bot.user.avatar else '')
 
     embed.add_field(name="Created at", value=bot.user.created_at.strftime("%d.%m.%Y, %H:%M:%S"), inline=True)
-    embed.add_field(name="Version", value=bot_version, inline=True)
+    embed.add_field(name="Version", value=BOT_VERSION, inline=True)
     embed.add_field(name="Uptime", value=str(datetime.timedelta(seconds=Functions.safe_int((datetime.datetime.now() - start_time).total_seconds()))), inline=True)
 
     embed.add_field(name="Owner", value=f"<@!{OWNERID}>", inline=True)
@@ -3261,7 +3261,7 @@ async def translation_info(interaction: discord.Interaction):
         embed = discord.Embed(title = 'Translation', color = 0x00ff00)
         embed.description = await Functions.translate(interaction, 'This bot is translated into the following languages:')
         temp = []
-        for lang in api_langs:
+        for lang in AVAILABLE_LANGS:
             lang = await Functions.get_language_name(lang)
             temp.append(lang)
             embed.description += f'\n• {lang}'
