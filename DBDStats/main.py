@@ -53,7 +53,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.8"
+BOT_VERSION = "1.16.9"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -2319,11 +2319,11 @@ class Info():
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Grabbed while you are hiding in locker"), "survivorsgrabbedfrominsidealocker", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Hit one who dropped a pallet in chase"), "survivorshit_droppingpalletinchase", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Hit while carrying"), "survivorshit_whilecarrying", player_stats, interaction)
-            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Interrupted cleansing"), "survivorsinterruptedcleansingtotem", player_stats, interaction)
+            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Interrupted cleansing"), "survivorsinterrupted_cleansingtotem", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Vaults while in chase"), "vaultsinchase_askiller", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors made scream"), "survivorscreams", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors injured while in basement"), "survivorsinjured_basement", player_stats, interaction)
-            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors interupted while vaulting"), "survivorsinterupted_vaulting", player_stats, interaction)
+            await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors interupted while vaulting"), "survivorsinterrupted_vaulting", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors basic hit while undetected"), "survivorshit_basicattackundetectable", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Combined fall distance"), "killer_falldistance", player_stats, interaction)
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Survivors detected using Killer Instinct"), "survivorsdetectedwithkillerinstinct", player_stats, interaction)
@@ -2333,6 +2333,7 @@ class Info():
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit using grab-attack (Ghoul)"), "survivorshit_grabattack", player_stats, interaction)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit with the Haste status effect"), "survivorshit_haste", player_stats, interaction)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit holding Special Item"), "survivorshit_specialitem", player_stats, interaction)
+            await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors interrrupted in the security office"), "survivorsinterrupted_securityoffice", player_stats, interaction)
 
             # Embed 8 - Hooked
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
