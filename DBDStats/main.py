@@ -53,7 +53,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.9"
+BOT_VERSION = "1.16.10"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -3181,7 +3181,7 @@ async def botinfo(interaction: discord.Interaction):
     embed.add_field(name="Sentry", value=f"{sentry_sdk.consts.VERSION}", inline=True)
 
     embed.add_field(name="Repo", value=f"[GitHub](https://github.com/Serpensin/DiscordBots-DBDStats)", inline=True)
-    embed.add_field(name="\u200b", value="\u200b", inline=True)
+    embed.add_field(name="Invite", value=f"[Invite me](https://discord.com/oauth2/authorize?client_id={bot.user.id})", inline=True)
     embed.add_field(name="\u200b", value="\u200b", inline=True)
 
     if interaction.user.id == Functions.safe_int(OWNERID):
