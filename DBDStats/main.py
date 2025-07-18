@@ -53,7 +53,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.10"
+BOT_VERSION = "1.16.11"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -112,15 +112,15 @@ def folder_setup():
     for path in paths:
         os.makedirs(path, exist_ok=True)
 folder_setup()
-log_folder = f'{APP_FOLDER_NAME}//Logs//'
-buffer_folder = f'{APP_FOLDER_NAME}//Buffer//'
-stats_folder = f'{APP_FOLDER_NAME}//Buffer//Stats//'
-activity_file = os.path.join(APP_FOLDER_NAME, 'activity.json')
-sql_file = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
+LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
+BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
+STATS_FOLDER = f'{APP_FOLDER_NAME}//Buffer//Stats//'
+ACTIVITY_FILE = os.path.join(APP_FOLDER_NAME, 'activity.json')
+SQLITE_DB_PATH = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
 
 
 # #Set-up logging
-log_manager = log_handler.LogManager(log_folder, APP_FOLDER_NAME, LOG_LEVEL)
+log_manager = log_handler.LogManager(LOG_FOLDER, APP_FOLDER_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Engine powering up...')
@@ -146,7 +146,7 @@ class JSONValidator:
 
             default_content = {
                 "activity_type": "Playing",
-                "activity_title": "Made by Serpensin: https://gitlab.bloodygang.com/Serpensin",
+                "activity_title": "Made by Serpensin: https://github.com/Serpensin",
                 "activity_url": "",
                 "status": "online"
             }
@@ -172,7 +172,7 @@ class JSONValidator:
             def write_default_content(self):
                 with open(self.file_path, 'w') as file:
                     json.dump(self.default_content, file, indent=4)
-validator = JSONValidator(activity_file)
+validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
 
@@ -268,7 +268,7 @@ class aclient(discord.AutoShardedClient):
     class Presence():
         @staticmethod
         def get_activity() -> discord.Activity:
-            with open(activity_file) as f:
+            with open(ACTIVITY_FILE) as f:
                 data = json.load(f)
                 activity_type = data['activity_type']
                 activity_title = data['activity_title']
@@ -286,7 +286,7 @@ class aclient(discord.AutoShardedClient):
 
         @staticmethod
         def get_status() -> discord.Status:
-            with open(activity_file) as f:
+            with open(ACTIVITY_FILE) as f:
                 data = json.load(f)
                 status = data['status']
             if status == 'online':
@@ -416,7 +416,7 @@ class aclient(discord.AutoShardedClient):
             program_logger.info('Synced.')
             program_logger.debug('Commands synced.')
             self.synced = True
-        conn = sqlite3.connect(sql_file)
+        conn = sqlite3.connect(SQLITE_DB_PATH)
         c = conn.cursor()
         await self.setup_database()
         try:
@@ -490,7 +490,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f"{buffer_folder}perk//{lang}.json", "w", encoding="utf8") as f:
+            with open(f"{BUFFER_FOLDER}perk//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
     async def _update_offerings():
@@ -504,7 +504,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f'{buffer_folder}offering//{lang}.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}offering//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
     async def _update_chars():
@@ -518,7 +518,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f"{buffer_folder}char//{lang}.json", 'w', encoding='utf8') as f:
+            with open(f"{BUFFER_FOLDER}char//{lang}.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
     async def _update_dlc():
@@ -532,7 +532,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f"{buffer_folder}dlc//{lang}.json", "w", encoding="utf8") as f:
+            with open(f"{BUFFER_FOLDER}dlc//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
     async def _update_item():
@@ -546,7 +546,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f"{buffer_folder}item//{lang}.json", "w", encoding="utf8") as f:
+            with open(f"{BUFFER_FOLDER}item//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
 
     async def _update_addon():
@@ -560,7 +560,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f'{buffer_folder}addon//{lang}.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}addon//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
     async def _update_map():
@@ -574,7 +574,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f'{buffer_folder}map//{lang}.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}map//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
     async def _update_event():
@@ -591,7 +591,7 @@ class Cache():
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
-            with open(f'{buffer_folder}event//{lang}.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}event//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
 
     async def _update_version():
@@ -604,7 +604,7 @@ class Cache():
         data['_id'] = 'version_info'
         if isDbAvailable:
             await db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
-        with open(f'{buffer_folder}version_info.json', 'w', encoding='utf8') as f:
+        with open(f'{BUFFER_FOLDER}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
 
     async def _update_patchnotes():
@@ -614,24 +614,24 @@ class Cache():
             program_logger.warning("Patchnotes couldn't be updated.")
             program_logger.debug("Patchnotes couldn't be updated.")
             return 1
-        if os.path.exists(f'{buffer_folder}patchnotes'):
-            for filename in os.scandir(f'{buffer_folder}patchnotes'):
+        if os.path.exists(f'{BUFFER_FOLDER}patchnotes'):
+            for filename in os.scandir(f'{BUFFER_FOLDER}patchnotes'):
                 os.remove(filename)
         else:
-            os.makedirs(f'{buffer_folder}patchnotes', exist_ok=True)
+            os.makedirs(f'{BUFFER_FOLDER}patchnotes', exist_ok=True)
         data.sort(key=lambda x: x["id"], reverse=True)
         if isDbAvailable:
             await db[DB_NAME]['patchnotes'].drop()
         for entry in data:
             notes = {key: value for key, value in entry.items() if key == "notes"}
             notes['_id'] = entry["id"]
-            with open(f'{buffer_folder}patchnotes//{str(entry["id"]).replace(".", "")}.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}patchnotes//{str(entry["id"]).replace(".", "")}.json', 'w', encoding='utf8') as f:
                 json.dump(notes, f, indent=2)
             if isDbAvailable:
                 await db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
 
     async def _clear_playerstats():
-        for filename in os.scandir(stats_folder):
+        for filename in os.scandir(STATS_FOLDER):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
                 os.remove(filename)
 
@@ -680,7 +680,7 @@ class Cache():
         patch_versions = []
 
         while(patch_versions == []):
-            for filename in os.listdir(f'{buffer_folder}patchnotes'):
+            for filename in os.listdir(f'{BUFFER_FOLDER}patchnotes'):
                 base_name, extension = os.path.splitext(filename)
                 patched_version = ''
                 for i, char in enumerate(base_name):
@@ -716,14 +716,14 @@ class Cache():
         if cache429:
             message = 'Cache couldn\'t be populated, because of a 429. Exiting...'
             paths = [
-                f'{buffer_folder}addon',
-                f'{buffer_folder}char',
-                f'{buffer_folder}dlc',
-                f'{buffer_folder}event',
-                f'{buffer_folder}item',
-                f'{buffer_folder}map',
-                f'{buffer_folder}offering',
-                f'{buffer_folder}perk',
+                f'{BUFFER_FOLDER}addon',
+                f'{BUFFER_FOLDER}char',
+                f'{BUFFER_FOLDER}dlc',
+                f'{BUFFER_FOLDER}event',
+                f'{BUFFER_FOLDER}item',
+                f'{BUFFER_FOLDER}map',
+                f'{BUFFER_FOLDER}offering',
+                f'{BUFFER_FOLDER}perk',
             ]
             for path in paths:
                 for lang in AVAILABLE_LANGS:
@@ -731,7 +731,7 @@ class Cache():
                     if not os.path.exists(filename):
                         program_logger.critical(message)
                         sys.exit(message)
-            if not os.path.exists(f"{buffer_folder}//version_info.json"):
+            if not os.path.exists(f"{BUFFER_FOLDER}//version_info.json"):
                 program_logger.critical(message)
                 sys.exit(message)
         await Cache._name_lists()
@@ -756,7 +756,7 @@ class Cache():
 class Background():
     async def check_db_connection_task():
         async def _upload_json_to_db():
-            for entry in os.scandir(buffer_folder):
+            for entry in os.scandir(BUFFER_FOLDER):
                 if entry.is_dir():
                     if entry.name in ['Stats']:
                         continue
@@ -840,7 +840,7 @@ class Background():
                     if isDbAvailable:
                         shrine_new['_id'] = 'shrine_info'
                         await db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
-                    with open(f"{buffer_folder}shrine_info.json", "w", encoding="utf8") as f:
+                    with open(f"{BUFFER_FOLDER}shrine_info.json", "w", encoding="utf8") as f:
                         json.dump(shrine_new, f, indent=4)
                 if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
                     c.execute('SELECT * FROM shrine')
@@ -896,7 +896,7 @@ class Background():
             if isDbAvailable:
                 await db[DB_NAME]['twitch'].update_one({'_id': 'twitch_info'}, {'$set': data}, upsert=True)
             # Update json
-            with open(f"{buffer_folder}twitch_info.json", "w", encoding="utf8") as f:
+            with open(f"{BUFFER_FOLDER}twitch_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=4)
 
         while True:
@@ -1036,15 +1036,15 @@ class Functions():
         if lang not in AVAILABLE_LANGS:
             lang = 'en'
 
-        file_name = f"{buffer_folder}{requested}//"
+        file_name = f"{BUFFER_FOLDER}{requested}//"
         db_id = f"{requested}_info"
 
         if requested == 'shrine':
-            file_name = f"{buffer_folder}shrine_info"
+            file_name = f"{BUFFER_FOLDER}shrine_info"
         elif requested == 'version':
-            file_name = f"{buffer_folder}version_info"
+            file_name = f"{BUFFER_FOLDER}version_info"
         elif requested == 'twitch':
-            file_name = f"{buffer_folder}twitch_info"
+            file_name = f"{BUFFER_FOLDER}twitch_info"
         elif requested == 'patchnotes':
             db_id = version
             file_name += f"{version.replace('.', '')}"
@@ -1220,7 +1220,7 @@ class Functions():
             data = json.loads(json.dumps(await db[DB_NAME]['translations'].find_one({'_id': 'translations'})))
         else:
             try:
-                with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                with open(f'{BUFFER_FOLDER}translations.json', 'r', encoding='utf8') as f:
                     try:
                         data = json.loads(json.dumps(json.load(f)))
                     except ValueError:
@@ -1251,12 +1251,12 @@ class Functions():
                         }
                     )
                 try:
-                    with open(f'{buffer_folder}translations.json', 'r', encoding='utf8') as f:
+                    with open(f'{BUFFER_FOLDER}translations.json', 'r', encoding='utf8') as f:
                         old_data = json.load(f)
                 except FileNotFoundError:
                     old_data = {}
                 data = Functions.merge_dictionaries(old_data, data)
-                with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+                with open(f'{BUFFER_FOLDER}translations.json', 'w', encoding='utf8') as f:
                     json.dump(data, f, indent=4)
                 return translation
         else:
@@ -1267,7 +1267,7 @@ class Functions():
             data[hashed] = {lang: translation}
             if isDbAvailable:
                 await db[DB_NAME]['translations'].update_one({'_id': 'translations'}, {'$set': data}, upsert=True)
-            with open(f'{buffer_folder}translations.json', 'w', encoding='utf8') as f:
+            with open(f'{BUFFER_FOLDER}translations.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=4)
             return translation
 
@@ -1925,8 +1925,8 @@ class Info():
     async def killswitch(interaction: discord.Interaction):
         await interaction.response.defer()
 
-        if os.path.exists(f'{buffer_folder}killswitch.json') and os.path.getmtime(f'{buffer_folder}killswitch.json') > time.time() - 900:
-            with open(f'{buffer_folder}killswitch.json', 'r') as f:
+        if os.path.exists(f'{BUFFER_FOLDER}killswitch.json') and os.path.getmtime(f'{BUFFER_FOLDER}killswitch.json') > time.time() - 900:
+            with open(f'{BUFFER_FOLDER}killswitch.json', 'r') as f:
                 data = json.load(f)
                 if data['killswitch_on'] == 0:
                     embed = discord.Embed(title="Killswitch", description=(await Functions.translate(interaction, 'Currently there is no Kill Switch active.')), color=0xb19325)
@@ -1966,7 +1966,7 @@ class Info():
             'killswitch_on': killswitch_on
             }
 
-        with open(f'{buffer_folder}killswitch.json', 'w') as f:
+        with open(f'{BUFFER_FOLDER}killswitch.json', 'w') as f:
             json.dump(data_to_save, f, indent=4)
 
     async def legacycheck(interaction: discord.Interaction, steamid):
@@ -2057,10 +2057,10 @@ class Info():
             try:
                 await interaction.followup.send(content)
             except discord.errors.HTTPException:
-                with open(f'{buffer_folder}patchnotes.md', 'w', encoding='utf8') as f:
+                with open(f'{BUFFER_FOLDER}patchnotes.md', 'w', encoding='utf8') as f:
                     f.write(content)
-                await interaction.followup.send(file=discord.File(f'{buffer_folder}patchnotes.md'))
-                os.remove(f'{buffer_folder}patchnotes.md')
+                await interaction.followup.send(file=discord.File(f'{BUFFER_FOLDER}patchnotes.md'))
+                os.remove(f'{BUFFER_FOLDER}patchnotes.md')
 
     async def perk(interaction: discord.Interaction, name: str):
         await interaction.response.defer()
@@ -2091,14 +2091,14 @@ class Info():
                 await interaction.followup.send(f"Error while getting the playercount. Error Code: {error_code} | Error Message: {error_message}")
                 return
             data['update_hour'] = datetime.datetime.now().hour
-            with open(buffer_folder+'playercount.json', 'w', encoding='utf8') as f:
+            with open(BUFFER_FOLDER+'playercount.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
             return data
         await interaction.response.defer()
-        if os.path.exists(buffer_folder+'playercount.json'):
-            with open(buffer_folder+'playercount.json', 'r', encoding='utf8') as f:
+        if os.path.exists(BUFFER_FOLDER+'playercount.json'):
+            with open(BUFFER_FOLDER+'playercount.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
-            if data['update_hour'] == datetime.datetime.now().hour and ((time.time() - os.path.getmtime(buffer_folder+'playercount.json')) / 3600) <= 23:
+            if data['update_hour'] == datetime.datetime.now().hour and ((time.time() - os.path.getmtime(BUFFER_FOLDER+'playercount.json')) / 3600) <= 23:
                 await selfembed(data)
                 return
         await selfembed(await selfget())
@@ -2118,8 +2118,8 @@ class Info():
         if steamid is None:
             await interaction.followup.send(await Functions.translate(interaction, "The SteamID is not valid."))
             return
-        file_path = os.path.join(stats_folder, os.path.basename(f'player_stats_{steamid}.json'))
-        if os.path.exists(f'{stats_folder}player_stats_{steamid}.json') and ((time.time() - os.path.getmtime(f'{stats_folder}player_stats_{steamid}.json')) / 3600) <= 4:
+        file_path = os.path.join(STATS_FOLDER, os.path.basename(f'player_stats_{steamid}.json'))
+        if os.path.exists(f'{STATS_FOLDER}player_stats_{steamid}.json') and ((time.time() - os.path.getmtime(f'{STATS_FOLDER}player_stats_{steamid}.json')) / 3600) <= 4:
             with open(file_path, 'r', encoding='utf8') as f:
                 player_stats = json.load(f)
                 ownsDBD = True
@@ -2772,7 +2772,7 @@ class Owner():
         title = ' '.join(args[1:])
         program_logger.debug(title)
         program_logger.debug(url)
-        with open(activity_file, 'r', encoding='utf8') as f:
+        with open(ACTIVITY_FILE, 'r', encoding='utf8') as f:
             data = json.load(f)
         if action == 'playing':
             data['activity_type'] = 'Playing'
@@ -2797,7 +2797,7 @@ class Owner():
         else:
             await __wrong_selection()
             return
-        with open(activity_file, 'w', encoding='utf8') as f:
+        with open(ACTIVITY_FILE, 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Activity set to {action} {title}{" " + url if url else ""}.')
@@ -2816,7 +2816,7 @@ class Owner():
                 await message.channel.send('The file is too big. Max. 8MB.')
                 return
             filetype = str({file[0].filename.split('.')[-1]}).replace("{'", '').replace("'}", '')
-            changelog = f'{buffer_folder}changelog.{filetype}'
+            changelog = f'{BUFFER_FOLDER}changelog.{filetype}'
             await file[0].save(changelog)
             with open(changelog, 'rb') as f:
                 text = f.read().decode('utf-8')
@@ -2864,7 +2864,7 @@ class Owner():
                     published_total += 1
             else:
                 try:
-                    temp_changelog = f'{buffer_folder}changelogTEMP.txt'
+                    temp_changelog = f'{BUFFER_FOLDER}changelogTEMP.txt'
                     with open(changelog, 'rb') as f:
                         with open(temp_changelog, 'wb') as f2:
                             f2.write(await Functions.translate(guild, f.read()))
@@ -2898,14 +2898,14 @@ class Owner():
         if args[0] == 'translation':
             if isDbAvailable:
                 await db[DB_NAME].translations.drop()
-            translations = f"{buffer_folder}translations.json"
+            translations = f"{BUFFER_FOLDER}translations.json"
             if os.path.exists(translations):
                 os.remove(translations)
             await message.channel.send('Translations deleted.')
         elif args[0] == 'cache':
             if isDbAvailable:
                 await db.drop_database(DB_NAME)
-            for root, _, files in os.walk(buffer_folder):
+            for root, _, files in os.walk(BUFFER_FOLDER):
                 for file in files:
                     file_path = os.path.join(root, file)
                     os.remove(file_path)
@@ -2919,58 +2919,61 @@ class Owner():
             await message.channel.send('```'
                                        'log [current/folder/lines] (Replace lines with a positive number, if you only want lines.) - Get the log\n'
                                        '```')
-        if args == []:
+        if not args:
             await __wrong_selection()
             return
-        if args[0] == 'current':
+
+        command = args[0]
+        if command == 'current':
+            log_file_path = f'{LOG_FOLDER}{APP_FOLDER_NAME}.log'
             try:
-                await message.channel.send(file=discord.File(r''+log_folder+'DBDStats.log'))
+                await message.channel.send(file=discord.File(log_file_path))
             except discord.HTTPException as err:
                 if err.status == 413:
-                    with ZipFile(buffer_folder+'Logs.zip', mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as f:
-                        f.write(log_folder+'DBDStats.log')
+                    zip_path = f'{BUFFER_FOLDER}Logs.zip'
+                    with ZipFile(zip_path, mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as zip_file:
+                        zip_file.write(log_file_path)
                     try:
-                        await message.channel.send(file=discord.File(r''+buffer_folder+'Logs.zip'))
+                        await message.channel.send(file=discord.File(zip_path))
                     except discord.HTTPException as err:
                         if err.status == 413:
-                            await message.channel.send("The log is too big to be send directly.\nYou have to look at the log in your server (VPS).")
-                    os.remove(buffer_folder+'Logs.zip')
-                    return
-        elif args[0] == 'folder':
-            if os.path.exists(buffer_folder+'Logs.zip'):
-                os.remove(buffer_folder+'Logs.zip')
-            with ZipFile(buffer_folder+'Logs.zip', mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as f:
-                for file in os.listdir(log_folder):
-                    if file.endswith(".zip"):
-                        continue
-                    f.write(log_folder+file)
+                            await message.channel.send("The log is too big to be sent directly.\nYou have to look at the log in your server (VPS).")
+                    os.remove(zip_path)
+            return
+
+        if command == 'folder':
+            zip_path = f'{BUFFER_FOLDER}Logs.zip'
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            with ZipFile(zip_path, mode='w', compression=ZIP_DEFLATED, compresslevel=9, allowZip64=True) as zip_file:
+                for file in os.listdir(LOG_FOLDER):
+                    if not file.endswith(".zip"):
+                        zip_file.write(f'{LOG_FOLDER}{file}')
             try:
-                await message.channel.send(file=discord.File(r''+buffer_folder+'Logs.zip'))
+                await message.channel.send(file=discord.File(zip_path))
             except discord.HTTPException as err:
                 if err.status == 413:
-                    await message.channel.send("The folder is too big to be send directly.\nPlease get the current file, or the last X lines.")
-            os.remove(buffer_folder+'Logs.zip')
+                    await message.channel.send("The folder is too big to be sent directly.\nPlease get the current file or the last X lines.")
+            os.remove(zip_path)
             return
-        else:
-            try:
-                if Functions.safe_int(args[0]) < 1:
-                    await __wrong_selection()
-                    return
-                else:
-                    lines = Functions.safe_int(args[0])
-            except ValueError:
+
+        try:
+            lines = int(command)
+            if lines < 1:
                 await __wrong_selection()
                 return
-            with open(log_folder+'DBDStats.log', 'r', encoding='utf8') as f:
-                with open(buffer_folder+'log-lines.txt', 'w', encoding='utf8') as f2:
-                    count = 0
-                    for line in (f.readlines()[-lines:]):
-                        f2.write(line)
-                        count += 1
-            await message.channel.send(content = f'Here are the last {count} lines of the current logfile:', file = discord.File(r''+buffer_folder+'log-lines.txt'))
-            if os.path.exists(buffer_folder+'log-lines.txt'):
-                os.remove(buffer_folder+'log-lines.txt')
+        except ValueError:
+            await __wrong_selection()
             return
+
+        log_file_path = f'{LOG_FOLDER}{APP_FOLDER_NAME}.log'
+        buffer_file_path = f'{BUFFER_FOLDER}log-lines.txt'
+        with open(log_file_path, 'r', encoding='utf8') as log_file:
+            log_lines = log_file.readlines()[-lines:]
+        with open(buffer_file_path, 'w', encoding='utf8') as buffer_file:
+            buffer_file.writelines(log_lines)
+        await message.channel.send(content=f'Here are the last {len(log_lines)} lines of the current logfile:', file=discord.File(buffer_file_path))
+        os.remove(buffer_file_path)
 
     async def shutdown(message):
         global shutdown
@@ -3001,7 +3004,7 @@ class Owner():
             await __wrong_selection()
             return
         action = args[0].lower()
-        with open(activity_file, 'r', encoding='utf8') as f:
+        with open(ACTIVITY_FILE, 'r', encoding='utf8') as f:
             data = json.load(f)
         if action == 'online':
             data['status'] = 'online'
@@ -3014,7 +3017,7 @@ class Owner():
         else:
             await __wrong_selection()
             return
-        with open(activity_file, 'w', encoding='utf8') as f:
+        with open(ACTIVITY_FILE, 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
