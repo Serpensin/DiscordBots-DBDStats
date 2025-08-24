@@ -6,6 +6,7 @@ startupTime_start = time.time()
 import aiohttp
 import asyncio
 import discord
+import hashlib
 import html2text
 import json
 import jsonschema
@@ -21,7 +22,6 @@ import signal
 import sqlite3
 import sys
 import tempfile
-import zlib
 from aiohttp import web
 from bs4 import BeautifulSoup
 from CustomModules import bot_directory
@@ -53,7 +53,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.11"
+BOT_VERSION = "1.16.12"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -1213,7 +1213,7 @@ class Functions():
             if interaction.guild is None or lang == 'en':
                 return text
 
-        hashed = format(zlib.crc32(text.encode('utf-8')), '08x')
+        hashed = hashlib.blake2b(text.encode('utf-8'), digest_size=64).hexdigest()
         program_logger.debug(f'Translation Hash: {hashed}')
 
         if isDbAvailable:
@@ -1427,7 +1427,7 @@ class SendInfo():
                 else:
                     embed = discord.Embed(title=str(data[key]['name']).replace('&nbsp;', ' '),
                                       description = await Functions.translate(interaction, description), color=0x0400ff)
-                embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
+                embed.set_thumbnail(url = (lambda u: f"{u}{'' if u.endswith('.png') else '.png'}")(f"{BOT_BASE}{data[key]['image']}".replace('/Game/UI/UMGAssets/', 'UI/')))
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name=await Functions.translate(interaction, 'Rarity'), value=str(await Functions.translate(interaction, data[key]['rarity'])).capitalize(), inline=True)
                 embed.add_field(name=await Functions.translate(interaction, 'Role'), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
@@ -1456,7 +1456,7 @@ class SendInfo():
                 continue
             if str(data[key]['name']) == char:
                 embed = discord.Embed(title=await Functions.translate(interaction, "Character Info"), description=str(data[key]['name']), color=0xb19325)
-                embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
+                embed.set_thumbnail(url = (lambda u: f"{u}{'' if u.endswith('.png') else '.png'}")(f"{BOT_BASE}{data[key]['image']}".replace('/Game/UI/UMGAssets/', 'UI/')))
                 embed.add_field(name=await Functions.translate(interaction, "Role"), value=str(await Functions.translate(interaction, data[key]['role'])).capitalize(), inline=True)
                 embed.add_field(name=await Functions.translate(interaction, "Gender"), value=str(await Functions.translate(interaction, data[key]['gender'])).capitalize(), inline=True)
                 for dlc_key in dlc_data.keys():
@@ -1533,7 +1533,7 @@ class SendInfo():
                     embed = discord.Embed(title = title,
                                       description = await Functions.translate(interaction, str(data_loc[i]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
-                embed.set_thumbnail(url=f"{BOT_BASE}{data_loc[i]['image']}".replace('UI/Icons/items', 'UI/Icons/Items'))
+                embed.set_thumbnail(url = (lambda u: f"{u}{'' if u.endswith('.png') else '.png'}")(f"{BOT_BASE}{data_loc[i]['image']}".replace('/Game/UI/UMGAssets/', 'UI/')))
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
                 embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = await Functions.translate(interaction, str(data_loc[i]['rarity']).capitalize()))
                 bloodweb = "Yes" if data_loc[i]['bloodweb'] == 1 else "No"
@@ -1567,7 +1567,7 @@ class SendInfo():
                     embed = discord.Embed(title = data[item]['name'],
                                       description = await Functions.translate(interaction, str(data[item]['description']).replace('<i>', '').replace('</i>', '').replace('<b>', '').replace('</b>', '').replace('<br><br>', '').replace('<br>', '').replace('. ', '.\n').replace('\n ', '\n').replace('&nbsp;', ' ').replace('S.\nT.\nA.\nR.\nS.\n', 'S.T.A.R.S.').replace('.', '. ')),
                                       color = 0x00ff00)
-                embed.set_thumbnail(url=f"{BOT_BASE}{data[item]['image']}")
+                embed.set_thumbnail(url = (lambda u: f"{u}{'' if u.endswith('.png') else '.png'}")(f"{BOT_BASE}{data[item]['image']}".replace('/Game/UI/UMGAssets/', 'UI/')))
                 embed.add_field(name = '\u200b', value = '\u200b', inline = False)
                 embed.add_field(name = await Functions.translate(interaction, 'Rarity'), value = str(await Functions.translate(interaction, data[item]['rarity'])).capitalize())
                 embed.add_field(name = await Functions.translate(interaction, 'Type'), value = await Functions.translate(interaction, data[item]['type']))
@@ -1585,13 +1585,13 @@ class SendInfo():
 
     async def perk(perk, lang, interaction, shrine=False, random=False):
         async def check():
-            embed.set_thumbnail(url=f"{BOT_BASE}{data[key]['image']}")
+            embed.set_thumbnail(url = (lambda u: f"{u}{'' if u.endswith('.png') else '.png'}")(f"{BOT_BASE}{data[key]['image']}".replace('/Game/UI/UMGAssets/', 'UI/')))
             character = await Functions.data_load('chars', lang)
             if character is None:
                 return
             for i in character.keys():
                 if str(i) == str(data[key]['character']):
-                    embed.set_author(name=f"{character[i]['name']}", icon_url=f"{BOT_BASE}{character[i]['image']}")
+                    embed.set_author(name=f"{character[i]['name']}", icon_url = f"{BOT_BASE}{character[i]['image']}{'' if character[i]['image'].endswith('.png') else '.png'}")
                     break
 
         def get_tunables_value(position: int) -> str:
