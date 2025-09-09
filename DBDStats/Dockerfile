@@ -31,7 +31,7 @@ EXPOSE 5000
 LABEL MAINTAINER="Discord: pika.pika.no.mi (970119359840284743)" \
       DESCRIPTION="Discord bot for DBD for Steam stats." \
       RELEASE=$BUILD_DATE \
-      VERSION="1.16.12" \
+      VERSION="1.16.13" \
       URL="https://github.com/Serpensin/DiscordBots-DBDStats"
 
 CMD ["python3", "main.py"]

@@ -53,7 +53,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.12"
+BOT_VERSION = "1.16.13"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -423,10 +423,10 @@ class aclient(discord.AutoShardedClient):
             owner = await bot.fetch_user(OWNERID)
             program_logger.debug('Owner found.')
         except:
-            program_logger.debug('Owner not found.')     
-            
+            program_logger.debug('Owner not found.')
+
         #Start background tasks
-        stats = bot_directory.Stats(bot=bot,
+        self.stats = bot_directory.Stats(bot=bot,
                                     logger=program_logger,
                                     TOPGG_TOKEN=TOPGG_TOKEN,
                                     DISCORDBOTS_TOKEN=DISCORDBOTS_TOKEN,
@@ -438,7 +438,6 @@ class aclient(discord.AutoShardedClient):
             await asyncio.sleep(0)
         bot.loop.create_task(Background.health_server())
         bot.loop.create_task(Background.update_twitchinfo_task())
-        bot.loop.create_task(stats.task())
         bot.loop.create_task(Cache.task())
 
     async def on_ready(self):
@@ -447,8 +446,9 @@ class aclient(discord.AutoShardedClient):
         if self.initialized:
             await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
             return
-        
+
         bot.loop.create_task(Background.subscribe_shrine_task())
+        self.stats.start_stats_update()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         program_logger.info(r'''
  ____     ____     ____     ____     __              __
@@ -1278,7 +1278,7 @@ class Functions():
             value = None
             program_logger.warning(f"KeyError while adding field: {e}")
             sentry_sdk.capture_exception(e)
-        
+
         translated_name = await Functions.translate(interaction, name_key)
         embed.add_field(name=translated_name, value=f"{value:,}" if value is not None else "NOT FOUND", inline=inline)
 
@@ -1389,7 +1389,7 @@ class Functions():
             else:
                 json1[key] = value
         return json1
-    
+
     def safe_int(value):
         try:
             return int(value)
@@ -2225,7 +2225,7 @@ class Info():
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Screams"), "screams", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Skillchecks while injured"), "skillchecks_injured", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Special Items Used"), "specialitem_used", player_stats, interaction)
-            
+
             # Embed 2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Dodged basic attack or projectiles"), "dodgedattack", player_stats, interaction)
@@ -2239,7 +2239,7 @@ class Info():
             await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Wiggled from killers grasp"), "wiggledfromkillersgrasp", player_stats, interaction)
             await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Killers blinded with a flashlight"), "killerblinded_flashlight", player_stats, interaction)
             await Functions.safe_add_field(embed2, await Functions.translate(interaction, "Hit while having Endurance status effect"), "hitwithendurance", player_stats, interaction)
-            
+
             # Embed 3 - Healing/Saves
             embed3.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Survivors healed"), "survivorshealed", player_stats, interaction)
@@ -2256,7 +2256,7 @@ class Info():
             await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Kobed"), "unhookedself", player_stats, interaction)
             await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Savely unhooked while broken"), "unhookedsafely_whilebroken", player_stats, interaction)
             await Functions.safe_add_field(embed3, await Functions.translate(interaction, "Recover from dying by yourself or with help"), "recoverddying_selforhelped", player_stats, interaction)
-            
+
             # Embed 4 - Escaped
             embed4.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed4, await Functions.translate(interaction, "While healthy/injured"), "escaped", player_stats, interaction)
@@ -2343,7 +2343,7 @@ class Info():
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "3 Survivors hooked in basement"), "survivorsthreehookedbasementsametime", player_stats, interaction)
             embed8.add_field(name="\u200b", value="\u200b")
             await Functions.safe_add_field(embed8, await Functions.translate(interaction, "Survivors hooked in basement"), "survivorshookedinbasement", player_stats, interaction)
-            
+
             # Embed 9/10 - Powers
             embed9.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed9, await Functions.translate(interaction, "Beartrap Catches"), "beartrapcatches", player_stats, interaction)
@@ -2382,7 +2382,7 @@ class Info():
             await Functions.safe_add_field(embed11, await Functions.translate(interaction, "Downed while exposed"), "survivorsdowned_exposed", player_stats, interaction)
             await Functions.safe_add_field(embed11, await Functions.translate(interaction, "Downed near a raised pallet"), "survivorsdowned_nearraisedpallet", player_stats, interaction)
             await Functions.safe_add_field(embed11, await Functions.translate(interaction, "Downed while carrying survivor"), "survivorsdowned_whilecarrying", player_stats, interaction)
-            
+
             #Embed 12 - Survivors downed with power
             embed12.add_field(name="\u200b", value="\u200b", inline=False)
             await Functions.safe_add_field(embed12, await Functions.translate(interaction, "Downed with a Hatchet (24+ meters)"), "survivorsdowned_hatchets", player_stats, interaction)
@@ -2401,7 +2401,7 @@ class Info():
             await Functions.safe_add_field(embed12, await Functions.translate(interaction, "Downed while exposed by Lock On"), "survivorsdowned_lockon", player_stats, interaction)
             await Functions.safe_add_field(embed12, await Functions.translate(interaction, "Downed during nightfall"), "survivorsdowned_nightfall", player_stats, interaction)
             await Functions.safe_add_field(embed12, await Functions.translate(interaction, "Downed using UVX"), "survivorsdowned_uvx", player_stats, interaction)
-            
+
             #Send Statistics
             embeds = [embed1, embed2, embed3, embed4, embed5, embed6, embed7, embed8, embed9, embed10, embed11, embed12]
             await interaction.delete_original_response()
@@ -2992,6 +2992,8 @@ class Owner():
         conn.close()
         await db.close()
 
+        bot.stats.stop_stats_update()
+
         await bot.close()
 
     async def status(message, args):
@@ -3021,7 +3023,7 @@ class Owner():
             json.dump(data, f, indent=2)
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
-        
+
     async def broadcast(message):
         already_send = []
         success = 0
@@ -3153,7 +3155,7 @@ async def ping(interaction: discord.Interaction):
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 async def botinfo(interaction: discord.Interaction):
-    
+
 
     member_count = sum(guild.member_count for guild in bot.guilds)
 
