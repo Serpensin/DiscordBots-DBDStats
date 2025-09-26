@@ -48,7 +48,7 @@ load_dotenv()
 BOT_NAME = 'DBDStats'
 API_BASE = 'https://dbd.tricky.lol/api/' # For production
 #API_BASE = 'http://localhost:5000/' # For testing
-NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'

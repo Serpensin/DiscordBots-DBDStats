@@ -14,11 +14,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Pr
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "git-hooks", "git-hooks", "{C7EE63F3-DEFA-4950-BC52-6D49C073BD7C}"
-	ProjectSection(SolutionItems) = preProject
-		git-hooks\pre-commit = git-hooks\pre-commit
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,9 +25,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{C7EE63F3-DEFA-4950-BC52-6D49C073BD7C} = {D24DD320-B2C6-4FF8-A71F-0FF194FD7C8E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {85F648D8-4409-4D78-943D-A5F6972A913F}
