@@ -30,7 +30,7 @@ def compare_keys(file_path, url):
     return missing_in_file
 
 file_path = "main.py"
-json_url = "https://dbd.tricky.lol/api/playerstats?steamid=76561198153824820"
+json_url = "https://dbd.tricky.lol/api/playerstats?steamid=76561198424893695"
 
 missing_keys = compare_keys(file_path, json_url)
 

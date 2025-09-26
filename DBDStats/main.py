@@ -45,15 +45,15 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 #Set vars
 load_dotenv()
-APP_FOLDER_NAME = 'DBDStats'
+BOT_NAME = 'DBDStats'
 API_BASE = 'https://dbd.tricky.lol/api/' # For production
 #API_BASE = 'http://localhost:5000/' # For testing
-NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.13"
+BOT_VERSION = "1.16.14"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunnigInDocker = is_docker()
@@ -87,7 +87,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production',
-    release=f'{APP_FOLDER_NAME}@{BOT_VERSION}'
+    release=f'{BOT_NAME}@{BOT_VERSION}'
 )
 
 #Fix error on windows on shutdown.
@@ -97,34 +97,36 @@ if platform.system() == 'Windows':
 #Set-up folders
 def folder_setup():
     paths = [
-            f'{APP_FOLDER_NAME}//Logs',
-            f'{APP_FOLDER_NAME}//Buffer//Stats',
-            f'{APP_FOLDER_NAME}//Buffer//addon',
-            f'{APP_FOLDER_NAME}//Buffer//char',
-            f'{APP_FOLDER_NAME}//Buffer//dlc',
-            f'{APP_FOLDER_NAME}//Buffer//event',
-            f'{APP_FOLDER_NAME}//Buffer//item',
-            f'{APP_FOLDER_NAME}//Buffer//map',
-            f'{APP_FOLDER_NAME}//Buffer//offering',
-            f'{APP_FOLDER_NAME}//Buffer//patchnotes',
-            f'{APP_FOLDER_NAME}//Buffer//perk',
+            f'{BOT_NAME}//Logs',
+            f'{BOT_NAME}//Buffer//Stats',
+            f'{BOT_NAME}//Buffer//addon',
+            f'{BOT_NAME}//Buffer//char',
+            f'{BOT_NAME}//Buffer//dlc',
+            f'{BOT_NAME}//Buffer//event',
+            f'{BOT_NAME}//Buffer//item',
+            f'{BOT_NAME}//Buffer//map',
+            f'{BOT_NAME}//Buffer//offering',
+            f'{BOT_NAME}//Buffer//patchnotes',
+            f'{BOT_NAME}//Buffer//perk',
         ]
     for path in paths:
         os.makedirs(path, exist_ok=True)
 folder_setup()
-LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
-BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
-STATS_FOLDER = f'{APP_FOLDER_NAME}//Buffer//Stats//'
-ACTIVITY_FILE = os.path.join(APP_FOLDER_NAME, 'activity.json')
-SQLITE_DB_PATH = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
+LOG_FOLDER = f'{BOT_NAME}//Logs//'
+BUFFER_FOLDER = f'{BOT_NAME}//Buffer//'
+STATS_FOLDER = f'{BOT_NAME}//Buffer//Stats//'
+ACTIVITY_FILE = os.path.join(BOT_NAME, 'activity.json')
+SQLITE_DB_PATH = os.path.join(BOT_NAME, f'{BOT_NAME}.db')
 
 
 # #Set-up logging
-log_manager = log_handler.LogManager(LOG_FOLDER, APP_FOLDER_NAME, LOG_LEVEL)
+log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Engine powering up...')
 
+if NO_CACHE:
+    program_logger.warning('Cache is disabled. This should only be used for testing/development. The bot will not work properly in production with this enabled.')
 
 #Create activity.json if not exists
 class JSONValidator:
@@ -647,29 +649,28 @@ class Cache():
                     program_logger.fatal(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     sentry_sdk.capture_message(f'{request_data} couldn\'t be updated for namelist {lang}.')
                     return
+
                 new_names = []
                 for key in data.keys():
                     if str(key) != '_id':
+                        name = str(data[key]['name']).replace('&nbsp;', ' ')
                         if killer:
-                            if data[key]['role'] == 'killer':
-                                name = str(data[key]['name']).replace('&nbsp;', ' ')
+                            if data[key]['role'] == 'killer' and name not in new_names:
                                 new_names.append(name)
                         else:
-                            name = str(data[key]['name']).replace('&nbsp;', ' ')
-                            new_names.append(name)
-                new_names = [name for name in new_names if name is not None]
+                            if name not in new_names:
+                                new_names.append(name)
+
                 globals()[f'{target_var_name}_{lang}'] = new_names
 
         updates = [load_and_set_names('addons', 'addon_names'),
-                   load_and_set_names('addons', 'addon_names'),
                    load_and_set_names('chars', 'char_names'),
                    load_and_set_names('killers', 'killer_names'),
                    load_and_set_names('dlcs', 'dlc_names'),
                    load_and_set_names('items', 'item_names'),
                    load_and_set_names('maps', 'map_names'),
                    load_and_set_names('offerings', 'offering_names'),
-                   load_and_set_names('perks', 'perk_names')
-                   ]
+                   load_and_set_names('perks', 'perk_names')]
 
         tasks = [asyncio.create_task(update) for update in updates]
 
@@ -679,7 +680,7 @@ class Cache():
         global patch_versions
         patch_versions = []
 
-        while(patch_versions == []):
+        while patch_versions == []:
             for filename in os.listdir(f'{BUFFER_FOLDER}patchnotes'):
                 base_name, extension = os.path.splitext(filename)
                 patched_version = ''
@@ -942,7 +943,7 @@ class Functions():
 
     async def check_rate_limit(url):
         headers = {
-            'User-Agent': f'{APP_FOLDER_NAME}/{BOT_VERSION}'
+            'User-Agent': f'{BOT_NAME}/{BOT_VERSION}'
         }
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url) as response:
@@ -2210,7 +2211,7 @@ class Info():
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Perfect Games"), "survivor_perfectgames", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Generators repaired"), "gensrepaired", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Gens without Perks"), "gensrepaired_noperks", player_stats, interaction)
-            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Damaged gens repaired"), "damagedgensrepaired", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Damaged gens repaired"), "gensrepaired_damaged", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Successful skill checks"), "skillchecks", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Items Depleted"), "itemsdepleted", player_stats, interaction, inline=False)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Hex Totems Cleansed"), "hextotemscleansed", player_stats, interaction)
@@ -2225,6 +2226,7 @@ class Info():
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Screams"), "screams", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Skillchecks while injured"), "skillchecks_injured", player_stats, interaction)
             await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Special Items Used"), "specialitem_used", player_stats, interaction)
+            await Functions.safe_add_field(embed1, await Functions.translate(interaction, "Generators repaired while injured"), "gensrepaired_injured", player_stats, interaction)
 
             # Embed 2 - Killer Interactions
             embed2.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2300,6 +2302,7 @@ class Info():
             await Functions.safe_add_field(embed5, "Nostromo Wreckage", "secondfloorgen_messhall", player_stats, interaction)
             await Functions.safe_add_field(embed5, "Greenville Square", "secondfloorgen_greenvillesquare", player_stats, interaction)
             await Functions.safe_add_field(embed5, "Forgotten Ruins", "secondfloorgen_forgottenruins", player_stats, interaction)
+            await Functions.safe_add_field(embed5, "Fallen Refuge", "secondfloorgen_fallenrefuge", player_stats, interaction)
 
             # Embed 6/7 - Killer Stats
             await Functions.safe_add_field(embed6, await Functions.translate(interaction, "Rank"), "killer_rank", player_stats, interaction)
@@ -2334,6 +2337,7 @@ class Info():
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit with the Haste status effect"), "survivorshit_haste", player_stats, interaction)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors hit holding Special Item"), "survivorshit_specialitem", player_stats, interaction)
             await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors interrrupted in the security office"), "survivorsinterrupted_securityoffice", player_stats, interaction)
+            await Functions.safe_add_field(embed7, await Functions.translate(interaction, "Survivors injured after vaulting"), "survivorsinjured_vaulting", player_stats, interaction)
 
             # Embed 8 - Hooked
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
@@ -2925,7 +2929,7 @@ class Owner():
 
         command = args[0]
         if command == 'current':
-            log_file_path = f'{LOG_FOLDER}{APP_FOLDER_NAME}.log'
+            log_file_path = f'{LOG_FOLDER}{BOT_NAME}.log'
             try:
                 await message.channel.send(file=discord.File(log_file_path))
             except discord.HTTPException as err:
@@ -2966,7 +2970,7 @@ class Owner():
             await __wrong_selection()
             return
 
-        log_file_path = f'{LOG_FOLDER}{APP_FOLDER_NAME}.log'
+        log_file_path = f'{LOG_FOLDER}{BOT_NAME}.log'
         buffer_file_path = f'{BUFFER_FOLDER}log-lines.txt'
         with open(log_file_path, 'r', encoding='utf8') as log_file:
             log_lines = log_file.readlines()[-lines:]
