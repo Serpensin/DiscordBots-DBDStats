@@ -19,6 +19,7 @@ import random
 import re
 import sentry_sdk
 import signal
+import socket
 import sqlite3
 import sys
 import tempfile
@@ -53,7 +54,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.15"
+BOT_VERSION = "1.16.16"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -67,11 +68,11 @@ TWITCH_CLIENT_ID = os.getenv('twitch_client_id')
 TWITCH_CLIENT_SECRET = os.getenv('twitch_client_secret')
 LIBRETRANS_APIKEY = os.getenv('libretransAPIkey')
 LIBRETRANS_URL = os.getenv('libretransURL')
-DB_HOST = os.getenv('MongoDB_host')
-DB_PORT = os.getenv('MongoDB_port')
-DB_USER = os.getenv('MongoDB_user')
+DB_HOST = os.getenv('MongoDB_host', '')
+DB_PORT = os.getenv('MongoDB_port', '')
+DB_USER = os.getenv('MongoDB_user', '')
 DB_PASS = os.getenv('MongoDB_password', '')
-DB_NAME = os.getenv('MongoDB_database', '')
+DB_NAME = os.getenv('MongoDB_database')
 TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
 DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
@@ -180,14 +181,20 @@ validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
 
-if isRunningInDocker:
-    if DB_PASS != '' and DB_NAME != '':
-        connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+def get_connection_string():
+    def can_resolve(hostname: str) -> bool:
+        try:
+            socket.gethostbyname(hostname)
+            return True
+        except socket.error:
+            return False
+
+    if isRunningInDocker and can_resolve("mongo"):
+        return "mongodb://mongo:27017/DBDStats"
     else:
-        connection_string = f'mongodb://mongo:27017/DBDStats'
-else:
-    connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-    # connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
+        return f"mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+connection_string = get_connection_string()
 program_logger.info(f'Connecting to MongoDB with string: {connection_string}')
 db = AsyncIOMotorClient(connection_string, server_api=ServerApi('1'), serverSelectionTimeoutMS=10000)
 isDbAvailable = False
