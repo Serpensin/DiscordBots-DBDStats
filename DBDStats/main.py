@@ -54,7 +54,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.16"
+BOT_VERSION = "1.16.17"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -190,8 +190,14 @@ def get_connection_string():
             return False
 
     if isRunningInDocker and can_resolve("mongo"):
+        global DB_NAME
+        DB_NAME = "DBDStats"
         return "mongodb://mongo:27017/DBDStats"
     else:
+        if not all([DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME]):
+            error_message = "MongoDB connection details are not fully provided in environment variables."
+            program_logger.critical(error_message)
+            sys.exit(error_message)
         return f"mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 connection_string = get_connection_string()
