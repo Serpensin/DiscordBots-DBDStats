@@ -1,16 +1,6 @@
 version: '3'
 
 services:
-  mongo:
-    image: mongo:latest
-    container_name: MongoDB
-    hostname: mongo
-    restart: always
-    volumes:
-      - dbdata:/data/db
-    networks:
-      - dbd_net
-
   dbdstats:
     container_name: DBDStats
     ports:
@@ -29,11 +19,11 @@ services:
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
       LOG_LEVEL: INFO
-      MongoDB_host: mongo           #####################################
-      MongoDB_port: 27017           #									#
-      MongoDB_user: USERNAME		#           Don't change!!!         #
-      MongoDB_password: PASSWORD    #									#
-      MongoDB_database: DBDStats    #####################################
+      MongoDB_host: HOST
+      MongoDB_port: 27017
+      MongoDB_user: USERNAME
+      MongoDB_password: PASSWORD
+      MongoDB_database: DBDStats
     image: ghcr.io/serpensin/discordbots-dbdstats:latest
     volumes:
       - dbdstats:/app/DBDStats

@@ -53,6 +53,7 @@
     <Content Include="Docker-Compose\docker-compose_without_MongoDB.yml" />
     <Content Include="Docker-Compose\docker-compose.yml" />
     <Content Include="Docker-Compose\docker-compose_with_external_MongoDB.yml" />
+    <Content Include="docker_debug.bat" />
     <Content Include="googleauth.json" />
     <Content Include="requirements.txt" />
   </ItemGroup>
@@ -64,7 +65,7 @@
     <Interpreter Include="env\">
       <Id>env</Id>
       <Version>3.12</Version>
-      <Description>env (Python 3.12 (64-bit))</Description>
+      <Description>env (Python 3.12.10)</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>

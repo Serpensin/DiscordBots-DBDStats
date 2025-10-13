@@ -6,6 +6,7 @@ services:
     container_name: MongoDB
     hostname: mongo
     restart: always
+    command: ["mongod", "--bind_ip_all", "--noauth"]
     volumes:
       - dbdata:/data/db
     networks:
@@ -29,9 +30,6 @@ services:
       libretransURL: URL_for_libretranslate
       libretransAPIkey: APIKey_for_libretranslate
       LOG_LEVEL: INFO
-      MongoDB_host: mongo           #####################################
-      MongoDB_port: 27017           #           Don't change!!!         #
-      MongoDB_database: DBDStats    #####################################
     image: ghcr.io/serpensin/discordbots-dbdstats:latest
     volumes:
       - dbdstats:/app/DBDStats

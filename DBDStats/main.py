@@ -53,10 +53,10 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.14"
+BOT_VERSION = "1.16.15"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
-isRunnigInDocker = is_docker()
+isRunningInDocker = is_docker()
 
 #Load env
 TOKEN = os.getenv('TOKEN')
@@ -70,8 +70,8 @@ LIBRETRANS_URL = os.getenv('libretransURL')
 DB_HOST = os.getenv('MongoDB_host')
 DB_PORT = os.getenv('MongoDB_port')
 DB_USER = os.getenv('MongoDB_user')
-DB_PASS = os.getenv('MongoDB_password')
-DB_NAME = os.getenv('MongoDB_database')
+DB_PASS = os.getenv('MongoDB_password', '')
+DB_NAME = os.getenv('MongoDB_database', '')
 TOPGG_TOKEN = os.getenv('TOPGG_TOKEN')
 DISCORDBOTS_TOKEN = os.getenv('DISCORDBOTS_TOKEN')
 DISCORDBOTLISTCOM_TOKEN = os.getenv('DISCORDBOTLIST_TOKEN')
@@ -124,6 +124,8 @@ log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Engine powering up...')
+
+program_logger.info('Running in Docker.' if isRunningInDocker else 'Not running in Docker.')
 
 if NO_CACHE:
     program_logger.warning('Cache is disabled. This should only be used for testing/development. The bot will not work properly in production with this enabled.')
@@ -178,7 +180,7 @@ validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
 
-if isRunnigInDocker:
+if isRunningInDocker:
     if DB_PASS != '' and DB_NAME != '':
         connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     else:
@@ -186,6 +188,7 @@ if isRunnigInDocker:
 else:
     connection_string = f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     # connection_string = f'mongodb://{DB_HOST}:{DB_PORT}/{DB_NAME}'
+program_logger.info(f'Connecting to MongoDB with string: {connection_string}')
 db = AsyncIOMotorClient(connection_string, server_api=ServerApi('1'), serverSelectionTimeoutMS=10000)
 isDbAvailable = False
 
