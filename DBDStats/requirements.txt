@@ -9,7 +9,7 @@ cachetools
 certifi
 charset-normalizer
 colorama
-discord.py
+discord.py>=2.3.0
 dnspython
 exceptiongroup
 frozenlist

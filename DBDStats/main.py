@@ -49,12 +49,12 @@ load_dotenv()
 BOT_NAME = 'DBDStats'
 API_BASE = 'https://dbd.tricky.lol/api/' # For production
 #API_BASE = 'http://localhost:5000/' # For testing
-NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.17"
+BOT_VERSION = "1.16.18"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -165,16 +165,19 @@ class JSONValidator:
                         try:
                             data = json.load(file)
                             jsonschema.validate(instance=data, schema=self.schema)  # validate the data
+                            program_logger.debug(f'Activity file validation successful: {self.file_path}')
                         except jsonschema.exceptions.ValidationError as ve:
-                            program_logger.debug(f'ValidationError: {ve}')
+                            program_logger.warning(f'ValidationError in activity file: {ve}')
                             self.write_default_content()
                         except json.decoder.JSONDecodeError as jde:
-                            program_logger.debug(f'JSONDecodeError: {jde}')
+                            program_logger.warning(f'JSONDecodeError in activity file: {jde}')
                             self.write_default_content()
                 else:
+                    program_logger.info(f'Activity file not found, creating default: {self.file_path}')
                     self.write_default_content()
 
             def write_default_content(self):
+                program_logger.info(f'Writing default activity content to: {self.file_path}')
                 with open(self.file_path, 'w') as file:
                     json.dump(self.default_content, file, indent=4)
 validator = JSONValidator(ACTIVITY_FILE)
@@ -185,19 +188,23 @@ def get_connection_string():
     def can_resolve(hostname: str) -> bool:
         try:
             socket.gethostbyname(hostname)
+            program_logger.debug(f'Successfully resolved hostname: {hostname}')
             return True
         except socket.error:
+            program_logger.debug(f'Failed to resolve hostname: {hostname}')
             return False
 
     if isRunningInDocker and can_resolve("mongo"):
         global DB_NAME
         DB_NAME = "DBDStats"
+        program_logger.info('Using Docker MongoDB connection')
         return "mongodb://mongo:27017/DBDStats"
     else:
         if not all([DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME]):
-            error_message = "MongoDB connection details are not fully provided in environment variables."
-            program_logger.critical(error_message)
-            sys.exit(error_message)
+            error_message = "MongoDB connection details are not fully provided in environment variables. Disabling MongoDB support."
+            program_logger.warning(error_message)
+            return "mongodb://invalid:27017/invalid"
+        program_logger.info('Using custom MongoDB connection')
         return f"mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 connection_string = get_connection_string()
@@ -317,6 +324,7 @@ class aclient(discord.AutoShardedClient):
                 return discord.Status.invisible
 
     async def setup_database(self):
+        program_logger.info('Setting up SQLite database tables')
         c.executescript('''
         CREATE TABLE IF NOT EXISTS "changelogs" (
             "id"	        INTEGER,
@@ -331,6 +339,7 @@ class aclient(discord.AutoShardedClient):
             PRIMARY KEY("id" AUTOINCREMENT)
         )
         ''')
+        program_logger.debug('SQLite database tables created successfully')
 
     async def on_guild_remove(self, guild):
         program_logger.info(f'I got kicked from {guild}. (ID: {guild.id})')
@@ -356,7 +365,8 @@ class aclient(discord.AutoShardedClient):
             args = message.content.split(' ')
             command, *args = args
             file = message.attachments
-            program_logger.debug(command)
+            program_logger.info(f'Owner command received: {command}')
+            program_logger.debug(f'Owner command with args: {args}')
 
             if command == 'help':
                 await __wrong_selection()
@@ -392,9 +402,11 @@ class aclient(discord.AutoShardedClient):
             for option in options:
                 option_values += f"{option['name']}: {option['value']}"
         if isinstance(error, discord.app_commands.CommandOnCooldown):
+            program_logger.debug(f'Command on cooldown for user {interaction.user.id}: {error.retry_after}s remaining')
             await interaction.response.send_message(f'This command is on cooldown.\nTime left: `{str(datetime.timedelta(seconds=Functions.safe_int(error.retry_after)))}`', ephemeral=True)
             return
         if isinstance(error, discord.app_commands.MissingPermissions):
+            program_logger.warning(f'User {interaction.user.id} missing permissions: {error.missing_permissions}')
             await interaction.response.send_message(f'You are missing the following permissions: `{", ".join(error.missing_permissions)}`', ephemeral=True)
             return
         else:
@@ -444,6 +456,7 @@ class aclient(discord.AutoShardedClient):
             program_logger.debug('Owner not found.')
 
         #Start background tasks
+        program_logger.info('Initializing bot statistics module')
         self.stats = bot_directory.Stats(bot=bot,
                                     logger=program_logger,
                                     TOPGG_TOKEN=TOPGG_TOKEN,
@@ -451,6 +464,7 @@ class aclient(discord.AutoShardedClient):
                                     DISCORDBOTLISTCOM_TOKEN=DISCORDBOTLISTCOM_TOKEN,
                                     DISCORDLIST_TOKEN=DISCORDLIST_TOKEN,
                                     )
+        program_logger.info('Starting background tasks')
         bot.loop.create_task(Background.check_db_connection_task())
         while not self.firstDBchecked:
             await asyncio.sleep(0)
@@ -462,10 +476,13 @@ class aclient(discord.AutoShardedClient):
         while not self.cache_updated:
             await asyncio.sleep(0)
         if self.initialized:
+            program_logger.debug('Bot reconnected, updating presence')
             await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
             return
 
+        program_logger.info('Starting shrine subscription task')
         bot.loop.create_task(Background.subscribe_shrine_task())
+        program_logger.info('Starting stats update service')
         self.stats.start_stats_update()
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         program_logger.info(r'''
@@ -487,121 +504,129 @@ tree.on_error = bot.on_app_command_error
 
 class SignalHandler:
     def __init__(self):
+        program_logger.info('Initializing signal handlers')
         signal.signal(signal.SIGINT, self._shutdown)
         signal.signal(signal.SIGTERM, self._shutdown)
 
     def _shutdown(self, signum, frame):
-        program_logger.info('Received signal to shutdown...')
+        program_logger.info(f'Received signal {signum} to shutdown...')
         bot.loop.create_task(Owner.shutdown(owner))
 
 
 #Update cache/db (Every ~4h)
 class Cache():
     async def _update_perks():
+        program_logger.debug('Updating perks cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f"{API_BASE}perks?locale={lang}")
-            except Exception:
-                program_logger.warning("Perks couldn't be updated.")
-                program_logger.debug("Perks couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Perks couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['perk'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{BUFFER_FOLDER}perk//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Perks cache updated successfully')
 
     async def _update_offerings():
+        program_logger.debug('Updating offerings cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}offerings?locale={lang}')
-            except Exception:
-                program_logger.warning("Offerings couldn't be updated.")
-                program_logger.debug("Offerings couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Offerings couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['offering'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{BUFFER_FOLDER}offering//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Offerings cache updated successfully')
 
     async def _update_chars():
+        program_logger.debug('Updating characters cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}characters?locale={lang}')
-            except Exception:
-                program_logger.warning("Characters couldn't be updated.")
-                program_logger.debug("Characters couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Characters couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['char'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{BUFFER_FOLDER}char//{lang}.json", 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Characters cache updated successfully')
 
     async def _update_dlc():
+        program_logger.debug('Updating DLC cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}dlc?locale={lang}')
-            except Exception:
-                program_logger.warning("DLC couldn't be updated.")
-                program_logger.debug("DLC couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"DLC couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['dlc'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{BUFFER_FOLDER}dlc//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('DLC cache updated successfully')
 
     async def _update_item():
+        program_logger.debug('Updating items cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}items?role=survivor&locale={lang}')
-            except Exception:
-                program_logger.warning("Items couldn't be updated.")
-                program_logger.debug("Items couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Items couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['item'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f"{BUFFER_FOLDER}item//{lang}.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Items cache updated successfully')
 
     async def _update_addon():
+        program_logger.debug('Updating addons cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}addons?locale={lang}')
-            except Exception:
-                program_logger.warning("Addons couldn't be updated.")
-                program_logger.debug("Addons couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Addons couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['addon'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{BUFFER_FOLDER}addon//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Addons cache updated successfully')
 
     async def _update_map():
+        program_logger.debug('Updating maps cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data = await Functions.check_rate_limit(f'{API_BASE}maps?locale={lang}')
-            except Exception:
-                program_logger.warning("Maps couldn't be updated.")
-                program_logger.debug("Maps couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Maps couldn't be updated for language {lang}: {e}")
                 return 1
             data['_id'] = lang
             if isDbAvailable:
                 await db[DB_NAME]['map'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{BUFFER_FOLDER}map//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Maps cache updated successfully')
 
     async def _update_event():
+        program_logger.debug('Updating events cache')
         for lang in AVAILABLE_LANGS:
             try:
                 data_list = await Functions.check_rate_limit(f'{API_BASE}events?locale={lang}')
-            except Exception:
-                program_logger.warning("Events couldn't be updated.")
-                program_logger.debug("Events couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Events couldn't be updated for language {lang}: {e}")
                 return 1
             data = {}
             for i in range(len(data_list)):
@@ -611,26 +636,28 @@ class Cache():
                 await db[DB_NAME]['event'].update_one({'_id': lang}, {'$set': data}, upsert=True)
             with open(f'{BUFFER_FOLDER}event//{lang}.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
+        program_logger.debug('Events cache updated successfully')
 
     async def _update_version():
+        program_logger.debug('Updating version cache')
         try:
             data = await Functions.check_rate_limit(f'{API_BASE}versions')
-        except Exception:
-            program_logger.warning("Version couldn't be updated.")
-            program_logger.debug("Version couldn't be updated.")
+        except Exception as e:
+            program_logger.error(f"Version couldn't be updated: {e}")
             return 1
         data['_id'] = 'version_info'
         if isDbAvailable:
             await db[DB_NAME]['version'].update_one({'_id': 'version_info'}, {'$set': data}, upsert=True)
         with open(f'{BUFFER_FOLDER}version_info.json', 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
+        program_logger.debug('Version cache updated successfully')
 
     async def _update_patchnotes():
+        program_logger.debug('Updating patchnotes cache')
         try:
             data = await Functions.check_rate_limit(f'{API_BASE}patchnotes')
-        except Exception:
-            program_logger.warning("Patchnotes couldn't be updated.")
-            program_logger.debug("Patchnotes couldn't be updated.")
+        except Exception as e:
+            program_logger.error(f"Patchnotes couldn't be updated: {e}")
             return 1
         if os.path.exists(f'{BUFFER_FOLDER}patchnotes'):
             for filename in os.scandir(f'{BUFFER_FOLDER}patchnotes'):
@@ -640,6 +667,7 @@ class Cache():
         data.sort(key=lambda x: x["id"], reverse=True)
         if isDbAvailable:
             await db[DB_NAME]['patchnotes'].drop()
+        program_logger.debug('Patchnotes cache updated successfully')
         for entry in data:
             notes = {key: value for key, value in entry.items() if key == "notes"}
             notes['_id'] = entry["id"]
@@ -649,12 +677,18 @@ class Cache():
                 await db[DB_NAME]['patchnotes'].update_one({'_id': entry['id']}, {'$set': notes}, upsert=True)
 
     async def _clear_playerstats():
+        program_logger.debug('Clearing old player stats files')
+        cleared_count = 0
         for filename in os.scandir(STATS_FOLDER):
             if filename.is_file() and ((time.time() - os.path.getmtime(filename)) / 3600) >= 24:
                 os.remove(filename)
+                cleared_count += 1
+        program_logger.debug(f'Cleared {cleared_count} old player stats files')
 
     async def _name_lists():
+        program_logger.debug('Building name lists for autocomplete')
         async def load_and_set_names(request_data, target_var_name):
+            program_logger.debug(f'Loading names for {request_data}')
             for lang in AVAILABLE_LANGS:
                 killer = False
                 if request_data == 'killers':
@@ -695,6 +729,7 @@ class Cache():
 
         global patch_versions
         patch_versions = []
+        program_logger.debug('Building patch versions list')
 
         while patch_versions == []:
             for filename in os.listdir(f'{BUFFER_FOLDER}patchnotes'):
@@ -706,6 +741,8 @@ class Cache():
                         patched_version += '.'
                 patch_versions.append(patched_version)
             patch_versions.sort(reverse=True)
+        program_logger.debug(f'Loaded {len(patch_versions)} patch versions')
+        program_logger.debug('Name lists built successfully')
 
     async def start_cache_update():
         program_logger.info('Updating cache...')
@@ -729,9 +766,11 @@ class Cache():
         for task in tasks:
            task = await task
            if task == 1 and not bot.cache_updated:
+               program_logger.warning('Received 429 error during cache update')
                cache429 = True
         if cache429:
             message = 'Cache couldn\'t be populated, because of a 429. Exiting...'
+            program_logger.critical(message)
             paths = [
                 f'{BUFFER_FOLDER}addon',
                 f'{BUFFER_FOLDER}char',
@@ -758,14 +797,17 @@ class Cache():
 
     async def task():
         if NO_CACHE:
+            program_logger.info('NO_CACHE mode enabled, building name lists only')
             await Cache._name_lists()
             bot.cache_updated = True
             return
         while True:
             await Cache.start_cache_update()
             try:
+                program_logger.debug('Cache update complete, sleeping for 4 hours')
                 await asyncio.sleep(60*60*4)
             except asyncio.CancelledError:
+                program_logger.info('Cache task cancelled')
                 break
 
 
@@ -773,6 +815,8 @@ class Cache():
 class Background():
     async def check_db_connection_task():
         async def _upload_json_to_db():
+            program_logger.info('Uploading JSON files to database')
+            upload_count = 0
             for entry in os.scandir(BUFFER_FOLDER):
                 if entry.is_dir():
                     if entry.name in ['Stats']:
@@ -782,6 +826,7 @@ class Background():
                             with open(filename.path, 'r', encoding='utf8') as file:
                                 data = json.load(file)
                                 await db[DB_NAME][str(entry.name)].update_one({'_id': data['_id']}, {'$set': data}, upsert=True)
+                                upload_count += 1
                 if entry.is_file() and entry.name in ['shrine_info.json', 'version_info.json', 'translations.json', 'twitch_info']:
                     with open(entry.path, 'r', encoding='utf8') as file:
                         data = json.load(file)
@@ -792,10 +837,13 @@ class Background():
                                                                                           .replace('shrine_info.json', 'shrine_info')
                                                                                           .replace('translations.json', 'translations')
                                                                                           .replace('version_info.json', 'version_info')}, {'$set': data}, upsert=True)
+                        upload_count += 1
+            program_logger.info(f'Uploaded {upload_count} files to database')
 
         async def _function():
             if not bot.initialized:
                 if not bot.firstDBchecked:
+                    program_logger.debug('Performing initial database connection check')
                     await isMongoReachable()
                     bot.firstDBchecked = True
             global isDbAvailable
@@ -803,6 +851,7 @@ class Background():
             new = await isMongoReachable(True)
             if type(new) == bool:
                 if old != new:
+                    program_logger.info('Database connection state changed, uploading JSON to DB')
                     await _upload_json_to_db()
                     isDbAvailable = True
                     program_logger.info("Database connection established.")
@@ -812,6 +861,7 @@ class Background():
                         pass
             else:
                 if type(new) == str and not old:
+                    program_logger.debug('Database connection check: already marked as unavailable')
                     return
                 else:
                     isDbAvailable = False
@@ -826,12 +876,15 @@ class Background():
                 await _function()
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
+                program_logger.info('Database connection check task cancelled')
                 break
 
     async def health_server():
         async def __health_check(request):
+            program_logger.debug('Health check endpoint accessed')
             return web.Response(text="Healthy")
 
+        program_logger.info('Starting health check server on port 5000')
         app = web.Application()
         app.router.add_get('/health', __health_check)
         runner = web.AppRunner(app)
@@ -839,48 +892,57 @@ class Background():
         site = web.TCPSite(runner, '0.0.0.0', 5000)
         try:
             await site.start()
+            program_logger.info('Health check server started successfully')
         except OSError as e:
-            program_logger.warning(f'Error while starting health server: {e}')
-            program_logger.debug(f'Error while starting health server: {e}')
+            program_logger.error(f'Error while starting health server: {e}')
 
     async def subscribe_shrine_task():
         async def function():
+            program_logger.debug('Checking shrine updates')
             try:
                 shrine_new = await Functions.check_rate_limit('https://api.nightlight.gg/v1/shrine')
-            except Exception:
-                program_logger.warning("Shrine couldn't be updated.")
-                program_logger.debug("Shrine couldn't be updated.")
+            except Exception as e:
+                program_logger.error(f"Shrine couldn't be updated: {e}")
                 return 1
             else:
                 shrine_old = await Functions.data_load('shrine')
                 if shrine_old is None or shrine_new['data']['week'] != shrine_old['data']['week']:
+                    program_logger.info(f'Shrine updated to week {shrine_new["data"]["week"]}')
                     if isDbAvailable:
                         shrine_new['_id'] = 'shrine_info'
                         await db[DB_NAME]['shrine'].update_one({'_id': 'shrine_info'}, {'$set': shrine_new}, upsert=True)
                     with open(f"{BUFFER_FOLDER}shrine_info.json", "w", encoding="utf8") as f:
                         json.dump(shrine_new, f, indent=4)
                 if shrine_old is None or shrine_new['data']['week'] > shrine_old['data']['week']:
+                    program_logger.info('Sending shrine updates to subscribed channels')
                     c.execute('SELECT * FROM shrine')
+                    sent_count = 0
                     for row in c.fetchall():
                         try:
                             await Info.shrine(channel_id=(row[1], row[2]))
+                            sent_count += 1
                         except Exception as e:
                             program_logger.warning(f'Error while sending subscribed shrine to {row[1]}: {e}')
+                    program_logger.info(f'Sent shrine updates to {sent_count} channels')
 
         while True:
             await function()
             try:
                 await asyncio.sleep(60*15)
             except asyncio.CancelledError:
+                program_logger.info('Shrine subscription task cancelled')
                 break
 
     async def update_twitchinfo_task():
         async def function():
+            program_logger.debug('Updating Twitch information')
             game_id = await TwitchApi.get_game_id("Dead by Daylight")
             if game_id is None:
+                program_logger.warning('Failed to get Dead by Daylight game ID from Twitch')
                 return
             stats = await TwitchApi.get_category_stats(game_id)
             if not isinstance(stats, dict):
+                program_logger.warning('Failed to get category stats from Twitch')
                 return
             top = await TwitchApi.get_top_streamers(game_id)
             image = await TwitchApi.get_category_image(game_id)
@@ -915,20 +977,24 @@ class Background():
             # Update json
             with open(f"{BUFFER_FOLDER}twitch_info.json", "w", encoding="utf8") as f:
                 json.dump(data, f, indent=4)
+            program_logger.debug('Twitch information updated successfully')
 
         while True:
             if not isTwitchAvailable:
+                program_logger.warning('Twitch API not available, stopping Twitch info updates')
                 break
             await function()
             try:
                 await asyncio.sleep(60*5)
             except asyncio.CancelledError:
+                program_logger.info('Twitch info task cancelled')
                 break
 
 
 #Functions
 class Functions():
     async def build_lang_lists():
+        program_logger.info('Building language lists for translation services')
         global libre_languages, google_languages
         google_languages = []
         libre_languages = []
@@ -958,18 +1024,21 @@ class Functions():
             program_logger.debug(libre_languages)
 
     async def check_rate_limit(url):
+        program_logger.debug(f'Checking rate limit for URL: {url}')
         headers = {
             'User-Agent': f'{BOT_NAME}/{BOT_VERSION}'
         }
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url) as response:
-                program_logger.debug(response)
+                program_logger.debug(f'Response status: {response.status}')
                 if response.status != 200:
+                    program_logger.warning(f'Non-200 status code received: {response.status} for {url}')
                     response.raise_for_status()
                 else:
                     return await response.json()
 
     async def check_if_removed(id):
+        program_logger.debug(f'Checking if player {id} is removed')
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f'{API_BASE}playerstats?steamid={id}') as resp:
@@ -2749,6 +2818,7 @@ class Random():
 #Owner Commands
 class Owner():
     async def activity(message, args):
+        program_logger.info('Owner activity command invoked')
         async def __wrong_selection():
             await message.channel.send('```'
                                        'activity [playing/streaming/listening/watching/competing] [title] (url) - Set the activity of the bot\n'
@@ -2767,13 +2837,14 @@ class Owner():
                 return None
 
         if args == []:
+            program_logger.debug('No arguments provided for activity command')
             await __wrong_selection()
             return
         action = args[0].lower()
         url = remove_and_save(args[1:])
         title = ' '.join(args[1:])
-        program_logger.debug(title)
-        program_logger.debug(url)
+        program_logger.debug(f'Activity title: {title}')
+        program_logger.debug(f'Activity URL: {url}')
         with open(ACTIVITY_FILE, 'r', encoding='utf8') as f:
             data = json.load(f)
         if action == 'playing':
@@ -2801,40 +2872,48 @@ class Owner():
             return
         with open(ACTIVITY_FILE, 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
+        program_logger.info(f'Activity changed to: {action} - {title}')
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Activity set to {action} {title}{" " + url if url else ""}.')
 
     async def changelog(message, file):
+        program_logger.info('Owner changelog command invoked')
         async def __wrong_selection():
             await message.channel.send('```'
                                        'changelog [file] - Upload a txt, or md, that is send to the changelog channels.'
                                        '```')
         send_as_file = False
         if file == []:
+            program_logger.debug('No file provided for changelog command')
             await __wrong_selection()
             return
         try:
             if file[0].size > 8388608:
+                program_logger.warning(f'Changelog file too large: {file[0].size} bytes')
                 await message.channel.send('The file is too big. Max. 8MB.')
                 return
             filetype = str({file[0].filename.split('.')[-1]}).replace("{'", '').replace("'}", '')
             changelog = f'{BUFFER_FOLDER}changelog.{filetype}'
             await file[0].save(changelog)
+            program_logger.debug(f'Changelog file saved: {changelog}')
             with open(changelog, 'rb') as f:
                 text = f.read().decode('utf-8')
                 if len(text) > 2000:
                     send_as_file = True
-        except:
-            program_logger.warning(f'Error while reading the changelog file.')
+                    program_logger.debug('Changelog text exceeds 2000 chars, will send as file')
+        except Exception as e:
+            program_logger.error(f'Error while reading the changelog file: {e}')
             await message.channel.send('Error while reading the changelog file.')
             os.remove(changelog)
             return
 
+        program_logger.info('Publishing changelog to subscribed channels')
         reply = await message.reply('Publishing...')
 
         c.execute("SELECT * FROM changelogs")
         data = c.fetchall()
         if data == []:
+            program_logger.warning('No changelog channels configured')
             await reply.edit(content = 'There are no changelog channels set.')
             return
         published_success = 0
@@ -2887,24 +2966,30 @@ class Owner():
                     published_total += 1
         os.remove(changelog)
         conn.commit()
+        program_logger.info(f'Changelog published to {published_success}/{published_total} channels')
         await reply.edit(content = f'Published to `{published_success}/{published_total}` channels.')
 
     async def clean(message, args):
+        program_logger.info('Owner clean command invoked')
         async def __wrong_selection():
             await message.channel.send('```'
                                        'clean [translation/cache] - Deletes the cache for the selected stuff.\n'
                                        '```')
         if args == []:
+            program_logger.debug('No arguments provided for clean command')
             await __wrong_selection()
             return
         if args[0] == 'translation':
+            program_logger.info('Cleaning translation cache')
             if isDbAvailable:
                 await db[DB_NAME].translations.drop()
             translations = f"{BUFFER_FOLDER}translations.json"
             if os.path.exists(translations):
                 os.remove(translations)
+            program_logger.info('Translations deleted successfully')
             await message.channel.send('Translations deleted.')
         elif args[0] == 'cache':
+            program_logger.info('Cleaning all cache')
             if isDbAvailable:
                 await db.drop_database(DB_NAME)
             for root, _, files in os.walk(BUFFER_FOLDER):
@@ -2912,21 +2997,25 @@ class Owner():
                     file_path = os.path.join(root, file)
                     os.remove(file_path)
             await Cache.start_cache_update()
+            program_logger.info('All cached files deleted and rebuilt')
             await message.channel.send('All cached files deleted and rebuild.')
         else:
             await __wrong_selection()
 
     async def log(message, args):
+        program_logger.info('Owner log command invoked')
         async def __wrong_selection():
             await message.channel.send('```'
                                        'log [current/folder/lines] (Replace lines with a positive number, if you only want lines.) - Get the log\n'
                                        '```')
         if not args:
+            program_logger.debug('No arguments provided for log command')
             await __wrong_selection()
             return
 
         command = args[0]
         if command == 'current':
+            program_logger.debug('Sending current log file')
             log_file_path = f'{LOG_FOLDER}{BOT_NAME}.log'
             try:
                 await message.channel.send(file=discord.File(log_file_path))
@@ -2944,6 +3033,7 @@ class Owner():
             return
 
         if command == 'folder':
+            program_logger.debug('Sending entire log folder as zip')
             zip_path = f'{BUFFER_FOLDER}Logs.zip'
             if os.path.exists(zip_path):
                 os.remove(zip_path)
@@ -2955,6 +3045,7 @@ class Owner():
                 await message.channel.send(file=discord.File(zip_path))
             except discord.HTTPException as err:
                 if err.status == 413:
+                    program_logger.warning('Log folder too large to send')
                     await message.channel.send("The folder is too big to be sent directly.\nPlease get the current file or the last X lines.")
             os.remove(zip_path)
             return
@@ -2964,6 +3055,7 @@ class Owner():
             if lines < 1:
                 await __wrong_selection()
                 return
+            program_logger.debug(f'Sending last {lines} lines of log')
         except ValueError:
             await __wrong_selection()
             return
@@ -2979,7 +3071,7 @@ class Owner():
 
     async def shutdown(message):
         global shutdown
-        program_logger.info('Engine powering down...')
+        program_logger.info('Shutdown command received - Engine powering down...')
         try:
             await message.channel.send('Engine powering down...')
         except:
@@ -2994,17 +3086,21 @@ class Owner():
         conn.close()
         await db.close()
 
+        program_logger.info('Stopping stats update service')
         bot.stats.stop_stats_update()
 
+        program_logger.info('Closing bot connection')
         await bot.close()
 
     async def status(message, args):
+        program_logger.info('Owner status command invoked')
         async def __wrong_selection():
             await message.channel.send('```'
                                        'status [online/idle/dnd/invisible] - Set the status of the bot'
                                        '```')
 
         if args == []:
+            program_logger.debug('No arguments provided for status command')
             await __wrong_selection()
             return
         action = args[0].lower()
@@ -3023,10 +3119,12 @@ class Owner():
             return
         with open(ACTIVITY_FILE, 'w', encoding='utf8') as f:
             json.dump(data, f, indent=2)
+        program_logger.info(f'Status changed to: {action}')
         await bot.change_presence(activity = bot.Presence.get_activity(), status = bot.Presence.get_status())
         await message.channel.send(f'Status set to {action}.')
 
     async def broadcast(message):
+        program_logger.info('Owner broadcast command invoked')
         already_send = []
         success = 0
         forbidden = 0
@@ -3041,14 +3139,18 @@ class Owner():
                 already_send.append(guild_owner.id)
             except discord.Forbidden:
                 forbidden += 1
+                program_logger.debug(f'Broadcast forbidden for user {guild_owner.id}')
             except Exception as e:
                 error += 1
+                program_logger.warning(f'Broadcast error for user {guild_owner.id}: {e}')
+        program_logger.info(f'Broadcast finished - Success: {success}, Forbidden: {forbidden}, Error: {error}')
         await owner.send(f'Broadcast finished.\nSuccess: {success}\nForbidden: {forbidden}\nError: {error}')
 
 
 #Autocompletion
 class AutoComplete:
     def __init__(self) -> None:
+        program_logger.debug('Initializing AutoComplete')
         messages = {
         'de': 'Bot startet...',
         'en': 'Bot is starting...',
@@ -3148,6 +3250,7 @@ autocomplete = AutoComplete()
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 async def ping(interaction: discord.Interaction):
+    program_logger.info(f'Ping command invoked by {interaction.user.id} in guild {interaction.guild.id if interaction.guild else "DM"}')
     await interaction.response.defer(thinking=True)
 
     before = time.monotonic()
@@ -3159,6 +3262,7 @@ async def ping(interaction: discord.Interaction):
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 async def botinfo(interaction: discord.Interaction):
+    program_logger.info(f'Botinfo command invoked by {interaction.user.id} in guild {interaction.guild.id if interaction.guild else "DM"}')
     await interaction.response.defer(thinking=True, ephemeral=True)
 
     member_count = sum(guild.member_count for guild in bot.guilds)
@@ -3220,6 +3324,7 @@ async def subscribe(interaction: discord.Interaction,
                shrine: bool,
                changelogs: bool
                ):
+    program_logger.info(f'Subscribe command invoked by {interaction.user.id} in guild {interaction.guild.id}, channel: {channel.id}, shrine: {shrine}, changelogs: {changelogs}')
     await interaction.response.defer(thinking=True, ephemeral=True)
 
     permissions = channel.permissions_for(interaction.guild.me)
@@ -3630,8 +3735,11 @@ if __name__ == '__main__':
         sys.exit(error_message)
     else:
         try:
+            program_logger.info('Initializing signal handler')
             SignalHandler()
+            program_logger.info('Building language lists')
             asyncio.run(Functions.build_lang_lists())
+            program_logger.info('Starting bot with token')
             bot.run(TOKEN, log_handler=None)
         except discord.errors.LoginFailure:
             error_message = 'Invalid token. Please check your .env file.'
@@ -3639,4 +3747,5 @@ if __name__ == '__main__':
             sys.exit(error_message)
         except asyncio.CancelledError:
             if shutdown:
+                program_logger.info('Bot shutdown completed')
                 pass
