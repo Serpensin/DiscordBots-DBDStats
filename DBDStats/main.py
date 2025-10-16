@@ -49,7 +49,7 @@ load_dotenv()
 BOT_NAME = 'DBDStats'
 API_BASE = 'https://dbd.tricky.lol/api/' # For production
 #API_BASE = 'http://localhost:5000/' # For testing
-NO_CACHE = False # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
+NO_CACHE = True # Disables cache for faster start (!!!DOESN'T WORK IN PRODUCTION!!!)
 BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
@@ -1697,7 +1697,6 @@ class SendInfo():
 #Info
 class Info():
     async def addon(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('addons', lang)
         if data is None:
@@ -1709,7 +1708,6 @@ class Info():
         return
 
     async def adepts(interaction: discord.Integration, steamid):
-        await interaction.response.defer()
         try:
             ownesDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
         except ValueError:
@@ -1724,7 +1722,7 @@ class Info():
             await interaction.followup.send(embed=embed)
             return
         if not ownesDBD:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://gg.deals/game/dead-by-daylight).")
         else:
             try:
                 steamid = await SteamApi.link_to_id(steamid)
@@ -1817,7 +1815,6 @@ class Info():
                     await interaction.followup.send(embeds=embeds[i:i+10])
 
     async def character(interaction: discord.Interaction, char: str):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('chars', lang)
         if data is None:
@@ -1832,7 +1829,6 @@ class Info():
             return
 
     async def dlc(interaction: discord.Interaction, name: str = ''):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('dlcs', lang)
         if data is None:
@@ -1883,8 +1879,6 @@ class Info():
             await interaction.followup.send(await Functions.translate(interaction, "No DLC found with this name."))
 
     async def event(interaction: discord.Interaction):
-        await interaction.response.defer()
-
         lang = await Functions.get_language_code(interaction)
 
         data = await Functions.data_load('events', lang)
@@ -1929,7 +1923,6 @@ class Info():
             await interaction.followup.send(embed=embed)
 
     async def item(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('items', lang)
         if data is None:
@@ -1940,8 +1933,6 @@ class Info():
         return
 
     async def killswitch(interaction: discord.Interaction):
-        await interaction.response.defer()
-
         if os.path.exists(f'{BUFFER_FOLDER}killswitch.json') and os.path.getmtime(f'{BUFFER_FOLDER}killswitch.json') > time.time() - 900:
             with open(f'{BUFFER_FOLDER}killswitch.json', 'r') as f:
                 data = json.load(f)
@@ -1952,7 +1943,7 @@ class Info():
                     await interaction.followup.send(embed=embed)
                     return
                 else:
-                    embed = discord.Embed(title="Killswitch", description=await Functions.translate(interaction, data['md']), color=0xb19325)
+                    embed = discord.Embed(title="Killswitch", url='https://forums.bhvr.com/dead-by-daylight/kb/articles/299-kill-switch-master-list', description=await Functions.translate(interaction, data['md']), color=0xb19325)
                     embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
                     embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
                     await interaction.followup.send(embed=embed)
@@ -1972,7 +1963,7 @@ class Info():
             await interaction.followup.send(embed=embed)
             killswitch_on = 0
         elif data is not None:
-            embed = discord.Embed(title="Killswitch", description=data, color=0xb19325)
+            embed = discord.Embed(title="Killswitch", url='https://forums.bhvr.com/dead-by-daylight/kb/articles/299-kill-switch-master-list', description=data, color=0xb19325)
             embed.set_thumbnail(url=f'{BOT_BASE}killswitch.jpg')
             embed.set_footer(text = await Functions.translate(interaction, 'Update every 15 minutes.'))
             await interaction.followup.send(embed=embed)
@@ -1987,7 +1978,6 @@ class Info():
             json.dump(data_to_save, f, indent=4)
 
     async def legacycheck(interaction: discord.Interaction, steamid):
-        await interaction.response.defer()
         try:
             ownsDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
         except ValueError:
@@ -2002,7 +1992,7 @@ class Info():
             await interaction.followup.send(embed=embed)
             return
         if not ownsDBD:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look") + " [here](https://gg.deals/game/dead-by-daylight).")
         else:
 
             try:
@@ -2032,7 +2022,6 @@ class Info():
                     return
 
     async def maps(interaction: discord.Interaction, name):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
 
         data = await Functions.data_load('maps', lang)
@@ -2053,7 +2042,6 @@ class Info():
         await interaction.followup.send(await Functions.translate(interaction, "No map found with this name."))
 
     async def offering(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         data = await Functions.data_load('offerings', 'en')
         if data is None:
@@ -2062,7 +2050,6 @@ class Info():
         await SendInfo.offering(interaction, name, lang)
 
     async def patch(interaction: discord.Interaction, version: str):
-        await interaction.response.defer()
         data = await Functions.data_load('patchnotes', version=version)
         if data is None:
             await interaction.followup.send(await Functions.translate(interaction, "Error while loading the patchnotes."))
@@ -2080,7 +2067,6 @@ class Info():
                 os.remove(f'{BUFFER_FOLDER}patchnotes.md')
 
     async def perk(interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
         lang = await Functions.get_language_code(interaction)
         await SendInfo.perk(name, lang, interaction)
 
@@ -2111,7 +2097,7 @@ class Info():
             with open(BUFFER_FOLDER+'playercount.json', 'w', encoding='utf8') as f:
                 json.dump(data, f, indent=2)
             return data
-        await interaction.response.defer()
+
         if os.path.exists(BUFFER_FOLDER+'playercount.json'):
             with open(BUFFER_FOLDER+'playercount.json', 'r', encoding='utf8') as f:
                 data = json.load(f)
@@ -2121,7 +2107,6 @@ class Info():
         await selfembed(await selfget())
 
     async def playerstats(interaction: discord.Interaction, steamid):
-        await interaction.response.defer(thinking=True)
         try:
             steamid = await SteamApi.link_to_id(steamid)
         except steam.Errors.RateLimit:
@@ -2155,7 +2140,7 @@ class Info():
                 await interaction.followup.send(embed=embed)
                 return
         if not ownsDBD:
-            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://www.g2a.com/n/dbdstats).")
+            await interaction.followup.send(await Functions.translate(interaction, "I'm sorry, but this profile doesn't own DBD. But if you want to buy it, you can take a look")+" [here](https://gg.deals/game/dead-by-daylight).")
             return
         else:
             #Get Stats
@@ -2168,7 +2153,7 @@ class Info():
                         await interaction.followup.send(await Functions.translate(interaction, "The bot is currently rate limited. Please try again later."), ephemeral=True)
                         return
                     elif removed == 3:
-                        embed = discord.Embed(title="Statistics", url=f'https://www.dbd-info.com/player-profile/{steamid}/overview', description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
+                        embed = discord.Embed(title="Statistics", url=f'https://dbd.tricky.lol/playerstats/{steamid}', description=(await Functions.translate(interaction, "It looks like this profile has been banned from displaying on our leaderboard.\nThis probably happened because achievements or statistics were manipulated.\nI can therefore not display any information in an embed.\nIf you still want to see the full statistics, please click on the link.")), color=0xb19325)
                         await interaction.followup.send(embed=embed)
                         return
                     elif removed != 0:
@@ -2434,7 +2419,7 @@ class Info():
             async with session.get(f'{API_BASE}rankreset') as resp:
                 data = await resp.json()
         embed = discord.Embed(description=f"{await Functions.translate(interaction, 'The next rank reset will take place on the following date: ')}\n<t:{data['rankreset']}>.", color=0x0400ff)
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     async def shrine(interaction: discord.Interaction = None, channel_id: tuple = ''):
         if channel_id != '':
@@ -2467,7 +2452,6 @@ class Info():
                 conn.commit()
             return
         else:
-            await interaction.response.defer()
             lang = await Functions.get_language_code(interaction)
             data = await Functions.data_load('shrine')
             if data is None:
@@ -2493,7 +2477,6 @@ class Info():
                 conn.commit()
 
     async def twitch_info(interaction: discord.Interaction):
-        await interaction.response.defer()
         if not isTwitchAvailable:
             await interaction.followup.send(await Functions.translate(interaction, "Twitch API is currently not available.\nAsk the owner of this instance to enable it."), ephemeral=True)
             return
@@ -2523,7 +2506,6 @@ class Info():
         await interaction.followup.send(embeds=embeds)
 
     async def version(interaction: discord.Interaction):
-        await interaction.response.defer()
         data = await Functions.data_load('versions')
 
         embed1 = discord.Embed(title='DB Version (1/2)', color=0x42a32e)
@@ -3166,16 +3148,18 @@ autocomplete = AutoComplete()
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
 async def ping(interaction: discord.Interaction):
-        before = time.monotonic()
-        await interaction.response.send_message('Pong!')
-        ping = (time.monotonic() - before) * 1000
-        await interaction.edit_original_response(content=f'Pong! \nCommand execution time: `{Functions.safe_int(ping)}ms`\nPing to gateway: `{Functions.safe_int(bot.latency * 1000 if interaction.guild is None else bot.shards.get(interaction.guild.shard_id).latency * 1000)}ms`')
+    await interaction.response.defer(thinking=True)
+
+    before = time.monotonic()
+    await interaction.followup.send('Pong!')
+    ping = (time.monotonic() - before) * 1000
+    await interaction.edit_original_response(content=f'Pong! \nCommand execution time: `{Functions.safe_int(ping)}ms`\nPing to gateway: `{Functions.safe_int(bot.latency * 1000 if interaction.guild is None else bot.shards.get(interaction.guild.shard_id).latency * 1000)}ms`')
 
 #Bot Info
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 async def botinfo(interaction: discord.Interaction):
-
+    await interaction.response.defer(thinking=True, ephemeral=True)
 
     member_count = sum(guild.member_count for guild in bot.guilds)
 
@@ -3220,7 +3204,7 @@ async def botinfo(interaction: discord.Interaction):
         embed.add_field(name="RAM", value=f"{ram_usage}%", inline=True)
         embed.add_field(name="RAM", value=f"{ram_real} MB", inline=True)
 
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 #Subscribe
 @tree.command(name = 'subscribe', description = 'Subscribe to a specific category for automatic posts.')
@@ -3236,45 +3220,47 @@ async def subscribe(interaction: discord.Interaction,
                shrine: bool,
                changelogs: bool
                ):
-        permissions = channel.permissions_for(interaction.guild.me)
-        if not (permissions.send_messages and permissions.attach_files and permissions.embed_links):
-            await interaction.response.send_message('I\'m missing one of the following persmissions in the specified channel:\n• `SEND_MESSAGES`\n• `ATTACH_FILES`\n• `EMBED_LINKS`', ephemeral=True)
-            return
+    await interaction.response.defer(thinking=True, ephemeral=True)
 
-        message = ''
-        if shrine:
-            c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
-            if c.fetchone() is None:
-                c.execute('INSERT INTO shrine (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
-                message += f'Successfully subscribed to the shrine on channel <#{channel.id}>.\n'
-            else:
-                message += f'You are already subscribed to the shrine on channel <#{channel.id}>.\n'
+    permissions = channel.permissions_for(interaction.guild.me)
+    if not (permissions.send_messages and permissions.attach_files and permissions.embed_links):
+        await interaction.response.send_message('I\'m missing one of the following persmissions in the specified channel:\n• `SEND_MESSAGES`\n• `ATTACH_FILES`\n• `EMBED_LINKS`', ephemeral=True)
+        return
+
+    message = ''
+    if shrine:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO shrine (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the shrine on channel <#{channel.id}>.\n'
         else:
-            c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
-            if c.fetchone() is None:
-                message += f'You are not subscribed to the shrine on channel <#{channel.id}>.\n'
-            else:
-                c.execute('DELETE FROM shrine WHERE channel_id = ?', (channel.id,))
-                message += f'Successfully unsubscribed from the shrine on channel <#{channel.id}>.\n'
-
-        if changelogs:
-            c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
-            if c.fetchone() is None:
-                c.execute('INSERT INTO changelogs (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
-                message += f'Successfully subscribed to the changelogs on channel <#{channel.id}>.\n'
-            else:
-                message += f'You are already subscribed to the changelogs on channel <#{channel.id}>.\n'
+            message += f'You are already subscribed to the shrine on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM shrine WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the shrine on channel <#{channel.id}>.\n'
         else:
-            c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
-            if c.fetchone() is None:
-                message += f'You are not subscribed to the changelogs on channel <#{channel.id}>.\n'
-            else:
-                c.execute('DELETE FROM changelogs WHERE channel_id = ?', (channel.id,))
-                message += f'Successfully unsubscribed from the changelogs on channel <#{channel.id}>.\n'
+            c.execute('DELETE FROM shrine WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the shrine on channel <#{channel.id}>.\n'
 
-        conn.commit()
-        message += '\nYou can subscribe to the shrine and changelogs on multiple channels.\nIf sending a message failed because of missing permissions, this specific sub will be canceled without notice.'
-        await interaction.response.send_message(message, ephemeral=True)
+    if changelogs:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            c.execute('INSERT INTO changelogs (guild_id, channel_id) VALUES (?, ?)', (interaction.guild_id, channel.id,))
+            message += f'Successfully subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            message += f'You are already subscribed to the changelogs on channel <#{channel.id}>.\n'
+    else:
+        c.execute('SELECT * FROM changelogs WHERE channel_id = ?', (channel.id,))
+        if c.fetchone() is None:
+            message += f'You are not subscribed to the changelogs on channel <#{channel.id}>.\n'
+        else:
+            c.execute('DELETE FROM changelogs WHERE channel_id = ?', (channel.id,))
+            message += f'Successfully unsubscribed from the changelogs on channel <#{channel.id}>.\n'
+
+    conn.commit()
+    message += '\nYou can subscribe to the shrine and changelogs on multiple channels.\nIf sending a message failed because of missing permissions, this specific sub will be canceled without notice.'
+    await interaction.followup.send(message, ephemeral=True)
 
 #Translation info
 @tree.command(name = 'translation_info', description = 'Get info about the translation.')
@@ -3304,11 +3290,12 @@ async def translation_info(interaction: discord.Interaction):
 @tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 async def support(interaction: discord.Interaction):
-        if str(interaction.guild.id) != SUPPORTID:
-            await interaction.response.defer(ephemeral = True)
-            await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral = True)
-        else:
-            await interaction.response.send_message('You are already in our support server!', ephemeral = True)
+    await interaction.response.defer(thinking = True)
+
+    if str(interaction.guild.id) != SUPPORTID:
+        await interaction.response.send_message(await Functions.create_support_invite(interaction), ephemeral = True)
+    else:
+        await interaction.response.send_message('You are already in our support server!', ephemeral = True)
 
 
 ##DBD Commands (these commands are for DeadByDaylight.)
@@ -3317,8 +3304,10 @@ async def support(interaction: discord.Interaction):
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.channel.id))
 @discord.app_commands.guild_only
 async def buy(interaction: discord.Interaction):
-    embed = discord.Embed(title="Buy Dead By Daylight", description=await Functions.translate(interaction, "Click the title, to buy the game for a few bucks."), url="https://www.g2a.com/n/dbdstats", color=0x00ff00)
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.defer(thinking=True)
+
+    embed = discord.Embed(title="Buy Dead By Daylight", description=await Functions.translate(interaction, "Click the title, to buy the game for a few bucks."), url="https://gg.deals/game/dead-by-daylight", color=0x00ff00)
+    await interaction.followup.send(embed=embed)
 
 
 #Info
@@ -3375,98 +3364,117 @@ async def info(interaction: discord.Interaction,
                patch: str = None,
                perk: str = None
                ):
-        if category == 'char':
-            if character is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a character."))
-            else:
-                await Info.character(interaction, char = character)
 
-        elif category == 'stats':
-            class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                info.timeout = 30
-                answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want stats for.', style = discord.TextStyle.short, required = True)
-                async def on_submit(self, interaction: discord.Interaction):
-                    await Info.playerstats(interaction, steamid = self.answer.value.strip())
-            await interaction.response.send_modal(Input())
-
-        elif category == 'dlc':
-            await Info.dlc(interaction, name = dlc)
-
-        elif category == 'event':
-            await Info.event(interaction)
-
-        elif category == 'item':
-            if item is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an item."))
-            else:
-                await Info.item(interaction, name = item)
-
-        elif category == 'map':
-            if map is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a map."))
-            else:
-                await Info.maps(interaction, name = map)
-
-        elif category == 'offering':
-            if offering is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an offering."))
-            else:
-                await Info.offering(interaction, name = offering)
-
-        elif category == 'perk':
-            if perk is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a perk."))
-            else:
-                await Info.perk(interaction, name = perk)
-
-        elif category == 'killswitch':
-            await Info.killswitch(interaction)
-
-        elif category == 'shrine':
-            await Info.shrine(interaction)
-
-        elif category == 'version':
-            await Info.version(interaction)
-
-        elif category == 'reset':
-            await Info.rankreset(interaction)
-
-        elif category == 'player':
-            await Info.playercount(interaction)
-
-        elif category == 'legacy':
-            class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                info.timeout = 30
-                answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want to check.', style = discord.TextStyle.short, required = True)
-                async def on_submit(self, interaction: discord.Interaction):
-                    await Info.legacycheck(interaction, steamid = self.answer.value.strip())
-            await interaction.response.send_modal(Input())
-
-        elif category == 'addon':
-            if addon is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify an addon."))
-            else:
-                await Info.addon(interaction, name = addon)
-
-        elif category == 'twitch':
-            await Info.twitch_info(interaction)
-
-        elif category == 'patch':
-            if patch is None:
-                await interaction.response.send_message(await Functions.translate(interaction, "You need to specify a patch version."))
-            else:
-                await Info.patch(interaction, version = patch)
-
-        elif category == 'adept':
-            class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
-                info.timeout = 30
-                answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want adepts for.', style = discord.TextStyle.short, required = True)
-                async def on_submit(self, interaction: discord.Interaction):
-                    await Info.adepts(interaction, steamid = self.answer.value.strip())
-            await interaction.response.send_modal(Input())
-
+    if category == 'char':
+        await interaction.response.defer(thinking = True)
+        if character is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify a character."))
         else:
-            await interaction.response.send_message('Invalid category.', ephemeral=True)
+            await Info.character(interaction, char = character)
+
+    elif category == 'stats':
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            info.timeout = 30
+            answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want stats for.', style = discord.TextStyle.short, required = True)
+            async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.defer(thinking = True)
+                await Info.playerstats(interaction, steamid = self.answer.value.strip())
+        await interaction.response.send_modal(Input())
+
+    elif category == 'dlc':
+        await interaction.response.defer(thinking = True)
+        await Info.dlc(interaction, name = dlc)
+
+    elif category == 'event':
+        await interaction.response.defer(thinking = True)
+        await Info.event(interaction)
+
+    elif category == 'item':
+        await interaction.response.defer(thinking = True)
+        if item is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify an item."))
+        else:
+            await Info.item(interaction, name = item)
+
+    elif category == 'map':
+        await interaction.response.defer(thinking = True)
+        if map is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify a map."))
+        else:
+            await Info.maps(interaction, name = map)
+
+    elif category == 'offering':
+        await interaction.response.defer(thinking = True)
+        if offering is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify an offering."))
+        else:
+            await Info.offering(interaction, name = offering)
+
+    elif category == 'perk':
+        await interaction.response.defer(thinking = True)
+        if perk is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify a perk."))
+        else:
+            await Info.perk(interaction, name = perk)
+
+    elif category == 'killswitch':
+        await interaction.response.defer(thinking = True)
+        await Info.killswitch(interaction)
+
+    elif category == 'shrine':
+        await interaction.response.defer(thinking = True)
+        await Info.shrine(interaction)
+
+    elif category == 'version':
+        await interaction.response.defer(thinking = True)
+        await Info.version(interaction)
+
+    elif category == 'reset':
+        await interaction.response.defer(thinking = True)
+        await Info.rankreset(interaction)
+
+    elif category == 'player':
+        await interaction.response.defer(thinking = True)
+        await Info.playercount(interaction)
+
+    elif category == 'legacy':
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            info.timeout = 30
+            answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want to check.', style = discord.TextStyle.short, required = True)
+            async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.defer(thinking = True)
+                await Info.legacycheck(interaction, steamid = self.answer.value.strip())
+        await interaction.response.send_modal(Input())
+
+    elif category == 'addon':
+        await interaction.response.defer(thinking = True)
+        if addon is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify an addon."))
+        else:
+            await Info.addon(interaction, name = addon)
+
+    elif category == 'twitch':
+        await interaction.response.defer(thinking = True)
+        await Info.twitch_info(interaction)
+
+    elif category == 'patch':
+        await interaction.response.defer(thinking = True)
+        if patch is None:
+            await interaction.followup.send(await Functions.translate(interaction, "You need to specify a patch version."))
+        else:
+            await Info.patch(interaction, version = patch)
+
+    elif category == 'adept':
+        class Input(discord.ui.Modal, title = 'Enter SteamID64. Timeout in 30 seconds.'):
+            info.timeout = 30
+            answer = discord.ui.TextInput(label = 'ID64 or vanity(url) you want adepts for.', style = discord.TextStyle.short, required = True)
+            async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.defer(thinking = True)
+                await Info.adepts(interaction, steamid = self.answer.value.strip())
+        await interaction.response.send_modal(Input())
+
+    else:
+        await interaction.followup.send('Invalid category.', ephemeral=True)
 
 #Randomize
 @tree.command(name = 'random', description = 'Get a random perk, offering, map, item, char or full loadout.')
