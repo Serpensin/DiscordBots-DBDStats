@@ -54,7 +54,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.18"
+BOT_VERSION = "1.16.19"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -3256,7 +3256,8 @@ async def ping(interaction: discord.Interaction):
     before = time.monotonic()
     await interaction.followup.send('Pong!')
     ping = (time.monotonic() - before) * 1000
-    await interaction.edit_original_response(content=f'Pong! \nCommand execution time: `{Functions.safe_int(ping)}ms`\nPing to gateway: `{Functions.safe_int(bot.latency * 1000 if interaction.guild is None else bot.shards.get(interaction.guild.shard_id).latency * 1000)}ms`')
+    gateway_ping = bot.latency * 1000 if interaction.guild is None else bot.shards.get(interaction.guild.shard_id).latency * 1000
+    await interaction.edit_original_response(content=f'Pong! \nCommand execution time: `{ping:.2f}ms`\nPing to gateway: `{gateway_ping:.2f}ms`')
 
 #Bot Info
 @tree.command(name = 'botinfo', description = 'Get information about the bot.')
