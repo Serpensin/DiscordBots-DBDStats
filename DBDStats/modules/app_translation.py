@@ -1,12 +1,13 @@
-﻿import discord
-from typing import Optional
+﻿from typing import Optional
+
+import discord
 
 
 class Translator(discord.app_commands.Translator):
     def __init__(self):
         self.translations = {
             discord.Locale.german: {
-                'Only used if "Patchnotes" is selected. Start writing to search...' : 'Nur verwendet, wenn "Patchnotes" ausgewählt ist. Beginne zu schreiben, um zu suchen...',
+                'Only used if "Patchnotes" is selected. Start writing to search...': 'Nur verwendet, wenn "Patchnotes" ausgewählt ist. Beginne zu schreiben, um zu suchen...',
                 "Player-Adept": "Spieler-Adept",
                 "Test, if the bot is responding.": "Teste, ob der Bot antwortet.",
                 "Get information about the bot.": "Erhalte Informationen über den Bot.",
@@ -158,7 +159,7 @@ class Translator(discord.app_commands.Translator):
                 'Only used if "Addons" is selected. Start writing to search...': 'Utilizado solo si "Add-ons" está seleccionado. Comienza a escribir para buscar...',
                 "character": "personaje",
                 'Only used if "Characters" is selected. Start writing to search...': 'Utilizado solo si "Personajes" está seleccionado. Comienza a escribir para buscar...',
-                'Only used if "DLCs" is selected. Leave empty to get an overview. Start writing to search...': 'Utilizado si \'DLCs\' seleccionado. Vacío para visión general. Escribe para buscar...',
+                'Only used if "DLCs" is selected. Leave empty to get an overview. Start writing to search...': "Utilizado si 'DLCs' seleccionado. Vacío para visión general. Escribe para buscar...",
                 "item": "objeto",
                 'Only used if "Items" is selected. Start writing to search...': 'Utilizado solo si "Objetos" está seleccionado. Comienza a escribir para buscar...',
                 "map": "mapa",
@@ -271,7 +272,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Получить информацию о переводе.",
             },
             discord.Locale.japanese: {
-                'Only used if "Patchnotes" is selected. Start writing to search...': '「パッチノート」が選択されている場合のみ使用します。検索するために書き始めてください...',
+                'Only used if "Patchnotes" is selected. Start writing to search...': "「パッチノート」が選択されている場合のみ使用します。検索するために書き始めてください...",
                 "Player-Adept": "プレイヤーアデプト",
                 "ping": "ピング",
                 "Test, if the bot is responding.": "ボットが応答しているかテストします。",
@@ -520,7 +521,7 @@ class Translator(discord.app_commands.Translator):
                 'Only used if "Addons" is selected. Start writing to search...': 'Usado apenas se "Add-ons" estiver selecionado. Comece a escrever para pesquisar...',
                 "character": "personagem",
                 'Only used if "Characters" is selected. Start writing to search...': 'Usado apenas se "Personagens" estiver selecionado. Comece a escrever para pesquisar...',
-                'Only used if "DLCs" is selected. Leave empty to get an overview. Start writing to search...': 'Usado se \'DLCs\' selecionado. Vazio para visão geral. Escreva para pesquisar...',
+                'Only used if "DLCs" is selected. Leave empty to get an overview. Start writing to search...': "Usado se 'DLCs' selecionado. Vazio para visão geral. Escreva para pesquisar...",
                 'Only used if "Items" is selected. Start writing to search...': 'Usado apenas se "Itens" estiver selecionado. Comece a escrever para pesquisar...',
                 "map": "mapa",
                 'Only used if "Maps" is selected. Start writing to search...': 'Usado apenas se "Mapas" estiver selecionado. Comece a escrever para pesquisar...',
@@ -557,7 +558,7 @@ class Translator(discord.app_commands.Translator):
                 "Get info about the translation.": "Obtenha informações sobre a tradução.",
             },
             discord.Locale.taiwan_chinese: {
-                'Only used if "Patchnotes" is selected. Start writing to search...': '僅當選擇“補丁說明”時使用。開始寫作以進行搜索...',
+                'Only used if "Patchnotes" is selected. Start writing to search...': "僅當選擇“補丁說明”時使用。開始寫作以進行搜索...",
                 "Player-Adept": "玩家-熟練者",
                 "Test, if the bot is responding.": "測試機器人是否回應。",
                 "botinfo": "機器人資訊",
@@ -629,14 +630,15 @@ class Translator(discord.app_commands.Translator):
             },
         }
 
-
     async def load(self):
         pass
 
-    async def translate(self,
-                        string: discord.app_commands.locale_str,
-                        locale: discord.Locale,
-                        context: discord.app_commands.TranslationContext) -> Optional[str]:
+    async def translate(
+        self,
+        string: discord.app_commands.locale_str,
+        locale: discord.Locale,
+        context: discord.app_commands.TranslationContext,
+    ) -> Optional[str]:
         """
         `locale_str` is the string that is requesting to be translated
         `locale` is the target language to translate to
