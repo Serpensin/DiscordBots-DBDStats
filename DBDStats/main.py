@@ -32,10 +32,10 @@ from CustomModules import killswitch
 from CustomModules import libretrans
 from CustomModules import steam
 from CustomModules import steamcharts
-from CustomModules.app_translation import Translator as CommandTranslator
 from CustomModules.twitch import TwitchAPI
 from discord.utils import is_docker
 from dotenv import load_dotenv
+from modules.app_translation import Translator as CommandTranslator
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 from typing import Any, List, Literal, Optional
@@ -54,7 +54,7 @@ BOT_BASE = 'https://cdn.serpensin.com/botfiles/DBDStats/'
 MAP_PORTRAITS = f'{BOT_BASE}mapportraits/'
 ALT_PLAYERSTATS = 'https://dbd.tricky.lol/playerstats/'
 STEAM_STORE_URL = 'https://store.steampowered.com/app/'
-BOT_VERSION = "1.16.19"
+BOT_VERSION = "1.16.20"
 AVAILABLE_LANGS = ['de', 'en', 'fr', 'es', 'ru', 'ja', 'ko', 'pl', 'pt-BR', 'zh-TW']
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -3396,12 +3396,18 @@ async def translation_info(interaction: discord.Interaction):
 @tree.command(name = 'support', description = 'Get invite to our support server.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 async def support(interaction: discord.Interaction):
-    await interaction.response.defer(thinking = True)
+    await interaction.response.defer(thinking=True)
 
+    if not SUPPORTID:
+        await interaction.followup.send('There is no support server setup!', ephemeral=True)
+        return
+    if interaction.guild is None:
+        await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral=True)
+        return
     if str(interaction.guild.id) != SUPPORTID:
-        await interaction.response.send_message(await Functions.create_support_invite(interaction), ephemeral = True)
+        await interaction.followup.send(await Functions.create_support_invite(interaction), ephemeral=True)
     else:
-        await interaction.response.send_message('You are already in our support server!', ephemeral = True)
+        await interaction.followup.send('You are already in our support server!', ephemeral=True)
 
 
 ##DBD Commands (these commands are for DeadByDaylight.)

@@ -33,17 +33,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="check_for_new_entries.py" />
-    <Compile Include="CustomModules\app_translation.py" />
-    <Compile Include="CustomModules\bot_directory.py" />
-    <Compile Include="CustomModules\googletrans.py" />
-    <Compile Include="CustomModules\log_handler.py" />
-    <Compile Include="CustomModules\steam.py" />
-    <Compile Include="CustomModules\steamcharts.py" />
     <Compile Include="Dockerfile" />
-    <Compile Include="CustomModules\libretrans.py" />
     <Compile Include="main.py" />
-    <Compile Include="CustomModules\killswitch.py" />
-    <Compile Include="CustomModules\twitch.py" />
+    <Compile Include="modules\app_translation.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
@@ -58,7 +50,7 @@
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="CustomModules\" />
+    <Folder Include="modules\" />
     <Folder Include="Docker-Compose\" />
   </ItemGroup>
   <ItemGroup>

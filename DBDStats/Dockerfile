@@ -2,7 +2,7 @@
 
 WORKDIR /app
 
-COPY CustomModules ./CustomModules
+COPY modules ./modules
 COPY main.py .
 COPY __init__.py .
 COPY requirements.txt .
@@ -31,7 +31,7 @@ EXPOSE 5000
 LABEL MAINTAINER="Discord: pika.pika.no.mi (970119359840284743)" \
       DESCRIPTION="Discord bot for DBD for Steam stats." \
       RELEASE=$BUILD_DATE \
-      VERSION="1.16.19" \
+      VERSION="1.16.20" \
       URL="https://github.com/Serpensin/DiscordBots-DBDStats"
 
 CMD ["python3", "main.py"]
