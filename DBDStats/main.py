@@ -523,10 +523,10 @@ class aclient(discord.AutoShardedClient):
         self.stats = bot_directory.Stats(
             bot=bot,
             logger=program_logger,
-            TOPGG_TOKEN=TOPGG_TOKEN,
-            DISCORDBOTS_TOKEN=DISCORDBOTS_TOKEN,
-            DISCORDBOTLISTCOM_TOKEN=DISCORDBOTLISTCOM_TOKEN,
-            DISCORDLIST_TOKEN=DISCORDLIST_TOKEN,
+            topgg_token=TOPGG_TOKEN,
+            discordbots_token=DISCORDBOTS_TOKEN,
+            discordbotlistcom_token=DISCORDBOTLISTCOM_TOKEN,
+            discordlist_token=DISCORDLIST_TOKEN,
         )
         program_logger.info("Starting background tasks")
         bot.loop.create_task(Background.check_db_connection_task())
