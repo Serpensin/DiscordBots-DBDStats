@@ -9,7 +9,7 @@ cachetools
 certifi
 charset-normalizer
 colorama
-CustomModules[log_handler,bot_directory,googletrans,killswitch,libretrans,steam,steamcharts,twitch]
+CustomModules[loghandler,botdirectory,googletrans,killswitch,libretrans,steam,steamcharts,twitch]
 discord.py>=2.3.0
 dnspython
 exceptiongroup

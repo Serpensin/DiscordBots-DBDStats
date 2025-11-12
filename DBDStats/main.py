@@ -31,7 +31,7 @@ import sentry_sdk
 from aiohttp import web
 from bs4 import BeautifulSoup
 from CustomModules import (bot_directory, googletrans, killswitch, libretrans,
-                           log_handler, steam, steamcharts)
+                           log_handler, steam, steam_charts)
 from CustomModules.twitch import TwitchAPI
 from discord.utils import is_docker
 from dotenv import load_dotenv
@@ -49,7 +49,7 @@ BOT_BASE = "https://cdn.serpensin.com/botfiles/DBDStats/"
 MAP_PORTRAITS = f"{BOT_BASE}mapportraits/"
 ALT_PLAYERSTATS = "https://dbd.tricky.lol/playerstats/"
 STEAM_STORE_URL = "https://store.steampowered.com/app/"
-BOT_VERSION = "1.16.21"
+BOT_VERSION = "1.16.22"
 AVAILABLE_LANGS = ["de", "en", "fr", "es", "ru", "ja", "ko", "pl", "pt-BR", "zh-TW"]
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -3117,7 +3117,7 @@ class Info:
             await interaction.followup.send(embed=embed)
 
         async def selfget():
-            data = await steamcharts.playercount("381210")
+            data = await steam_charts.playercount("381210")
             try:
                 current_players = data["Current Players"]
                 day_peak = data["Peak Players 24h"]
