@@ -49,7 +49,7 @@ BOT_BASE = "https://cdn.serpensin.com/botfiles/DBDStats/"
 MAP_PORTRAITS = f"{BOT_BASE}mapportraits/"
 ALT_PLAYERSTATS = "https://dbd.tricky.lol/playerstats/"
 STEAM_STORE_URL = "https://store.steampowered.com/app/"
-BOT_VERSION = "1.16.22"
+BOT_VERSION = "1.16.23"
 AVAILABLE_LANGS = ["de", "en", "fr", "es", "ru", "ja", "ko", "pl", "pt-BR", "zh-TW"]
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -276,6 +276,12 @@ except ValueError as e:
         f"Error connecting to LibreTranslate. | Disabling translation. -> {e}"
     )
     isLibreAvailable = False
+
+# Ensure at least one translation provider is available
+if not isGoogleAvailable and not isLibreAvailable:
+    error_message = "No translation providers available. Both GoogleTranslate and LibreTranslate are disabled. Exiting."
+    program_logger.critical(error_message)
+    sys.exit(error_message)
 
 # Twitch API
 try:

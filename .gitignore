@@ -361,15 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/DBDStats/DBDStats/Buffer
+/DBDStats/Buffer
 /DBDStats/.env
-/DBDStats/env
-/DBDStats/DBDStats/activity.json
-/DBDStats/DBDStats/DBDStats.db
-/DBDStats/googleauth.json
-/DBDStats/playground.py
-/DBDStats/translation_test.txt
-/DBDStats/playground
-/DBDStats/temp
+/DBDStats/activity.json
+/DBDStats/DBDStats.db
 /DBDStats/missing_keys.txt
 googleauth-dbdstats.json
