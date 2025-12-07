@@ -372,3 +372,4 @@ FodyWeavers.xsd
 /DBDStats/playground
 /DBDStats/temp
 /DBDStats/missing_keys.txt
+googleauth-dbdstats.json

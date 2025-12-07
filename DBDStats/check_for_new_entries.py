@@ -34,11 +34,14 @@ def compare_keys(file_path, url):
     return missing_in_file
 
 
-file_path = "main.py"
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(script_dir, "main.py")
 json_url = "https://dbd.tricky.lol/api/playerstats?steamid=76561198424893695"
 
 missing_keys = compare_keys(file_path, json_url)
 
-with open("missing_keys.txt", "w", encoding="utf-8") as output_file:
+output_file_path = os.path.join(script_dir, "missing_keys.txt")
+with open(output_file_path, "w", encoding="utf-8") as output_file:
     for key in missing_keys:
         output_file.write(f"{key}\n")
