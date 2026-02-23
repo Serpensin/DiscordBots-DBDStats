@@ -49,7 +49,7 @@ BOT_BASE = "https://cdn.serpensin.com/botfiles/DBDStats/"
 MAP_PORTRAITS = f"{BOT_BASE}mapportraits/"
 ALT_PLAYERSTATS = "https://dbd.tricky.lol/playerstats/"
 STEAM_STORE_URL = "https://store.steampowered.com/app/"
-BOT_VERSION = "1.16.23"
+BOT_VERSION = "1.16.24"
 AVAILABLE_LANGS = ["de", "en", "fr", "es", "ru", "ja", "ko", "pl", "pt-BR", "zh-TW"]
 DBD_STEAM_APP_ID = 381210
 isRunningInDocker = is_docker()
@@ -2396,7 +2396,7 @@ class Info:
 
     async def adepts(interaction: discord.Integration, steamid):
         try:
-            ownesDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
+            ownesDBD = await SteamApi.owns_game(steamid, DBD_STEAM_APP_ID)
         except ValueError:
             await interaction.followup.send(
                 f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}'
@@ -2913,7 +2913,7 @@ class Info:
 
     async def legacycheck(interaction: discord.Interaction, steamid):
         try:
-            ownsDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
+            ownsDBD = await SteamApi.owns_game(steamid, DBD_STEAM_APP_ID)
         except ValueError:
             await interaction.followup.send(
                 f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}'
@@ -3205,7 +3205,7 @@ class Info:
                 ownsDBD = True
         else:
             try:
-                ownsDBD = await SteamApi.ownsGame(steamid, DBD_STEAM_APP_ID)
+                ownsDBD = await SteamApi.owns_game(steamid, DBD_STEAM_APP_ID)
             except ValueError:
                 await interaction.followup.send(
                     f'`{steamid}` {await Functions.translate(interaction, "is not a valid SteamID/Link.")}'
@@ -4365,6 +4365,24 @@ class Info:
                 player_stats,
                 interaction,
             )
+            await Functions.safe_add_field(
+                embed7,
+                await Functions.translate(
+                    interaction, "Hit survivor while they heal another or repairing a generator"
+                ),
+                "survivorshit_healinganother_repairing",
+                player_stats,
+                interaction,
+            )
+            await Functions.safe_add_field(
+                embed7,
+                await Functions.translate(
+                    interaction, "Hit survivor using vine or Undergate Attack"
+                ),
+                "survivorshit_vine_undergate",
+                player_stats,
+                interaction,
+            )
 
             # Embed 8 - Hooked
             embed8.add_field(name="\u200b", value="\u200b", inline=False)
@@ -4809,9 +4827,21 @@ class Info:
                 embed12,
             ]
             await interaction.delete_original_response()
-            await interaction.followup.send(embeds=embeds[0:4])
-            await interaction.followup.send(embeds=embeds[4:8])
-            await interaction.followup.send(embeds=embeds[8:12])
+            for embed in embeds:
+                try:
+                    await interaction.followup.send(embed=embed)
+                except Exception as e:
+                    program_logger.error(f"Error while sending statistics: {e}")
+                    await interaction.followup.send(
+                        await Functions.translate(
+                            interaction,
+                            "An error occurred while sending the statistics.",
+                        )
+                    )
+                    return
+            #await interaction.followup.send(embeds=embeds[0:4])
+            #await interaction.followup.send(embeds=embeds[4:8])
+            #await interaction.followup.send(embeds=embeds[8:12])
 
     async def rankreset(interaction: discord.Interaction):
         async with aiohttp.ClientSession() as session:
